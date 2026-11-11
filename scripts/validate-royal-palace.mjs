@@ -296,3 +296,24 @@ for(const door of seamPalace.userData.royalRoomDoors.filter(d=>d.y>10)){
  }
 }
 console.log('All four upper bedroom thresholds have a single continuous paving surface without z-fighting.');
+
+const midPlaza=raised.userData.intermediatePlaza;
+const accessFlights=raised.userData.palaceAccessFlights;
+assert.equal(accessFlights.length,2,'Exterior palace access is split into two flights');
+assert(Math.abs(midPlaza.height-(raised.userData.plazaFloorElevation+raised.userData.palaceFloorElevation)/2)<1e-8,'Intermediate plaza is at exactly half the stair height');
+assert.equal(midPlaza.landingDepth,8,'Intermediate plaza has a generous flat eight-metre central landing');
+assert.equal(midPlaza.right-midPlaza.left,108,'Intermediate plaza spans the palace frontage');
+assert.equal(accessFlights[0].top,midPlaza.height);
+assert.equal(accessFlights[1].bottom,midPlaza.height);
+assert.equal(accessFlights[0].back,midPlaza.landingFront);
+assert.equal(accessFlights[1].front,midPlaza.landingBack);
+for(const x of [-40,0,40])for(const z of [midPlaza.landingBack+.8,(midPlaza.landingBack+midPlaza.landingFront)/2,midPlaza.landingFront-.8]){
+ const p=raised.localToWorld(new T.Vector3(x,midPlaza.height,z));
+ const support=raisedBuilder.walkHeightAt(p.x,p.z,p.y);
+ assert(Math.abs(support-p.y)<.02,'Entire intermediate plaza provides level walkable support');
+ const hit=new T.Raycaster(new T.Vector3(x,midPlaza.height+1,z),new T.Vector3(0,-1,0),0,2).intersectObject(raised,true)[0];
+ assert(hit?.object.userData.cityPaving,'Intermediate plaza has real paving geometry');
+ assert(Math.abs(hit.point.y-midPlaza.height)<1e-5,'Visible paving matches collision support');
+}
+for(const post of raised.userData.npcGuardPosts.slice(-2))assert.equal(post[1],midPlaza.height,'Entrance guards stand on the intermediate plaza');
+console.log('Two exterior palace flights, full-width intermediate plaza, flat landing and guard support validated.');
