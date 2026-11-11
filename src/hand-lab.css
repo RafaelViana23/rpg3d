@@ -1,0 +1,52 @@
+:root{font-family:Inter,system-ui,sans-serif;color:#e7edf1;background:#0d151d}*{box-sizing:border-box}body{margin:0;overflow:hidden}#hand-lab{height:100dvh;display:grid;grid-template-rows:70px minmax(0,1fr)}header{display:flex;align-items:center;justify-content:space-between;padding:0 4vw;border-bottom:1px solid #30404b;color:#e5c38d;letter-spacing:.14em}header div{display:flex;flex-direction:column;gap:4px}header small{font-size:9px;color:#8296a3}a{color:#d9e4ea;text-decoration:none;border:1px solid #41535f;padding:8px 12px;border-radius:7px;font-size:11px}main{min-height:0;display:grid;grid-template-columns:minmax(0,1fr) 310px;gap:16px;padding:16px 4vw}#handViewport{min-height:0;border:1px solid #40525e;border-radius:14px;overflow:hidden}canvas{display:block;width:100%;height:100%}aside{background:#151f29;border:1px solid #34434e;border-radius:14px;padding:22px}h1{font:26px Georgia,serif;margin:0 0 8px;color:#f1e8dc}p{font-size:12px;color:#9eafb9;line-height:1.5}label{display:block;margin:20px 0 8px;color:#bdc9cf;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em}button{border:1px solid #435460;background:#263843;color:#deeaef;border-radius:7px;padding:8px 10px;margin:3px;font-size:11px;cursor:pointer}button.active{background:#63513a;border-color:#d0a768;color:#ffe0ad}.legend{margin-top:20px;color:#8497a2;font-size:11px}.legend i{display:inline-block;width:8px;height:8px;border-radius:50%;margin:0 4px 0 10px}.x{background:#f45b5b}.y{background:#64d879}.z{background:#5c86ff}@media(max-width:760px){body{overflow:auto}#hand-lab{height:auto;min-height:100dvh}main{grid-template-columns:1fr}#handViewport{height:65dvh}aside{margin-bottom:16px}}
+
+main{grid-template-columns:minmax(0,1fr) 340px}
+aside{min-height:0;overflow:hidden;padding:16px 18px}
+aside h1{font-size:23px;margin-bottom:4px}aside>p{margin:4px 0}
+aside>label{margin:10px 0 5px}
+#swordTuning>label{margin:10px 0 4px}
+#boneTuning>label{margin:10px 0 5px}
+.bone-selectors{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-bottom:5px}
+.bone-selectors select{min-width:0;width:100%;border:1px solid #40535f;border-radius:5px;background:#0f1921;color:#edf4f7;padding:5px 4px;font-size:9px}
+#boneRotationControls{display:grid;grid-template-columns:repeat(3,1fr);gap:5px}
+.axis-control.bone-axis{grid-template-columns:12px minmax(32px,1fr) 48px;margin:2px 0}
+.axis-control.bone-axis input[type=number]{width:48px}
+#boneMessage{display:block;min-height:14px;margin:3px;color:#bcd6c4;font-size:9px}
+#swordTuning>p{margin:0 0 8px;font-size:10px}
+#socketControls{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+fieldset{min-width:0;border:1px solid #344a56;border-radius:8px;margin:4px 0;padding:5px 6px 6px}
+legend{padding:0 6px;color:#d9c39e;font-size:10px;text-transform:uppercase;letter-spacing:.08em}
+.axis-control{display:grid;grid-template-columns:14px minmax(38px,1fr) 55px;align-items:center;gap:4px;margin:4px 0}
+.axis-control span{font-weight:800}.axis-x{color:#f46c6c}.axis-y{color:#69dc7e}.axis-z{color:#6e96ff}
+.axis-control input[type=range]{width:100%;accent-color:#c99d5d}
+.axis-control input[type=number]{width:55px;border:1px solid #40535f;border-radius:5px;background:#0f1921;color:#edf4f7;padding:4px;font-size:9px}
+.tuning-actions{display:flex}.tuning-actions button{flex:1}#saveSocket{background:#765b37;border-color:#d0a768;color:#ffe0ad}
+#socketMessage{display:block;min-height:16px;margin:5px 3px;color:#bcd6c4;font-size:10px}
+@media(max-height:760px) and (min-width:761px){header{height:54px}#hand-lab{grid-template-rows:54px minmax(0,1fr)}main{padding-top:8px;padding-bottom:8px}aside{padding:10px 14px}aside h1{font-size:19px}button{padding:5px 7px}aside>p{display:none}}
+@media(max-width:760px){aside{overflow:visible}#socketControls{grid-template-columns:1fr}}
+@media(max-height:760px) and (min-width:761px){
+  #poses{display:flex;gap:3px;flex-wrap:nowrap}#poses button{min-width:0;margin:0;padding:4px 5px;font-size:8px}
+  aside>label,#boneTuning>label,#swordTuning>label{margin-top:6px}
+  #swordTuning>p{display:none}.tuning-actions button{margin-top:1px;margin-bottom:1px}
+  #socketMessage,#boneMessage{min-height:10px;margin:1px 3px}
+  .legend{margin-top:5px}fieldset{margin:2px 0}.axis-control{margin:2px 0}
+}
+
+/* Comfortable editor layout: the viewport remains fixed while the inspector
+   itself may scroll. Controls are intentionally full-width, not squeezed. */
+main{grid-template-columns:minmax(0,1fr) 420px}
+aside{overflow-y:auto;overflow-x:hidden;padding:22px}
+aside h1{font-size:25px;margin-bottom:6px}
+aside>label,#boneTuning>label,#swordTuning>label{margin:16px 0 8px}
+.bone-selectors{gap:8px;margin-bottom:10px}
+.bone-selectors select{padding:8px;font-size:11px}
+#boneTransformControls,#socketControls{display:grid;grid-template-columns:1fr;gap:8px}
+fieldset{padding:9px 11px 11px;margin:2px 0}
+.axis-control{grid-template-columns:20px minmax(120px,1fr) 74px;gap:8px;margin:7px 0}
+.axis-control input[type=number]{width:74px;padding:6px;font-size:11px}
+.tuning-actions{gap:7px}.tuning-actions button{padding:8px 10px}
+.rig-controls{display:grid;grid-template-columns:1fr 1fr;gap:7px}.rig-controls button{margin:0;padding:9px}
+#boneMessage,#socketMessage{min-height:18px;margin:5px 3px;font-size:10px}
+@media(max-height:760px) and (min-width:761px){aside{padding:18px}aside h1{font-size:22px}aside>p{display:block}button{padding:7px 9px}#poses{flex-wrap:wrap}#poses button{font-size:10px;padding:6px 8px}.axis-control{margin:6px 0}}
+@media(max-width:900px){main{grid-template-columns:minmax(0,1fr) 370px}.axis-control{grid-template-columns:18px minmax(80px,1fr) 66px}.axis-control input[type=number]{width:66px}}
+@media(max-width:760px){main{grid-template-columns:1fr}aside{overflow:visible}}

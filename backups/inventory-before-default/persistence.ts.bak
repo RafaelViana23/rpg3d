@@ -1,0 +1,7 @@
+import {INVENTORY_CATALOG} from './catalog';
+import type {PersistedInventory} from './types';
+
+export const INVENTORY_STORAGE_KEY='rpg3d.inventory.v1';
+const initial=():PersistedInventory=>({version:1,level:1,xp:0,gold:0,hp:100,stamina:50,hunger:100,thirst:100,worldTime:8/24,worldDay:1,weather:'clear',weatherIntensity:.8,quantities:Object.fromEntries(INVENTORY_CATALOG.map(item=>[item.id,item.quantity])),equipped:{},quickSlots:['hp-potion','stamina-potion',null,null]});
+export function loadInventory():PersistedInventory{try{const saved=JSON.parse(localStorage.getItem(INVENTORY_STORAGE_KEY)||'null') as PersistedInventory|null;if(saved?.version===1)return{...initial(),...saved,quantities:{...initial().quantities,...saved.quantities},equipped:{...saved.equipped},quickSlots:Array.isArray(saved.quickSlots)?[...saved.quickSlots].slice(0,4):initial().quickSlots};}catch{/* use defaults */}return initial();}
+export function saveInventory(state:PersistedInventory){localStorage.setItem(INVENTORY_STORAGE_KEY,JSON.stringify(state));}

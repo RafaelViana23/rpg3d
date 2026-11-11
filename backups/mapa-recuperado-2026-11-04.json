@@ -1,0 +1,657 @@
+{
+  "version": 4,
+  "mapWidth": 50,
+  "mapDepth": 35,
+  "assets": {},
+  "removedAssets": [],
+  "terrain": {},
+  "city": {
+    "capital-octagon-tower-1": {
+      "id": "capital-octagon-tower-1",
+      "kind": "tower",
+      "layer": "Cidade Principal",
+      "position": [
+        208.22591975467944,
+        14.006949177405367,
+        93.75
+      ],
+      "rotation": [
+        0,
+        -0.39269908169872414,
+        0
+      ],
+      "scale": [
+        4.25,
+        4.25,
+        4.25
+      ]
+    },
+    "capital-octagon-tower-2": {
+      "id": "capital-octagon-tower-2",
+      "kind": "tower",
+      "layer": "Cidade Principal",
+      "position": [
+        86.25000000000001,
+        15.128960930664157,
+        215.72591975467944
+      ],
+      "rotation": [
+        0,
+        -1.1780972450961724,
+        0
+      ],
+      "scale": [
+        4.25,
+        4.25,
+        4.25
+      ]
+    },
+    "capital-octagon-tower-3": {
+      "id": "capital-octagon-tower-3",
+      "kind": "tower",
+      "layer": "Cidade Principal",
+      "position": [
+        -86.24999999999999,
+        15.835490456992181,
+        215.72591975467944
+      ],
+      "rotation": [
+        0,
+        -1.9634954084936207,
+        0
+      ],
+      "scale": [
+        4.25,
+        4.25,
+        4.25
+      ]
+    },
+    "capital-octagon-tower-4": {
+      "id": "capital-octagon-tower-4",
+      "kind": "tower",
+      "layer": "Cidade Principal",
+      "position": [
+        -208.22591975467944,
+        16.94812825148529,
+        93.75000000000003
+      ],
+      "rotation": [
+        0,
+        -2.748893571891069,
+        0
+      ],
+      "scale": [
+        4.25,
+        4.25,
+        4.25
+      ]
+    },
+    "capital-octagon-tower-5": {
+      "id": "capital-octagon-tower-5",
+      "kind": "tower",
+      "layer": "Cidade Principal",
+      "position": [
+        -208.22591975467947,
+        19.073189927949084,
+        -78.74999999999997
+      ],
+      "rotation": [
+        0,
+        -3.5342917352885173,
+        0
+      ],
+      "scale": [
+        4.25,
+        4.25,
+        4.25
+      ]
+    },
+    "capital-octagon-tower-6": {
+      "id": "capital-octagon-tower-6",
+      "kind": "tower",
+      "layer": "Cidade Principal",
+      "position": [
+        -86.25000000000013,
+        18.493517454523392,
+        -200.72591975467938
+      ],
+      "rotation": [
+        0,
+        -4.319689898685965,
+        0
+      ],
+      "scale": [
+        4.25,
+        4.25,
+        4.25
+      ]
+    },
+    "capital-octagon-tower-7": {
+      "id": "capital-octagon-tower-7",
+      "kind": "tower",
+      "layer": "Cidade Principal",
+      "position": [
+        86.25000000000004,
+        16.84815363185089,
+        -200.7259197546794
+      ],
+      "rotation": [
+        0,
+        -5.105088062083414,
+        0
+      ],
+      "scale": [
+        4.25,
+        4.25,
+        4.25
+      ]
+    },
+    "capital-octagon-tower-8": {
+      "id": "capital-octagon-tower-8",
+      "kind": "tower",
+      "layer": "Cidade Principal",
+      "position": [
+        208.22591975467938,
+        14.899063163756448,
+        -78.75000000000014
+      ],
+      "rotation": [
+        0,
+        -5.890486225480862,
+        0
+      ],
+      "scale": [
+        4.25,
+        4.25,
+        4.25
+      ]
+    },
+    "capital-octagon-wall-1-1": {
+      "id": "capital-octagon-wall-1-1",
+      "kind": "wall",
+      "layer": "Cidade Principal",
+      "position": [
+        179.05776503073434,
+        14.817811462514994,
+        122.9181547239451
+      ],
+      "rotation": [
+        0,
+        -2.356194490192345,
+        0
+      ],
+      "scale": [
+        3.75,
+        3.75,
+        3.75
+      ]
+    },
+    "capital-octagon-gate-1-2": {
+      "id": "capital-octagon-gate-1-2",
+      "kind": "gate",
+      "layer": "Cidade Principal",
+      "position": [
+        147.2379598773397,
+        15.418182190068851,
+        154.73795987733973
+      ],
+      "rotation": [
+        0,
+        -2.356194490192345,
+        0
+      ],
+      "scale": [
+        3.2142857142857144,
+        3.75,
+        3.75
+      ]
+    },
+    "capital-octagon-wall-1-3": {
+      "id": "capital-octagon-wall-1-3",
+      "kind": "wall",
+      "layer": "Cidade Principal",
+      "position": [
+        115.41815472394508,
+        16.43612423145023,
+        186.55776503073437
+      ],
+      "rotation": [
+        0,
+        -2.356194490192345,
+        0
+      ],
+      "scale": [
+        3.75,
+        3.75,
+        3.75
+      ]
+    },
+    "capital-octagon-wall-2-1": {
+      "id": "capital-octagon-wall-2-1",
+      "kind": "wall",
+      "layer": "Cidade Principal",
+      "position": [
+        45.000000000000014,
+        14.810430343962183,
+        215.72591975467944
+      ],
+      "rotation": [
+        0,
+        -3.141592653589793,
+        0
+      ],
+      "scale": [
+        3.75,
+        3.75,
+        3.75
+      ]
+    },
+    "capital-octagon-wall-2-2": {
+      "id": "capital-octagon-wall-2-2",
+      "kind": "wall",
+      "layer": "Cidade Principal",
+      "position": [
+        1.4210854715202004e-14,
+        14.85237041684569,
+        215.72591975467944
+      ],
+      "rotation": [
+        0,
+        -3.141592653589793,
+        0
+      ],
+      "scale": [
+        3.75,
+        3.75,
+        3.75
+      ]
+    },
+    "capital-octagon-wall-2-3": {
+      "id": "capital-octagon-wall-2-3",
+      "kind": "wall",
+      "layer": "Cidade Principal",
+      "position": [
+        -44.999999999999986,
+        14.842640093474845,
+        215.72591975467944
+      ],
+      "rotation": [
+        0,
+        -3.141592653589793,
+        0
+      ],
+      "scale": [
+        3.75,
+        3.75,
+        3.75
+      ]
+    },
+    "capital-octagon-wall-3-1": {
+      "id": "capital-octagon-wall-3-1",
+      "kind": "wall",
+      "layer": "Cidade Principal",
+      "position": [
+        -115.41815472394507,
+        15.296389123893508,
+        186.55776503073437
+      ],
+      "rotation": [
+        0,
+        2.3561944901923453,
+        0
+      ],
+      "scale": [
+        3.75,
+        3.75,
+        3.75
+      ]
+    },
+    "capital-octagon-wall-3-2": {
+      "id": "capital-octagon-wall-3-2",
+      "kind": "wall",
+      "layer": "Cidade Principal",
+      "position": [
+        -147.2379598773397,
+        16.82191973876983,
+        154.73795987733973
+      ],
+      "rotation": [
+        0,
+        2.3561944901923453,
+        0
+      ],
+      "scale": [
+        3.75,
+        3.75,
+        3.75
+      ]
+    },
+    "capital-octagon-wall-3-3": {
+      "id": "capital-octagon-wall-3-3",
+      "kind": "wall",
+      "layer": "Cidade Principal",
+      "position": [
+        -179.05776503073434,
+        17.33897454267653,
+        122.9181547239451
+      ],
+      "rotation": [
+        0,
+        2.3561944901923453,
+        0
+      ],
+      "scale": [
+        3.75,
+        3.75,
+        3.75
+      ]
+    },
+    "capital-octagon-wall-4-1": {
+      "id": "capital-octagon-wall-4-1",
+      "kind": "wall",
+      "layer": "Cidade Principal",
+      "position": [
+        -208.22591975467944,
+        16.593891469031227,
+        52.50000000000003
+      ],
+      "rotation": [
+        0,
+        1.5707963267948968,
+        0
+      ],
+      "scale": [
+        3.75,
+        3.75,
+        3.75
+      ]
+    },
+    "capital-octagon-wall-4-2": {
+      "id": "capital-octagon-wall-4-2",
+      "kind": "wall",
+      "layer": "Cidade Principal",
+      "position": [
+        -208.22591975467947,
+        16.096873830043336,
+        7.500000000000028
+      ],
+      "rotation": [
+        0,
+        1.5707963267948968,
+        0
+      ],
+      "scale": [
+        3.75,
+        3.75,
+        3.75
+      ]
+    },
+    "capital-octagon-wall-4-3": {
+      "id": "capital-octagon-wall-4-3",
+      "kind": "wall",
+      "layer": "Cidade Principal",
+      "position": [
+        -208.22591975467947,
+        17.689034810648515,
+        -37.49999999999997
+      ],
+      "rotation": [
+        0,
+        1.5707963267948968,
+        0
+      ],
+      "scale": [
+        3.75,
+        3.75,
+        3.75
+      ]
+    },
+    "capital-octagon-wall-5-1": {
+      "id": "capital-octagon-wall-5-1",
+      "kind": "wall",
+      "layer": "Cidade Principal",
+      "position": [
+        -179.0577650307344,
+        18.912541126310774,
+        -107.91815472394507
+      ],
+      "rotation": [
+        0,
+        0.7853981633974486,
+        0
+      ],
+      "scale": [
+        3.75,
+        3.75,
+        3.75
+      ]
+    },
+    "capital-octagon-gate-5-2": {
+      "id": "capital-octagon-gate-5-2",
+      "kind": "gate",
+      "layer": "Cidade Principal",
+      "position": [
+        -147.23795987733976,
+        18.987765581255925,
+        -139.7379598773397
+      ],
+      "rotation": [
+        0,
+        0.7853981633974486,
+        0
+      ],
+      "scale": [
+        3.2142857142857144,
+        3.75,
+        3.75
+      ]
+    },
+    "capital-octagon-wall-5-3": {
+      "id": "capital-octagon-wall-5-3",
+      "kind": "wall",
+      "layer": "Cidade Principal",
+      "position": [
+        -115.41815472394514,
+        18.38066982887267,
+        -171.55776503073434
+      ],
+      "rotation": [
+        0,
+        0.7853981633974486,
+        0
+      ],
+      "scale": [
+        3.75,
+        3.75,
+        3.75
+      ]
+    },
+    "capital-octagon-wall-6-1": {
+      "id": "capital-octagon-wall-6-1",
+      "kind": "wall",
+      "layer": "Cidade Principal",
+      "position": [
+        -45.00000000000013,
+        15.946207906230033,
+        -200.72591975467938
+      ],
+      "rotation": [
+        0,
+        1.6476353292987813e-16,
+        0
+      ],
+      "scale": [
+        3.75,
+        3.75,
+        3.75
+      ]
+    },
+    "capital-octagon-wall-6-2": {
+      "id": "capital-octagon-wall-6-2",
+      "kind": "wall",
+      "layer": "Cidade Principal",
+      "position": [
+        -1.2789769243681803e-13,
+        14.476942052151317,
+        -200.72591975467938
+      ],
+      "rotation": [
+        0,
+        1.6476353292987813e-16,
+        0
+      ],
+      "scale": [
+        3.75,
+        3.75,
+        3.75
+      ]
+    },
+    "capital-octagon-wall-6-3": {
+      "id": "capital-octagon-wall-6-3",
+      "kind": "wall",
+      "layer": "Cidade Principal",
+      "position": [
+        44.99999999999987,
+        15.63227271203733,
+        -200.7259197546794
+      ],
+      "rotation": [
+        0,
+        1.6476353292987813e-16,
+        0
+      ],
+      "scale": [
+        3.75,
+        3.75,
+        3.75
+      ]
+    },
+    "capital-octagon-wall-7-1": {
+      "id": "capital-octagon-wall-7-1",
+      "kind": "wall",
+      "layer": "Cidade Principal",
+      "position": [
+        115.41815472394514,
+        17.207960592881797,
+        -171.55776503073434
+      ],
+      "rotation": [
+        0,
+        -0.7853981633974481,
+        0
+      ],
+      "scale": [
+        3.75,
+        3.75,
+        3.75
+      ]
+    },
+    "capital-octagon-gate-7-2": {
+      "id": "capital-octagon-gate-7-2",
+      "kind": "gate",
+      "layer": "Cidade Principal",
+      "position": [
+        147.2379598773398,
+        16.714297624089067,
+        -139.7379598773397
+      ],
+      "rotation": [
+        0,
+        -0.7853981633974481,
+        0
+      ],
+      "scale": [
+        3.2142857142857144,
+        3.75,
+        3.75
+      ]
+    },
+    "capital-octagon-wall-7-3": {
+      "id": "capital-octagon-wall-7-3",
+      "kind": "wall",
+      "layer": "Cidade Principal",
+      "position": [
+        179.0577650307344,
+        15.68856278350868,
+        -107.91815472394508
+      ],
+      "rotation": [
+        0,
+        -0.7853981633974481,
+        0
+      ],
+      "scale": [
+        3.75,
+        3.75,
+        3.75
+      ]
+    },
+    "capital-octagon-wall-8-1": {
+      "id": "capital-octagon-wall-8-1",
+      "kind": "wall",
+      "layer": "Cidade Principal",
+      "position": [
+        208.22591975467938,
+        15.194297585280681,
+        -37.50000000000014
+      ],
+      "rotation": [
+        0,
+        -1.5707963267948963,
+        0
+      ],
+      "scale": [
+        3.75,
+        3.75,
+        3.75
+      ]
+    },
+    "capital-octagon-wall-8-2": {
+      "id": "capital-octagon-wall-8-2",
+      "kind": "wall",
+      "layer": "Cidade Principal",
+      "position": [
+        208.2259197546794,
+        15.629658527573408,
+        7.499999999999858
+      ],
+      "rotation": [
+        0,
+        -1.5707963267948963,
+        0
+      ],
+      "scale": [
+        3.75,
+        3.75,
+        3.75
+      ]
+    },
+    "capital-octagon-wall-8-3": {
+      "id": "capital-octagon-wall-8-3",
+      "kind": "wall",
+      "layer": "Cidade Principal",
+      "position": [
+        208.22591975467944,
+        14.601852395199877,
+        52.49999999999986
+      ],
+      "rotation": [
+        0,
+        -1.5707963267948963,
+        0
+      ],
+      "scale": [
+        3.75,
+        3.75,
+        3.75
+      ]
+    }
+  },
+  "worldPreset": "arena-island-v1",
+  "pathsRemoved": true,
+  "sceneryCleaned": true,
+  "sceneryCleanupRevision": 1,
+  "sceneryCleanupBackup": {},
+  "harborCleanupRevision": 1,
+  "forestErasures": []
+}

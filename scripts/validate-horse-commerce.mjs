@@ -1,0 +1,22 @@
+import assert from 'node:assert/strict';
+import {build} from 'esbuild';
+const result=await build({stdin:{contents:"export * from './src/player/HorseCommerce';export * from './src/player/RideableHorses';export {createCityPopulation} from './src/editor/CityPopulation';export {citizenRoutine} from './src/editor/ResidentSchedule';export {loadInventory,saveInventory} from './src/inventory/persistence';export * as T from 'three';",resolveDir:process.cwd()},bundle:true,write:false,platform:'node',format:'esm'});
+const {T,buyHorse,ownsHorse,horseId,HORSE_PRICE,registerRideableHorse,nearestRideableHorse,resolveHorseCollision,createCityPopulation,citizenRoutine,loadInventory,saveInventory}=await import(`data:text/javascript;base64,${Buffer.from(result.outputFiles[0].text).toString('base64')}`);
+const store=new Map();globalThis.localStorage={getItem:k=>store.get(k)??null,setItem:(k,v)=>store.set(k,v)};
+const scene=new T.Scene(),stable=new T.Group();scene.add(stable);stable.name='Cidade:stable';stable.position.set(10,0,20);stable.rotation.y=.6;
+const root=new T.Group(),body=new T.Mesh(new T.BoxGeometry(1,2,3),new T.MeshBasicMaterial());body.position.set(1,1,0);root.add(body);stable.add(root);root.userData.stableId='stable';root.userData.rideableHorseId='stable:horse:0';
+const horse=registerRideableHorse(root),state=loadInventory();state.gold=HORSE_PRICE-1;
+assert(!ownsHorse(state,horse));assert(!buyHorse(state,'stable',horseId(horse)).ok);assert.equal(state.gold,HORSE_PRICE-1);
+state.gold=HORSE_PRICE;assert(!buyHorse(state,'other-stable',horseId(horse)).ok);assert.equal(state.gold,HORSE_PRICE);
+assert(buyHorse(state,'stable',horseId(horse)).ok);assert.equal(state.gold,0);assert(ownsHorse(state,horse));
+assert(!buyHorse(state,'stable',horseId(horse)).ok);assert.equal(state.ownedHorses.length,1);
+saveInventory(state);assert(ownsHorse(loadInventory(),horse),'Ownership survives reload');
+const byHorse=root.localToWorld(new T.Vector3(1,.1,2));assert.equal(nearestRideableHorse(byHorse,h=>ownsHorse(state,h)).state,horse);
+assert.equal(nearestRideableHorse(byHorse,h=>ownsHorse({...state,ownedHorses:[]},h)).state,undefined,'Unbought horse cannot be selected for mounting');
+const point=root.localToWorld(new T.Vector3(1,.1,0)),before=point.clone();resolveHorseCollision(horse,point,.32);assert(point.distanceTo(before)>.5,'Visible body blocks walking even with offset root and rotated stable');
+const above=before.clone();above.y=20;resolveHorseCollision(horse,above,.32);assert.equal(above.y,20);assert.equal(above.x,before.x);
+const saddle=horse.anchor.getWorldPosition(new T.Vector3());scene.attach(root);assert(horse.anchor.getWorldPosition(new T.Vector3()).distanceTo(saddle)<1e-6);assert(ownsHorse(loadInventory(),horse),'Ownership survives leaving stable');
+const homes=new Map([['stable',stable]]);for(let i=0;i<140;i++){const h=new T.Group();h.name='Cidade:house';h.position.x=i;homes.set(`house-${i}`,h);}
+const population=createCityPopulation(homes),keepers=population.filter(c=>c.role==='cavalarico');assert.equal(keepers.length,1);assert.equal(keepers[0].gender,'homem');assert.equal(keepers[0].workId,'stable');assert.notEqual(keepers[0].homeId,'stable');assert.equal(population.length,146);
+for(const [hour,expected] of [[0,'sleep'],[7,'home'],[8,'work'],[21,'work'],[22,'return']])assert.equal(citizenRoutine(hour/24,'cavalarico'),expected);
+console.log('Cavalariço homem com casa e rotina; compra, saldo, propriedade persistente, montaria bloqueada antes da compra e colisão do corpo validados.');

@@ -1,0 +1,23 @@
+.faces b {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  margin: 0;
+  padding: 0;
+  line-height: 1;
+  transform-origin: 50% 50%;
+}
+
+.stick {
+  width: clamp(124px, 20vw, 172px);
+}
+
+.stick.move { left: 16%; }
+.stick.camera { right: 16%; }
+
+@media (max-height: 390px) {
+  .stick { width: min(32vh, 142px); }
+  .stick.move { left: 17%; }
+  .stick.camera { right: 17%; }
+}

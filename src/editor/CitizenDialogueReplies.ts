@@ -1,0 +1,20 @@
+/** Player replies connect the three NPC lines for each subject. */
+export const CITIZEN_REPLIES:Record<string,[string,string]>={
+ rei:['Há alguma ameaça preocupando o reino?','Pode contar comigo para proteger o povo.'],
+ rainha:['O rei também tem conseguido descansar?','O que significa ser nobre para você?'],
+ princesa:['Seu pai deixa você explorar fora dos muros?','Quando eu voltar, quer ouvir minhas aventuras?'],
+ armeiro:['Parece que você se dedica muito à forja.','Se eu trouxer minério, pode fazer algo especial?'],
+ lojista:['O que um aventureiro encontra na sua loja?','Além dos produtos, você também tem informações?'],
+ 'morador-homem':['Por que você evita a floresta?','Aconteceu alguma coisa no reino ultimamente?'],
+ 'morador-mulher':['Onde posso conseguir uma boa refeição?','Obrigado pela acolhida.'],
+ campones:['Você tem visto algum perigo perto das plantações?','Há alguma forma de ajudar por aqui?'],
+ camponesa:['Você gosta da vida no campo?','Sua família também quer continuar aqui?'],
+ padre:['Como posso enfrentar meus próprios medos?','E se alguém quiser reparar seus erros?'],
+ freira:['Como você encontra calma em meio a tudo isso?','Você também prepara remédios para os viajantes?'],
+ guilda:['Como devo escolher uma missão?','Você já conheceu muitos aventureiros?'],
+ cavalarico:['Você tem montarias para vender?','Como devo cuidar de um cavalo?'],
+ taverneira:['O que recomenda para quem vem da estrada?','Ouviu algum rumor dos viajantes?'],
+ estalajadeira:['Como é a cidade antes do amanhecer?','O que devo cuidar durante a viagem?'],
+ alquimista:['Devo cuidar do vigor tanto quanto da saúde?','De onde vêm os ingredientes das poções?'],
+ guard:['O que devo fazer se vir algo suspeito?','Mesmo de dia é preciso tomar cuidado?'],
+};

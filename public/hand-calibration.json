@@ -1,0 +1,20 @@
+{
+  "boneTuning": {
+    "SwordGrip:Thumb_CMC": {
+      "position": { "x": 0.07, "y": -0.011, "z": -0.014 },
+      "rotation": { "x": 0.5061454831, "y": -1.1170107213, "z": 0.4764748858 }
+    },
+    "SwordGrip:Thumb_MCP": {
+      "position": { "x": 0.045, "y": -0.026, "z": 0.018 },
+      "rotation": { "x": -0.3403392041, "y": 0, "z": 0 }
+    },
+    "SwordGrip:Thumb_IP": {
+      "position": { "x": 0.038, "y": -0.025, "z": 0.01 },
+      "rotation": { "x": -0.2600540585, "y": 0, "z": 0 }
+    }
+  },
+  "swordSocket": {
+    "position": { "x": 0, "y": -0.105, "z": 0.068 },
+    "rotation": { "x": 0, "y": -0.28, "z": -0.1 }
+  }
+}

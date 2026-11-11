@@ -1,0 +1,13 @@
+import assert from 'node:assert/strict';
+import { build } from 'esbuild';
+const result=await build({stdin:{contents:"export {residentRoutine} from './src/editor/ResidentSchedule';export {ResidentNavigation} from './src/editor/ResidentNavigation';export {Vector3} from 'three';",resolveDir:process.cwd()},bundle:true,write:false,platform:'node',format:'esm'});
+const {residentRoutine,ResidentNavigation,Vector3}=await import(`data:text/javascript;base64,${Buffer.from(result.outputFiles[0].text).toString('base64')}`);
+for(const [hour,state] of [[0,'sleep'],[5.99,'sleep'],[6,'home'],[7.99,'home'],[8,'roam'],[21.99,'roam'],[22,'return'],[23.99,'return'],[24,'sleep'],[30,'home']])assert.equal(residentRoutine(hour/24),state,`hour ${hour}`);
+const navigation=new ResidentNavigation();
+const collide=p=>{if(p.x>=4&&p.x<=8&&Math.abs(p.z)<4)p.x=3;};
+const route=navigation.route(new Vector3(0,0,0),new Vector3(14,0,0),()=>0,collide);
+assert(route.length>0,'Must find a route around the obstacle');
+assert(route.some(p=>Math.abs(p.z)>=4),'Route must detour around the wall');
+assert(route.every(p=>!(p.x>=4&&p.x<=8&&Math.abs(p.z)<4)),'Route must avoid occupied cells');
+assert(route.at(-1).distanceTo(new Vector3(14,0,0))<=3);
+console.log('Daily schedule boundaries, midnight rollover and obstacle detour validated.');

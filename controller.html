@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" />
+    <meta name="theme-color" content="#070a0e" />
+    <title>Controle do RPG</title>
+  </head>
+  <body>
+    <main class="controller">
+      <div class="lightbar"></div>
+      <button class="options" type="button" data-action="start" aria-label="Abrir inventário">≡</button>
+      <div class="touchpad" aria-hidden="true"></div>
+      <div class="dpad" aria-label="Direcional">
+        <button class="up" data-key="ArrowUp" aria-label="Cima">▲</button><button class="left" data-key="ArrowLeft" aria-label="Esquerda">◀</button><i></i><button class="right" data-key="ArrowRight" aria-label="Direita">▶</button><button class="down" data-key="ArrowDown" aria-label="Baixo">▼</button>
+      </div>
+      <div class="faces" aria-label="Botões de ação">
+        <button class="triangle" data-action="triangle" aria-label="Triângulo: interagir ou montar na vassoura"><b>△</b></button>
+        <button class="square" data-key="KeyP" aria-label="Quadrado: atacar"><b>□</b></button>
+        <button class="circle" data-key="KeyO" aria-label="Círculo: guardar espada"><b>○</b></button>
+        <button class="cross" data-action="cross" aria-label="X: pular ou correr"><b>×</b></button>
+      </div>
+      <div class="stick move" data-stick="move" aria-label="Analógico esquerdo"><span></span></div>
+      <div class="stick camera" data-stick="camera" aria-label="Analógico direito"><span></span></div>
+      <div class="speaker" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></div>
+      <div class="ps" aria-hidden="true">P</div>
+    </main>
+    <script type="module" src="/src/controller.ts"></script>
+  </body>
+</html>

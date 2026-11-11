@@ -1,0 +1,756 @@
+{
+  "palaceId": "medieval-streets-v2-palace-0",
+  "gateId": "capital-octagon-gate-7-2",
+  "moves": {
+    "medieval-streets-v2-palace-0": {
+      "id": "medieval-streets-v2-palace-0",
+      "kind": "palace",
+      "layer": "Cidade Principal",
+      "position": [
+        149.71086444386384,
+        18,
+        -35.47472874609882
+      ],
+      "rotation": [
+        0,
+        -1.2472452343336442,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "architectureRevision": 1,
+      "royalAvenueRevision": 1,
+      "palaceComplexRevision": 1
+    },
+    "medieval-streets-v2-guild-2": {
+      "id": "medieval-streets-v2-guild-2",
+      "kind": "guild",
+      "layer": "Cidade Principal",
+      "position": [
+        44.947751957794196,
+        18,
+        89.3078432029964
+      ],
+      "rotation": [
+        0,
+        -1.1034397245259906,
+        0
+      ],
+      "scale": [
+        1.0000004944546366,
+        1.1000005439001004,
+        1.0000004944546366
+      ],
+      "architectureRevision": 1
+    },
+    "medieval-streets-v2-house-9": {
+      "id": "medieval-streets-v2-house-9",
+      "kind": "house",
+      "layer": "Cidade Principal",
+      "position": [
+        71.15327071690437,
+        18,
+        -109.33069985087803
+      ],
+      "rotation": [
+        3.141592653589793,
+        -1.1188103175935489,
+        3.141592653589793
+      ],
+      "scale": [
+        1.1064793163612225,
+        1.2193336735732823,
+        1.129012660716002
+      ],
+      "architectureRevision": 1
+    },
+    "medieval-streets-v2-house-15": {
+      "id": "medieval-streets-v2-house-15",
+      "kind": "house",
+      "layer": "Cidade Principal",
+      "position": [
+        112.87021545639122,
+        18,
+        -123.31985713795578
+      ],
+      "rotation": [
+        3.141592653589793,
+        -1.104260060829499,
+        3.141592653589793
+      ],
+      "scale": [
+        1.0940275409418352,
+        1.181549744217182,
+        1.0555683568990888
+      ],
+      "architectureRevision": 1
+    },
+    "medieval-streets-v2-house-10": {
+      "id": "medieval-streets-v2-house-10",
+      "kind": "house",
+      "layer": "Cidade Principal",
+      "position": [
+        29.4818763631896,
+        18,
+        -70.04336229006604
+      ],
+      "rotation": [
+        3.141592653589793,
+        -1.1233898853747333,
+        3.141592653589793
+      ],
+      "scale": [
+        1.012851082737754,
+        1.181589177532146,
+        1.0940640532705055
+      ],
+      "architectureRevision": 1
+    },
+    "medieval-streets-v2-house-125": {
+      "id": "medieval-streets-v2-house-125",
+      "kind": "house",
+      "layer": "Cidade Principal",
+      "position": [
+        123.34022553632988,
+        18,
+        71.457910815489
+      ],
+      "rotation": [
+        0,
+        -0.45083659916984725,
+        0
+      ],
+      "scale": [
+        1.101331127504552,
+        1.1894376177049164,
+        0.9954091896107649
+      ],
+      "architectureRevision": 1
+    },
+    "medieval-streets-v2-house-130": {
+      "id": "medieval-streets-v2-house-130",
+      "kind": "house",
+      "layer": "Cidade Principal",
+      "position": [
+        71.4265730315368,
+        18,
+        42.45838179152739
+      ],
+      "rotation": [
+        0,
+        -0.4463736282206034,
+        0
+      ],
+      "scale": [
+        0.9723932884070148,
+        1.1722576140731076,
+        1.0854237167343588
+      ],
+      "architectureRevision": 1
+    },
+    "medieval-streets-v2-house-129": {
+      "id": "medieval-streets-v2-house-129",
+      "kind": "house",
+      "layer": "Cidade Principal",
+      "position": [
+        86.66469669728104,
+        18,
+        75.31868591591865
+      ],
+      "rotation": [
+        0,
+        -0.4696590406667335,
+        0
+      ],
+      "scale": [
+        0.9998077867313396,
+        1.115788013899803,
+        1.033137049907225
+      ],
+      "architectureRevision": 1
+    },
+    "medieval-streets-v2-house-126": {
+      "id": "medieval-streets-v2-house-126",
+      "kind": "house",
+      "layer": "Cidade Principal",
+      "position": [
+        113.25739373545385,
+        18,
+        91.71467518878522
+      ],
+      "rotation": [
+        0,
+        -0.4743830817249498,
+        0
+      ],
+      "scale": [
+        0.9387636430607895,
+        1.1126298727089567,
+        1.0302128451008858
+      ],
+      "architectureRevision": 1
+    },
+    "medieval-streets-v2-house-13": {
+      "id": "medieval-streets-v2-house-13",
+      "kind": "house",
+      "layer": "Cidade Principal",
+      "position": [
+        42.17651688582879,
+        18,
+        -44.767957209217855
+      ],
+      "rotation": [
+        3.141592653589793,
+        -1.0959932532153718,
+        3.141592653589793
+      ],
+      "scale": [
+        0.9607447084738727,
+        1.0867805819097829,
+        1.0062783165831322
+      ],
+      "architectureRevision": 1
+    },
+    "medieval-streets-v2-house-16": {
+      "id": "medieval-streets-v2-house-16",
+      "kind": "house",
+      "layer": "Cidade Principal",
+      "position": [
+        95.13415903331403,
+        18,
+        -138.46688003215587
+      ],
+      "rotation": [
+        3.141592653589793,
+        -1.1223800963609638,
+        3.141592653589793
+      ],
+      "scale": [
+        0.8277498586717459,
+        1.1820833777211657,
+        1.0945216460381162
+      ],
+      "architectureRevision": 1
+    },
+    "medieval-streets-v2-house-14": {
+      "id": "medieval-streets-v2-house-14",
+      "kind": "house",
+      "layer": "Cidade Principal",
+      "position": [
+        69.83597875957977,
+        18,
+        -138.4213296463838
+      ],
+      "rotation": [
+        3.141592653589793,
+        -1.0976570988182601,
+        3.141592653589793
+      ],
+      "scale": [
+        0.8412147611888868,
+        1.1697175748443216,
+        1.0830718285595569
+      ],
+      "architectureRevision": 1
+    },
+    "medieval-streets-v2-house-124": {
+      "id": "medieval-streets-v2-house-124",
+      "kind": "house",
+      "layer": "Cidade Principal",
+      "position": [
+        19.558470912515816,
+        18,
+        38.7570330413
+      ],
+      "rotation": [
+        0,
+        -0.44616516278692403,
+        0
+      ],
+      "scale": [
+        0.8899019919182427,
+        1.1030453846518338,
+        1.0213383191220682
+      ],
+      "architectureRevision": 1
+    },
+    "medieval-streets-v2-house-8": {
+      "id": "medieval-streets-v2-house-8",
+      "kind": "house",
+      "layer": "Cidade Principal",
+      "position": [
+        5.5465384325520315,
+        18,
+        -15.609001835053974
+      ],
+      "rotation": [
+        3.141592653589793,
+        -1.1067202133456406,
+        3.141592653589793
+      ],
+      "scale": [
+        0.8351498536343882,
+        1.1306261680470133,
+        1.0468760815250122
+      ],
+      "architectureRevision": 1
+    },
+    "medieval-streets-v2-house-131": {
+      "id": "medieval-streets-v2-house-131",
+      "kind": "house",
+      "layer": "Cidade Principal",
+      "position": [
+        172.6420693193598,
+        18,
+        54.925270385306206
+      ],
+      "rotation": [
+        0,
+        -0.46134337923241625,
+        0
+      ],
+      "scale": [
+        0.9178983575545769,
+        1.0516451172890127,
+        0.973745478971308
+      ],
+      "architectureRevision": 1
+    },
+    "medieval-streets-v2-house-132": {
+      "id": "medieval-streets-v2-house-132",
+      "kind": "house",
+      "layer": "Cidade Principal",
+      "position": [
+        171.41587813357933,
+        18,
+        76.43100113726891
+      ],
+      "rotation": [
+        0,
+        -0.47024613589499037,
+        0
+      ],
+      "scale": [
+        0.8064206673781631,
+        1.0893323773419312,
+        1.0086410901314178
+      ],
+      "architectureRevision": 1
+    },
+    "medieval-streets-v2-house-116": {
+      "id": "medieval-streets-v2-house-116",
+      "kind": "house",
+      "layer": "Cidade Principal",
+      "position": [
+        101.90282036302528,
+        18,
+        108.17899004030988
+      ],
+      "rotation": [
+        -3.141592653589793,
+        0.4520630800978643,
+        -3.141592653589793
+      ],
+      "scale": [
+        0.9100474086767607,
+        0.9828512013709017,
+        0.8931052072804109
+      ],
+      "architectureRevision": 1
+    },
+    "medieval-streets-v2-house-11": {
+      "id": "medieval-streets-v2-house-11",
+      "kind": "house",
+      "layer": "Cidade Principal",
+      "position": [
+        78.66984418178933,
+        18,
+        -149.82145340458442
+      ],
+      "rotation": [
+        3.141592653589793,
+        -1.125777663092983,
+        3.141592653589793
+      ],
+      "scale": [
+        0.917246960123459,
+        0.9906267169333357,
+        0.880367317168426
+      ],
+      "architectureRevision": 1
+    },
+    "medieval-streets-v2-house-136": {
+      "id": "medieval-streets-v2-house-136",
+      "kind": "house",
+      "layer": "Cidade Principal",
+      "position": [
+        109.53326979234043,
+        18,
+        130.93368717093907
+      ],
+      "rotation": [
+        -3.141592653589793,
+        -0.33974790137986494,
+        -3.141592653589793
+      ],
+      "scale": [
+        1.0642214740557523,
+        1.2385865601067143,
+        1.146839407506217
+      ],
+      "architectureRevision": 1
+    },
+    "medieval-streets-v2-house-134": {
+      "id": "medieval-streets-v2-house-134",
+      "kind": "house",
+      "layer": "Cidade Principal",
+      "position": [
+        -0.6755182678943648,
+        18,
+        41.32329137729107
+      ],
+      "rotation": [
+        -3.141592653589793,
+        -0.31633924720952145,
+        -3.141592653589793
+      ],
+      "scale": [
+        1.0349925253302465,
+        1.135063238585036,
+        1.0509844801713297
+      ],
+      "architectureRevision": 1
+    },
+    "medieval-streets-v2-house-137": {
+      "id": "medieval-streets-v2-house-137",
+      "kind": "house",
+      "layer": "Cidade Principal",
+      "position": [
+        45.78676486451204,
+        18,
+        -147.23241987570734
+      ],
+      "rotation": [
+        -3.141592653589793,
+        -0.32678198129896874,
+        -3.141592653589793
+      ],
+      "scale": [
+        1.0707654937421152,
+        1.1564267332414844,
+        0.9951446612957697
+      ],
+      "architectureRevision": 1
+    },
+    "medieval-streets-v2-house-145": {
+      "id": "medieval-streets-v2-house-145",
+      "kind": "house",
+      "layer": "Cidade Principal",
+      "position": [
+        31.88870834897844,
+        18,
+        -138.3530040677257
+      ],
+      "rotation": [
+        0,
+        0.31702133486423495,
+        0
+      ],
+      "scale": [
+        1.038778884694637,
+        1.1218811954702081,
+        0.9865446336313026
+      ],
+      "architectureRevision": 1
+    },
+    "medieval-streets-v2-house-140": {
+      "id": "medieval-streets-v2-house-140",
+      "kind": "house",
+      "layer": "Cidade Principal",
+      "position": [
+        124.74861826519863,
+        18,
+        151.14490115846326
+      ],
+      "rotation": [
+        -3.141592653589793,
+        -0.33598391734672534,
+        -3.141592653589793
+      ],
+      "scale": [
+        0.9488201270104656,
+        1.1414738029400981,
+        1.0569201879074983
+      ],
+      "architectureRevision": 1
+    },
+    "medieval-streets-v2-house-147": {
+      "id": "medieval-streets-v2-house-147",
+      "kind": "house",
+      "layer": "Cidade Principal",
+      "position": [
+        -14.687450747858149,
+        18,
+        -13.04274349906289
+      ],
+      "rotation": [
+        0,
+        0.312504128699925,
+        0
+      ],
+      "scale": [
+        0.8811146851239746,
+        1.1608213580623745,
+        1.0748345907984949
+      ],
+      "architectureRevision": 1
+    },
+    "medieval-streets-v2-house-142": {
+      "id": "medieval-streets-v2-house-142",
+      "kind": "house",
+      "layer": "Cidade Principal",
+      "position": [
+        -15.84531635498049,
+        18,
+        46.41025766350116
+      ],
+      "rotation": [
+        0,
+        0.34074293907292985,
+        0
+      ],
+      "scale": [
+        0.8900745779230779,
+        1.1088637531482695,
+        1.0267256973595087
+      ],
+      "architectureRevision": 1
+    },
+    "medieval-streets-v2-house-133": {
+      "id": "medieval-streets-v2-house-133",
+      "kind": "house",
+      "layer": "Cidade Principal",
+      "position": [
+        -20.795631483874367,
+        18,
+        107.13500039761774
+      ],
+      "rotation": [
+        -3.141592653589793,
+        -0.3216762976199749,
+        -3.141592653589793
+      ],
+      "scale": [
+        0.9520871356489484,
+        1.0627219897364186,
+        0.9840018423485356
+      ],
+      "architectureRevision": 1
+    },
+    "medieval-streets-v2-house-138": {
+      "id": "medieval-streets-v2-house-138",
+      "kind": "house",
+      "layer": "Cidade Principal",
+      "position": [
+        109.5788201781125,
+        18,
+        156.23186744467333
+      ],
+      "rotation": [
+        -3.141592653589793,
+        -0.33851866261827634,
+        -3.141592653589793
+      ],
+      "scale": [
+        0.8622638259362174,
+        1.1389162216282036,
+        1.0545520570631515
+      ],
+      "architectureRevision": 1
+    },
+    "medieval-streets-v2-house-146": {
+      "id": "medieval-streets-v2-house-146",
+      "kind": "house",
+      "layer": "Cidade Principal",
+      "position": [
+        -70.41632796730879,
+        18,
+        -53.41962108833911
+      ],
+      "rotation": [
+        0,
+        0.3188709758737019,
+        0
+      ],
+      "scale": [
+        0.8696484792517554,
+        1.0895027128027897,
+        1.008798808150731
+      ],
+      "architectureRevision": 1
+    },
+    "medieval-streets-v2-house-144": {
+      "id": "medieval-streets-v2-house-144",
+      "kind": "house",
+      "layer": "Cidade Principal",
+      "position": [
+        -74.29987826062445,
+        18,
+        -102.74424006425505
+      ],
+      "rotation": [
+        0,
+        0.3257379244328833,
+        0
+      ],
+      "scale": [
+        0.9238279967712221,
+        0.9977342365129199,
+        0.9157998616463782
+      ],
+      "architectureRevision": 1
+    },
+    "medieval-streets-v2-house-143": {
+      "id": "medieval-streets-v2-house-143",
+      "kind": "house",
+      "layer": "Cidade Principal",
+      "position": [
+        -79.2274181966323,
+        18,
+        -29.37040719327136
+      ],
+      "rotation": [
+        0,
+        0.33389791288789233,
+        0
+      ],
+      "scale": [
+        0.9238307607889786,
+        0.997737221652097,
+        0.8942838583047796
+      ],
+      "architectureRevision": 1
+    },
+    "medieval-streets-v2-house-139": {
+      "id": "medieval-streets-v2-house-139",
+      "kind": "house",
+      "layer": "Cidade Principal",
+      "position": [
+        10.382977597015724,
+        18,
+        -139.57919525350613
+      ],
+      "rotation": [
+        -3.141592653589793,
+        -0.3204633028936,
+        -3.141592653589793
+      ],
+      "scale": [
+        0.8145001241112517,
+        1.0283481706519317,
+        0.9521742320851219
+      ],
+      "architectureRevision": 1
+    },
+    "medieval-streets-v2-house-135": {
+      "id": "medieval-streets-v2-house-135",
+      "kind": "house",
+      "layer": "Cidade Principal",
+      "position": [
+        -16.073068283840854,
+        18,
+        -80.08064370517
+      ],
+      "rotation": [
+        -3.141592653589793,
+        -0.32599574870107517,
+        -3.141592653589793
+      ],
+      "scale": [
+        0.9074693234547142,
+        0.9800668693310914,
+        0.8529658892224969
+      ],
+      "architectureRevision": 1
+    },
+    "medieval-streets-v2-house-141": {
+      "id": "medieval-streets-v2-house-141",
+      "kind": "house",
+      "layer": "Cidade Principal",
+      "position": [
+        -90.74141791926311,
+        18,
+        -101.44972329981651
+      ],
+      "rotation": [
+        0,
+        0.31566558456308075,
+        0
+      ],
+      "scale": [
+        0.8160192482527063,
+        0.9990103400945051,
+        0.9250095741615787
+      ],
+      "architectureRevision": 1
+    },
+    "medieval-perimeter-v1-wall-shrine-sudoeste": {
+      "id": "medieval-perimeter-v1-wall-shrine-sudoeste",
+      "kind": "wall-shrine",
+      "layer": "Cidade Principal",
+      "position": [
+        58.5269557729233,
+        18,
+        -96.65883452112487
+      ],
+      "rotation": [
+        0,
+        -1.2472452343336466,
+        0
+      ],
+      "scale": [
+        1.0000004944546366,
+        1.0000004944546366,
+        1.0000004944546366
+      ]
+    },
+    "city-royal-avenue-v1": {
+      "id": "city-royal-avenue-v1",
+      "kind": "road",
+      "layer": "Cidade Principal",
+      "position": [
+        -0.09089166611168409,
+        18,
+        14.759063330225827
+      ],
+      "rotation": [
+        0,
+        1.8943474192561491,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "points": [
+        [
+          0,
+          0.09,
+          -204.2259197546797
+        ],
+        [
+          0,
+          0.09,
+          81
+        ]
+      ],
+      "width": 20,
+      "royalAvenueRevision": 1,
+      "palaceEntranceRevision": 1
+    }
+  }
+}

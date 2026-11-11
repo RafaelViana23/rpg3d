@@ -1,0 +1,86 @@
+import type {InventoryItem,ItemCategory,ItemRarity,ItemStats,EquipmentSlot} from './types';
+
+const item=(id:string,name:string,category:ItemCategory,rarity:ItemRarity,level:number,description:string,visual:string,stats:ItemStats={},slot?:EquipmentSlot,quantity=1,stackable=false):InventoryItem=>({id,name,category,rarity,level,description,visual,stats,slot,quantity,stackable});
+
+export const INVENTORY_CATALOG:InventoryItem[]=[
+  item('nimbus-2000','Nimbus 2000','magic','Lendário',1,'Vassoura encantada de corrida. Equipe em uma das mãos e pressione F para voar.','nimbus-2000',{speed:.35},'rightHand'),
+  // Item legado preservado: os 54 itens solicitados vêm abaixo.
+  item('starter-shield','Escudo de Ferro','weapon','Comum',1,'Escudo inicial para bloquear ataques.','shield',{defense:8},'leftHand'),
+  item('bronze-sword','Espada de Bronze','weapon','Comum',1,'Lâmina confiável para aventureiros iniciantes.','sword-bronze',{attack:12},'rightHand'),
+  item('iron-sword','Espada de Ferro','weapon','Comum',2,'Espada robusta forjada em ferro.','sword-iron',{attack:16},'rightHand'),
+  item('long-sword','Espada Longa','weapon','Incomum',3,'Alcance superior e corte preciso.','longsword',{attack:21,speed:-.03},'rightHand'),
+  item('anneal-blade','Anneal Blade','weapon','Raro',5,'Lâmina refinada famosa nos primeiros andares de Aincrad.','anneal',{attack:30,speed:.03},'rightHand'),
+  item('dagger','Adaga','weapon','Comum',1,'Curta, leve e muito rápida.','dagger',{attack:10,speed:.12},'rightHand'),
+  item('short-sword','Espada Curta','weapon','Incomum',2,'Equilíbrio entre velocidade e poder.','shortsword',{attack:15,speed:.07},'rightHand'),
+  item('axe','Machado','weapon','Incomum',4,'Golpes pesados capazes de quebrar guardas.','axe',{attack:27,speed:-.08},'rightHand'),
+  item('hammer','Martelo','weapon','Raro',6,'Martelo de guerra com grande impacto.','hammer',{attack:36,speed:-.14},'rightHand'),
+  item('spear','Lança','weapon','Incomum',4,'Arma de haste com excelente alcance.','spear',{attack:25,speed:.01},'rightHand'),
+  item('rapier','Rapieira','weapon','Épico',8,'Lâmina elegante criada para estocadas velozes.','rapier',{attack:42,speed:.14},'rightHand'),
+  item('mace','Maça','weapon','Raro',7,'Cabeça flangeada que esmaga armaduras.','mace',{attack:39,speed:-.08},'rightHand'),
+  item('greatsword','Espada de Duas Mãos','weapon','Lendário',12,'Espada colossal de dano extraordinário.','greatsword',{attack:58,defense:3,speed:-.18},'rightHand'),
+  item('wooden-sword','Espada de Madeira','weapon','Comum',1,'Espada simples encontrada em baús de madeira.','wooden-sword',{attack:7},'rightHand',0),
+  item('silver-sword','Espada de Prata','weapon','Raro',5,'Lâmina de prata encontrada em baús prateados.','sword-silver',{attack:31},'rightHand',0),
+
+  item('tunic','Camisa de Pano Bege','armor','Comum',1,'Camisa leve de pano bege.','tunic',{},'torso'),
+  item('leather-vest','Camisa de Couro','armor','Comum',2,'Camisa de couro curtido que não limita os movimentos.','leather',{},'torso'),
+  item('leather-chest','Peitoral de Couro','armor','Comum',1,'Peitoral resistente feito de couro curtido.','leather-chest',{defense:7},'armor'),
+  item('iron-shirt','Camisa de Ferro','armor','Incomum',2,'Camisa reforçada com placas de ferro.','iron-shirt',{defense:10},'torso'),
+  item('iron-chest','Peitoral de Ferro','armor','Incomum',3,'Peitoral sólido para a linha de frente.','iron-armor',{defense:12,hp:10},'armor'),
+  item('steel-chest','Peitoral de Aço','armor','Raro',5,'Aço temperado de alta resistência.','steel-armor',{defense:18,hp:18},'armor'),
+  item('long-coat','Casaco Longo','armor','Épico',9,'Casaco raro de duelista dos andares superiores.','coat',{},'torso'),
+  item('cape','Capa','armor','Incomum',3,'Capa de viagem com encantamento defensivo.','cape',{defense:4,stamina:8},'accessory'),
+  item('pauldrons','Ombreiras','armor','Incomum',4,'Ombreiras metálicas contra golpes altos.','pauldrons',{defense:9,hp:5},'accessory'),
+  item('bracers','Braçadeiras','armor','Comum',2,'Braçadeiras simples para compor a roupa.','bracers',{},'gloves'),
+  item('leather-gloves','Luva de Couro','armor','Comum',1,'Luvas simples de couro, sem bônus de atributos.','leather-gloves',{},'gloves'),
+  item('reinforced-gloves','Luvas de Ferro','armor','Raro',6,'Manoplas de ferro para aparar ataques.','iron-gloves',{defense:10,attack:3},'gloves'),
+  item('steel-gloves','Luvas de Aço','armor','Raro',5,'Manoplas de aço temperado para proteger mãos e antebraços.','steel-gloves',{defense:12},'gloves'),
+  item('knight-helm','Elmo de Ferro','armor','Raro',7,'Elmo fechado de ferro para combate pesado.','iron-helmet',{defense:14,hp:12},'head'),
+  item('steel-helm','Elmo de Aço','armor','Épico',9,'Elmo de aço temperado, mais leve e resistente.','steel-helmet',{defense:20,hp:18,speed:-.01},'head'),
+  item('mage-hood','Capuz de Mago','armor','Raro',5,'Capuz medieval com gola para conjuradores.','mage-hood',{defense:6,stamina:18},'head'),
+  item('leather-armor-boots','Botas de Couro Reforçadas','armor','Comum',1,'Botas de couro usadas como proteção leve.','leather-armor-boots',{defense:4},'boots'),
+  item('iron-boots','Botas de Ferro','armor','Incomum',3,'Botas protegidas por placas de ferro.','iron-boots',{defense:8,speed:-.02},'boots'),
+  item('steel-boots','Botas de Aço','armor','Raro',5,'Botas de aço temperado para combate pesado.','steel-boots',{defense:12,speed:-.03},'boots'),
+  item('iron-pants','Calça de Ferro','armor','Incomum',3,'Proteção de ferro para as pernas.','iron-pants',{defense:10,speed:-.02},'legs'),
+  item('steel-pants','Calça de Aço','armor','Raro',5,'Proteção de aço reforçado para as pernas.','steel-pants',{defense:15,speed:-.04},'legs'),
+  item('leather-clothing-boots','Bota de Couro','armor','Comum',1,'Bota de couro simples, sem bônus de atributos.','leather-clothing-boots',{},'boots'),
+
+  item('ring-strength','Anel da Força','accessory','Incomum',3,'Amplifica a força dos golpes.','ring-red',{attack:5},'accessory'),
+  item('ring-guard','Anel da Guarda','accessory','Raro',5,'Forma uma pequena barreira protetora.','ring-blue',{defense:7},'accessory'),
+  item('healing-amulet','Amuleto de Cura','accessory','Raro',6,'Aumenta a reserva de vida do portador.','amulet-green',{hp:30},'accessory'),
+  item('wind-amulet','Amuleto do Vento','accessory','Épico',8,'Encantamento que torna os passos mais leves.','amulet-cyan',{speed:.14,stamina:10},'accessory'),
+  item('traveler-belt','Cinto do Viajante','accessory','Comum',1,'Cinto utilitário para jornadas longas.','belt',{stamina:5},'accessory'),
+  item('war-belt','Cinto de Guerra','accessory','Raro',7,'Fivela pesada que fortalece o combate.','belt-war',{attack:4,defense:4},'accessory'),
+  item('swift-boots','Botas Velozes','accessory','Incomum',4,'Botas leves para deslocamentos rápidos.','boots',{defense:3,speed:.1},'boots'),
+  item('guardian-bracelet','Bracelete do Guardião','accessory','Lendário',11,'Bracelete ancestral de proteção excepcional.','bracelet',{defense:12,hp:35},'accessory'),
+
+  item('magic-potion','Poção de Magia','consumable','Incomum',1,'Recupera 40 de vigor, a energia usada para lançar magias.','potion-magic',{stamina:40},undefined,6,true),
+  item('hp-potion','Poção de HP','consumable','Comum',1,'Recupera 35 pontos de vida.','potion-red',{hp:35},undefined,6,true),
+  item('greater-hp-potion','Poção Maior de HP','consumable','Incomum',4,'Recupera 80 pontos de vida.','potion-red-large',{hp:80},undefined,3,true),
+  item('stamina-potion','Poção de Vigor','consumable','Comum',1,'Recupera 25 pontos de vigor.','potion-yellow',{stamina:25},undefined,5,true),
+  item('greater-stamina-potion','Poção Maior de Vigor','consumable','Incomum',5,'Recupera 60 pontos de vigor.','potion-yellow-large',{stamina:60},undefined,2,true),
+  item('healing-crystal','Cristal de Cura','consumable','Raro',6,'Restaura 120 pontos de vida imediatamente.','crystal-green',{hp:120},undefined,2,true),
+  item('teleport-crystal','Cristal de Teleporte','consumable','Épico',8,'Teleporta o grupo para a cidade segura.','crystal-blue',{},undefined,1,true),
+  item('antidote','Antídoto','consumable','Comum',2,'Remove efeitos de veneno.','vial-green',{},undefined,4,true),
+  item('bread','Pão de Tolbana','consumable','Comum',1,'Alimento simples que recupera vida e vigor.','bread',{hp:12,stamina:8},undefined,8,true),
+  item('ragout','Ragout de Coelho','consumable','Raro',7,'Prato raro que restaura grandes reservas.','food',{hp:70,stamina:50},undefined,2,true),
+  item('grapes','Uvas','consumable','Comum',1,'Cacho de uvas do mercado. Recupera 12 de fome, 8 de sede e 5 de vida.','grapes',{hp:5,hunger:12,thirst:8},undefined,10,true),
+  item('apple','Maçã Vermelha','consumable','Comum',1,'Maçã do mercado. Recupera 18 de fome, 4 de sede e 8 de vida.','apple',{hp:8,hunger:18,thirst:4},undefined,10,true),
+
+  item('leather','Couro','material','Comum',1,'Material flexível usado em armaduras leves.','material-leather',{},undefined,14,true),
+  item('boar-fang','Presa de Javali','material','Comum',1,'Presa usada em armas e amuletos.','fang',{},undefined,9,true),
+  item('wolf-pelt','Pele de Lobo','material','Incomum',3,'Pele espessa para equipamentos de frio.','pelt',{},undefined,6,true),
+  item('beast-claw','Garra de Fera','material','Incomum',4,'Garra afiada para aprimorar lâminas.','claw',{},undefined,7,true),
+  item('iron-ore','Minério de Ferro','material','Comum',2,'Minério básico para forja.','ore-iron',{},undefined,18,true),
+  item('silver-ore','Minério de Prata','material','Incomum',3,'Prata bruta retirada de um baú antigo.','ore-silver',{},undefined,0,true),
+  item('steel-ore','Minério de Aço','material','Raro',6,'Liga rara para equipamentos avançados.','ore-steel',{},undefined,8,true),
+  item('ancient-wood','Madeira Ancestral','material','Raro',7,'Madeira mágica de árvores antigas.','wood',{},undefined,5,true),
+  item('blue-crystal','Cristal Azul','material','Incomum',4,'Cristal carregado de energia espacial.','crystal-blue',{},undefined,11,true),
+  item('red-crystal','Cristal Vermelho','material','Raro',6,'Cristal de energia ofensiva.','crystal-red',{},undefined,4,true),
+  item('star-fragment','Fragmento Estelar','material','Lendário',10,'Material lendário caído do céu de Aincrad.','star',{},undefined,1,true)
+  ,item('deer-meat','Carne de Cervo','consumable','Incomum',1,'Corte nutritivo obtido ao caçar cervos.','venison-meat',{hunger:42,hp:8},undefined,0,true)
+  ,item('rabbit-meat','Carne de Coelho','consumable','Comum',1,'Carne leve obtida ao caçar coelhos.','rabbit-meat',{hunger:26,hp:4},undefined,0,true)
+  ,item('water-flask','Água Fresca','consumable','Comum',1,'Água limpa para recuperar a sede.','potion-blue',{thirst:40},undefined,3,true)
+];
+
+export const ITEM_BY_ID=new Map(INVENTORY_CATALOG.map(entry=>[entry.id,entry]));
+export const RARITY_COLOR:Record<ItemRarity,string>={Comum:'#b9b9ad',Incomum:'#65c879',Raro:'#5ca9ed',Épico:'#b36ae2',Lendário:'#e7a640'};
