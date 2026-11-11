@@ -224,7 +224,7 @@ export function createRoyalPalace(elevation=ROYAL_PALACE_ELEVATION){
   floor(0,(keepFront+accessLandingFront)/2,108,terraceDepth,intermediatePlazaFloor);
   stairs(47,accessLandingFront,12,plazaFloor,intermediatePlazaFloor);
   stairs(accessLandingBack,keepFront,12,intermediatePlazaFloor,raisedFloor);
-  const concrete=new T.MeshStandardMaterial({color:'#c7c3b9',roughness:.97,metalness:0});
+  const concrete=stone;
   const railNewels=new Set<string>();
   const balustrade=(axis:'x'|'z',fixed:number,from:number,to:number)=>{
    const length=to-from,centre=(from+to)/2,y=intermediatePlazaFloor,height=1.5;
