@@ -1,3 +1,4 @@
+import { mountCloudSaves } from './saves/CloudSaves';
 import {CompanionKiss} from './editor/CompanionKiss';
 import {PrincessBedRest} from './editor/PrincessBedRest';
 import { clothShirtColor, clothPantsColor } from './inventory/clothColors';
@@ -6451,3 +6452,5 @@ const releaseGraphics=()=>{
   }
 };
 window.addEventListener('pagehide',releaseGraphics,{once:true});
+
+mountCloudSaves();
