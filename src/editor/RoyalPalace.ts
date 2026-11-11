@@ -209,6 +209,7 @@ export function createRoyalPalace(elevation=ROYAL_PALACE_ELEVATION){
  for(const bounds of colliders.slice(keepColliderStart)){bounds[2]=keepZ(bounds[2]);bounds[5]=keepZ(bounds[5]);bounds[1]+=elevation;bounds[4]+=elevation;}
  for(const surface of surfaces.slice(keepSurfaceStart)){surface[1]=keepZ(surface[1]);surface[3]=keepZ(surface[3]);}
  for(const roof of roofs){roof[2]=keepZ(roof[2]);roof[5]=keepZ(roof[5]);roof[1]+=elevation;roof[4]+=elevation;}
+ const stairBalustrades:{x:number;front:number;back:number;bottom:number;top:number}[]=[];
  const terraceBalustrades:{axis:'x'|'z';fixed:number;from:number;to:number;bottom:number;height:number;columns:number}[]=[];
  const interior=createRoyalPalaceInterior(keepZ,keepFront);
  if(elevation>0){
@@ -252,6 +253,50 @@ export function createRoyalPalace(elevation=ROYAL_PALACE_ELEVATION){
   balustrade('x',railFront,-railSide,-stairClearance);
   balustrade('x',railFront,stairClearance,railSide);
   for(const side of [-1,1])balustrade('z',side*railSide,keepFront+.36,railFront);
+  const stairRail=(x:number,front:number,back:number,bottom:number,top:number)=>{
+   const run=front-back,rise=top-bottom,steps=Math.max(24,Math.ceil(rise/.25));
+   const yAt=(t:number)=>bottom+rise*t;
+   const supportAt=(t:number)=>t<=0?bottom:t>=1?top:bottom+rise*Math.ceil(t*steps)/steps;
+   const beam=(offset:number,height:number,width:number)=>{
+    const geometry=new T.BoxGeometry(width,height,Math.hypot(run,rise));
+    geometry.rotateX(Math.atan2(rise,run));geometry.translate(x,(bottom+top)/2+offset,(front+back)/2);add(geometry,concrete);
+   };
+   beam(.09,.18,.48);beam(1.36,.16,.42);beam(1.47,.06,.54);
+   const count=Math.max(2,Math.ceil(run/.85));
+   for(let i=0;i<=count;i++){
+    const t=i/count,z=front-run*t,foot=supportAt(t),cap=yAt(t)+1.16;
+    if(i===0||i===count){
+     const key=`${x},${z}`;if(railNewels.has(key))continue;railNewels.add(key);
+     box(x,foot+.09,z,.62,.18,.62,concrete,false);
+     box(x,(foot+.18+cap+.24)/2,z,.4,cap+.24-foot-.18,.4,concrete,false);
+     box(x,cap+.33,z,.66,.18,.66,concrete,false);
+    }else{
+     box(x,foot+.23,z,.34,.1,.34,concrete,false);
+     box(x,cap+.06,z,.34,.12,.34,concrete,false);
+     const shaftHeight=cap-foot-.28;
+     const shaft=new T.CylinderGeometry(.105,.14,shaftHeight,10);
+     shaft.translate(x,foot+.28+shaftHeight/2,z);add(shaft,concrete);
+    }
+   }
+   // Short collision sections follow the incline rather than blocking the whole flight.
+   for(let i=0;i<steps;i++){
+    const z0=front-run*(i+1)/steps,z1=front-run*i/steps;
+    colliders.push([x-.33,supportAt(i/steps),z0,x+.33,yAt((i+1)/steps)+1.58,z1]);
+   }
+   stairBalustrades.push({x,front,back,bottom,top});
+  };
+  for(const side of [-1,1]){
+   // Seat the plinths on the treads, with the outer caps aligned to the stair edge.
+   const x=side*5.65;
+   stairRail(x,47,accessLandingFront,plazaFloor,intermediatePlazaFloor);
+   stairRail(x,accessLandingFront,railFront,intermediatePlazaFloor,intermediatePlazaFloor);
+   stairRail(x,accessLandingBack,keepFront,intermediatePlazaFloor,raisedFloor);
+   // Butt-jointed return joins the terrace parapet without overlapping top faces.
+   const a=5.65+.27,b=stairClearance-.33,c=side*(a+b)/2;
+   box(c,intermediatePlazaFloor+.09,railFront,b-a,.18,.48,concrete,false);
+   box(c,intermediatePlazaFloor+1.36,railFront,b-a,.16,.42,concrete,false);
+   box(c,intermediatePlazaFloor+1.47,railFront,b-a,.06,.54,concrete,false);
+  }
 
  }
  interior.root.position.y=elevation;
@@ -314,6 +359,7 @@ export function createRoyalPalace(elevation=ROYAL_PALACE_ELEVATION){
  root.userData.palaceFloorElevation=6.08+elevation;
  root.userData.plazaFloorElevation=plazaFloor;
  root.userData.palaceAccessStairs=elevation>0?{front:47,back:keepFront,width:12,bottom:plazaFloor,top:6.08+elevation}:null;
+ root.userData.stairBalustrades=stairBalustrades;
  root.userData.terraceBalustrades=terraceBalustrades;
  root.userData.intermediatePlaza=elevation>0?{left:-54,right:54,front:accessLandingFront,back:keepFront,height:intermediatePlazaFloor,landingFront:accessLandingFront,landingBack:accessLandingBack,landingDepth:accessLandingDepth}:null;
  root.userData.palaceAccessFlights=elevation>0?[{front:47,back:accessLandingFront,width:12,bottom:plazaFloor,top:intermediatePlazaFloor},{front:accessLandingBack,back:keepFront,width:12,bottom:intermediatePlazaFloor,top:6.08+elevation}]:[];

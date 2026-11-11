@@ -332,3 +332,19 @@ for(const rail of balustrades){
 }
 assert(raised.children.length<=model.children.length+1,'All concrete railings share a single additional geometry batch');
 console.log('Cement Doric balustrades, protected terrace edges, clear stairs and shared draw batch validated.');
+
+const stairRails=raised.userData.stairBalustrades;
+assert.equal(stairRails.filter(rail=>rail.top>rail.bottom).length,4,'Both stair flights have two inclined balustrades');
+assert(stairRails.every(rail=>Math.abs(rail.x)===5.65),'Stair columns remain supported on the outer treads');
+for(const rail of stairRails.filter(rail=>rail.top>rail.bottom)){
+ const z=(rail.front+rail.back)/2,y=(rail.bottom+rail.top)/2;
+ const p=raised.localToWorld(new T.Vector3(rail.x,y+.03,z)),before=p.clone();
+ raisedBuilder.resolveCollisions(p,.32);
+ assert(p.distanceTo(before)>.15,'Inclined parapet has physical side protection');
+}
+for(let x=-40;x<=40;x+=.1){
+ const p=raised.localToWorld(new T.Vector3(x,midPlaza.height-.06,(midPlaza.landingFront+midPlaza.landingBack)/2)),before=p.clone();
+ raisedBuilder.resolveCollisions(p,.32);
+ assert(p.distanceTo(before)<.05,'Midway landing stays open for access to both sides of the plaza');
+}
+console.log('Sloping cement handrails, supported stair columns, protected sides and open cross-landing validated.');
