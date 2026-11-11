@@ -1,32 +1,43 @@
-# Saves no Supabase
+# Banco de saves
 
-Projeto: https://zmeohgrjlflqzyshrgth.supabase.co
+Projeto Supabase: https://zmeohgrjlflqzyshrgth.supabase.co
 
-## Ativação
+## Uso no jogo
 
-A migração `202611110001` já foi aplicada ao projeto remoto em 11/11/2026 pelo CLI. Leitura e escrita sem login foram verificadas e recusadas. A verificação com duas contas e o primeiro envio do save aprovado ainda dependem de login no jogo.
+- O jogo carrega o JSON do banco antes de importar os módulos de gameplay e montar a cena.
+- **Criação → Salvar** grava o mapa completo: cidade, posições, rotações, escalas, terreno e pastas do Build. Aguarde **Salvo no banco**.
+- Inventário, progresso e posição persistida do jogador/cavalos são enviados automaticamente a cada cinco segundos enquanto o jogo está aberto. O salvamento automático mantém o último mapa confirmado pelo botão Salvar; não publica edições pendentes do Build.
+- Não há painel de login, conta adicional nem seleção manual de backups para jogar.
 
-1. Para um projeto novo, executar `supabase link --project-ref <ref>` e `supabase db push`; a migração está em `supabase/migrations/202611110001_game_saves.sql`. No projeto atual, ela já está aplicada.
-2. Copiar `.env.example` para `.env.local` e reiniciar o Vite na mesma origem e perfil do navegador já usados. A configuração local já foi criada neste workspace.
-3. No jogo, abrir **Saves na nuvem**, criar conta ou entrar com e-mail e senha. Confirmar o e-mail se o projeto exigir.
-4. No perfil Chrome Rafael e endereço `http://localhost:5173/` aprovados, escolher **Salvar agora na nuvem** para enviar o save atual. Nenhum arquivo default ou backup antigo é importado automaticamente.
+O navegador mantém um espelho local para continuar funcionando sem rede. Ao abrir com conexão, o banco fornece o estado salvo. Qualquer estado local diferente é preservado antes da substituição em `rpg3d.cloud.backup.<timestamp>.<uuid>`. Edições do Build só ficam confirmadas no banco após clicar em Salvar. Fechar a aba antes de concluir um envio pode deixar mudanças apenas na cópia local.
 
-A publishable key é pública e pode ir no frontend; nunca configurar `service_role`, `sb_secret_*` ou senha de banco em variáveis `VITE_*`.
+## Migração executada
 
-## Dados e recuperação
+Em 11/11/2026, o save existente do Chrome **Rafael (Rafaeal Viana)** em `http://localhost:5173/` foi enviado ao banco automaticamente, antes da inicialização da cena. A migração usou os valores originais do localStorage, sem arredondar coordenadas nem importar defaults ou backups antigos.
 
-Os snapshots preservam os valores originais do localStorage, sem arredondar coordenadas: mapa, terreno, objetos, inventário, progresso, posições persistidas do jogador/cavalos, configurações e marcadores de migração `rpg3d.*`, além das duas calibrações `aincrad-*`. Tokens de autenticação e backups internos ficam de fora.
+O JSON completo anterior ao envio foi preservado em `backups/database-migration/` (ignorado pelo Git). O hash SHA-256 e a origem são registrados pelo servidor. O JSON do mapa no banco foi comparado com essa cópia.
 
-O banco mantém registros imutáveis por usuário. Não há sobrescrita entre abas ou dispositivos. O histórico mostra os últimos 100 backups; registros anteriores continuam no banco. O backup automático é opcional, a cada cinco minutos enquanto a página permanece aberta; fechar a página não garante um último envio. Sem internet, o save continua local e o próximo intervalo tenta novamente.
+## Servidor e segurança
 
-Entrar nunca baixa ou substitui o save. Para carregar, selecionar um backup no histórico e confirmar a origem e data. O estado anterior é preservado em `localStorage` sob `rpg3d.cloud.backup.<timestamp>` antes da substituição. Falha de espaço impede a restauração ou desfaz as alterações. A página recarrega na mesma URL, com os carregadores e migrações já existentes do jogo.
+O Vite e o preview servem `/api/game-save`. Configure `.env.local` no servidor:
 
-Para recuperar um backup local, no console do mesmo navegador/origem: listar `Object.keys(localStorage).filter(k => k.startsWith('rpg3d.cloud.backup.'))`, ler o JSON da chave desejada e preservar/exportar esse JSON antes de qualquer ação. Não substituir coordenadas sem identificar qual é o save aprovado.
+```
+SUPABASE_URL=https://zmeohgrjlflqzyshrgth.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=<credencial de servidor>
+```
 
-## Segurança e verificação
+A configuração já existe neste workspace. Nunca usar prefixo `VITE_` para a credencial de servidor. Ela fica fora do Git e do bundle do navegador.
 
-A tabela `game_saves` usa RLS: apenas usuários autenticados podem inserir e ler seus próprios registros. Não há permissões de atualização nem exclusão pelo cliente. Não compartilhar contas entre jogadores.
+Este fluxo atende o mundo único de desenvolvimento local. O endpoint aceita somente conexões loopback, host local e origem correspondente. Acesso direto pelo IP da rede é recusado para saves. Para publicar o jogo em um servidor público, adicionar autenticação/autorização do servidor antes de expor esse endpoint. Hospedagem apenas estática não executa a API; `npm run preview` executa a API local junto do build.
 
-Verificações locais: `npm run build` e `node scripts/validate-cloud-saves.mjs`.
+`rpg_world_saves` contém o estado atual do slot `main`. `rpg_world_history` preserva cada mudança de mapa e checkpoints de progresso a cada cinco minutos. As gravações passam por `write_rpg_world`, em uma transação com trava e revisão esperada. Duas abas não sobrescrevem silenciosamente o mesmo save: a segunda recebe conflito e precisa recarregar. A cópia local permanece preservada.
 
-Verificação após aplicar o SQL: criar duas contas; enviar um backup em cada uma; confirmar que cada histórico mostra apenas os próprios registros. Carregar um backup escolhido e verificar mapa/inventário/posições na origem correta. Testar offline e confirmar que os saves locais continuam funcionando.
+As tabelas têm RLS e nenhum acesso concedido às funções anon/authenticated. Apenas o backend usa a credencial privilegiada. A antiga tabela `game_saves`, criada na primeira implementação, permanece preservada, mas não é usada por este fluxo.
+
+Os snapshots incluem todas as chaves do jogo `rpg3d.*` e `aincrad-*`, preservadas como strings exatas. Tokens de autenticação e backups internos `rpg3d.cloud.*` não entram no banco.
+
+## Verificação
+
+- `npm run build`
+- `npm run validate:saves`: migração, precisão, isolamento de tokens, carregamento inicial, mapa manual/progresso automático, falha offline, restauração e concorrência.
+- Verificação real: botão Salvar no mesmo Chrome/origem, confirmação visual e leitura do JSON gravado. Acesso anônimo, origem externa e gravação com revisão desatualizada devem ser recusados.

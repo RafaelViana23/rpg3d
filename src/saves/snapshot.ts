@@ -1,5 +1,6 @@
 export type SaveSnapshot = { version: 1; origin: string; capturedAt: string; entries: Record<string, string> };
-export const isSaveKey = (key: string) => (key.startsWith('rpg3d.') && !key.startsWith('rpg3d.cloud.')) || key === 'aincrad-sword-socket-v1' || key === 'aincrad-hand-bone-tuning-v1';
+export const isSaveKey = (key: string) => (key.startsWith('rpg3d.') && !key.startsWith('rpg3d.cloud.')) || key.startsWith('aincrad-');
+export const fingerprint = (entries: Record<string, string>) => JSON.stringify(Object.keys(entries).sort().map(key => [key, entries[key]]));
 export function captureSave(storage: Storage, origin: string): SaveSnapshot {
   const entries: Record<string, string> = {};
   for (let i = 0; i < storage.length; i++) {

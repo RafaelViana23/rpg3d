@@ -279,3 +279,7 @@ h1 { margin: 0; font: 600 clamp(24px, 3vw, 38px)/1.05 Georgia, serif; letter-spa
 .citizen-talking .action-bar,.citizen-talking .interaction-prompt,.citizen-talking .npc-name,.citizen-talking .npc-subtitle{visibility:hidden}
 .build-active .citizen-conversation,.build-active .citizen-response,.build-active .citizen-greeting{display:none}
 @media(max-width:700px){.citizen-conversation{left:45%;width:50%;top:42%;padding-left:20px;max-height:38vh}.citizen-conversation h2{width:130px;right:calc(100% + 12px)}.citizen-conversation nav{max-height:32vh}.citizen-response{bottom:4%;width:92%;font-size:16px}.citizen-controls{font-size:9px}}
+
+.build-history [data-build-save]{border-color:#b99a61;background:#4d402b;color:#fff;font-weight:700;font-size:10px}
+.build-history [data-build-save-status]{grid-column:1/-1;order:10;color:#dfcba5;font:10px/1.4 system-ui;overflow-wrap:anywhere}
+.build-history [data-build-save-status]:empty{display:none}

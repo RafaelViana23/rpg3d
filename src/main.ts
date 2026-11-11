@@ -1,4 +1,4 @@
-import { mountCloudSaves } from './saves/CloudSaves';
+import { connectDatabaseSaveButton } from './saves/CloudSaves';
 import {CompanionKiss} from './editor/CompanionKiss';
 import {PrincessBedRest} from './editor/PrincessBedRest';
 import { clothShirtColor, clothPantsColor } from './inventory/clothColors';
@@ -325,7 +325,7 @@ app.innerHTML = `
       <section class="build-mode" id="buildMode" aria-hidden="true">
         <header><div><small>EDITOR DO MUNDO</small><strong>Modo Criação</strong></div><div><button type="button" data-build-collapse title="Ocultar painel">‹</button><button type="button" data-build-close aria-label="Sair do modo criação">×</button></div></header>
         <div class="build-toolbar" role="toolbar"><button class="active" type="button" data-build-tool="translate" title="Mover (W)">↔ <span>Mover</span></button><button type="button" data-build-tool="rotate" title="Girar (E)">⟳ <span>Girar</span></button><button type="button" data-build-tool="scale" title="Escalar (R)">⤢ <span>Escalar</span></button><button type="button" data-build-space>Global</button><button class="active" type="button" data-build-grid title="Mostrar ou ocultar a grade do chão"># Grade</button></div>
-        <div class="build-history" role="toolbar" aria-label="Histórico e arquivo"><button type="button" data-build-undo title="Desfazer (Ctrl+Z)">↶ Desfazer</button><button type="button" data-build-redo title="Refazer (Ctrl+Shift+Z)">↷ Refazer</button><button type="button" data-build-duplicate title="Duplicar (Ctrl+D)">⧉ Duplicar</button><button type="button" data-build-export>Exportar JSON</button><button type="button" data-build-import>Importar JSON</button><input type="file" accept="application/json" data-build-import-file hidden></div>
+        <div class="build-history" role="toolbar" aria-label="Histórico e arquivo"><button type="button" data-build-save>Salvar</button><output data-build-save-status role="status" aria-live="polite"></output><button type="button" data-build-undo title="Desfazer (Ctrl+Z)">↶ Desfazer</button><button type="button" data-build-redo title="Refazer (Ctrl+Shift+Z)">↷ Refazer</button><button type="button" data-build-duplicate title="Duplicar (Ctrl+D)">⧉ Duplicar</button><button type="button" data-build-export>Exportar JSON</button><button type="button" data-build-import>Importar JSON</button><input type="file" accept="application/json" data-build-import-file hidden></div>
         <nav class="build-tabs" aria-label="Seções do editor"><button class="active" data-build-tab="objects">Objetos</button><button data-build-tab="terrain">Terreno</button><button data-build-tab="world">Mundo</button></nav>
         <div class="build-panel-scroll">
         <div class="build-tab-panel" data-build-panel="terrain">
@@ -6453,4 +6453,4 @@ const releaseGraphics=()=>{
 };
 window.addEventListener('pagehide',releaseGraphics,{once:true});
 
-mountCloudSaves();
+connectDatabaseSaveButton(() => { worldEditorStore.save(); runtimeWorldStore.save(); saveInventory(inventoryState); });

@@ -1,0 +1,11 @@
+import assert from 'node:assert/strict';
+const url = 'http://localhost:5173/api/game-save';
+const current = await (await fetch(url)).json();
+assert.ok(current.revision > 0 && current.payload?.entries['rpg3d.worldBuilder.v1'], 'Real migrated save required');
+const stale = await fetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({expectedRevision:current.revision-1,payload:current.payload}) });
+assert.equal(stale.status,409,'Stale writer must receive a conflict');
+const foreign = await fetch(url, { method:'POST',headers:{'Content-Type':'application/json',Origin:'https://example.org'},body:'{}' });
+assert.equal(foreign.status,403);
+const invalid = await fetch(url, { method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({expectedRevision:current.revision,payload:{version:1,origin:'http://localhost:5173',entries:{}}}) });
+assert.equal(invalid.status,400);
+console.log('Real save API: migrated JSON found, stale write 409, foreign origin 403 and invalid map 400.');

@@ -223,3 +223,14 @@ Posições e rotações exatas, sem arredondamento. Rotação em radianos.
 | assets | fortaleza-mar-tima-da-costa | `[869.2490344646881,-0.005343650594511473,545.425291797504]` | `[3.141592653589793,-0.1350189782285922,3.141592653589793]` | `[0.07221514709521229,0.07221514709521229,0.07221514709521229]` |
 | assets | horse | `[19.777502902827422,0,-11.686894545586462]` | `[0,1.5707963267948966,0]` | `[1.2488430746496062,1.2488430746496062,1.2488430746496062]` |
 | assets | lobbycharacter | `[27.116629761464996,148.76489567424406,-3.9229357980496173]` | `[0,-1.2330981289854852,0]` | `[1.0000000000000004,1,1.0000000000000004]` |
+
+## Migração para o banco em 11/11/2026
+
+O save efetivamente aberto no Chrome **Rafael (Rafaeal Viana)** em `http://localhost:5173/` foi migrado como JSON exato para o slot `main` de `public.rpg_world_saves` no Supabase `zmeohgrjlflqzyshrgth`. Não se usou o snapshot transcrito acima como substituto do save corrente.
+
+- Cópia integral anterior ao envio: `backups/database-migration/1794431384068-3d8e463e-0a45-4645-8718-d00c55710879.json` (arquivo local preservado, ignorado pelo Git).
+- SHA-256 dessa cópia integral: `247ce25d670d2c78ef014d7605aa9c7c793d655885bd3664394adfb9a5c6baf1`.
+- SHA-256 da string original `rpg3d.worldBuilder.v1`: `e8de28305e01aee39c83f046fb0ccedcfc2971cdc7131bbecd8b9c688f44eab2`.
+- Comparação após a migração e teste do botão Salvar: nenhuma posição, rotação ou escala dos objetos existentes de `city`/`assets` foi alterada.
+
+O Build grava o JSON no banco pelo botão **Salvar**. A abertura carrega o banco antes de inicializar a cena; um estado local diferente é preservado antes da carga. Não restaurar os arquivos default ou backups antigos para simular esse carregamento. Os números completos permanecem no JSON, sem arredondamento.
