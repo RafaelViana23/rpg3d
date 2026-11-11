@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import {build} from 'esbuild';
-const result=await build({stdin:{contents:"export {CITY_BALUSTRADE_MATERIAL} from './src/editor/StoneBalustrade';export {createRoyalPalace,applyRoyalPalaceLayout} from './src/editor/RoyalPalace';export {LowPolyCityBuilder} from './src/editor/LowPolyCityBuilder';export {createRoyalAvenue,updateRoyalAvenueUV} from './src/editor/RoyalAvenue';export {CITY_AVENUE_GRAY} from './src/editor/CityStone';export * as T from 'three';",resolveDir:process.cwd()},bundle:true,write:false,platform:'node',format:'esm'});
-const {CITY_BALUSTRADE_MATERIAL,T,createRoyalPalace,applyRoyalPalaceLayout,LowPolyCityBuilder,createRoyalAvenue,updateRoyalAvenueUV,CITY_AVENUE_GRAY}=await import(`data:text/javascript;base64,${Buffer.from(result.outputFiles[0].text).toString('base64')}`);
+const result=await build({stdin:{contents:"export {appendStoneBalustrade,finishStoneBalustrades,CITY_BALUSTRADE_MATERIAL} from './src/editor/StoneBalustrade';export {createRoyalPalace,applyRoyalPalaceLayout} from './src/editor/RoyalPalace';export {LowPolyCityBuilder} from './src/editor/LowPolyCityBuilder';export {createRoyalAvenue,updateRoyalAvenueUV} from './src/editor/RoyalAvenue';export {CITY_AVENUE_GRAY} from './src/editor/CityStone';export * as T from 'three';",resolveDir:process.cwd()},bundle:true,write:false,platform:'node',format:'esm'});
+const {appendStoneBalustrade,finishStoneBalustrades,CITY_BALUSTRADE_MATERIAL,T,createRoyalPalace,applyRoyalPalaceLayout,LowPolyCityBuilder,createRoyalAvenue,updateRoyalAvenueUV,CITY_AVENUE_GRAY}=await import(`data:text/javascript;base64,${Buffer.from(result.outputFiles[0].text).toString('base64')}`);
 const {city}=JSON.parse(await readFile('src/editor/default-city.json','utf8')),saved=Object.values(city).find(s=>s.kind==='palace'),model=createRoyalPalace(0);
 assert.equal(model.userData.stairFlights.length,1,'Only the city-to-plaza stair flight remains');
 assert.deepEqual(model.userData.stairFlights.map(s=>[s.bottom,s.top]),[[0,6]],'Palace shares the plaza elevation');
@@ -322,7 +322,9 @@ const balustrades=raised.userData.terraceBalustrades;
 assert.equal(balustrades.length,4,'Intermediate plaza has two front balustrades and two side returns');
 assert(balustrades.every(rail=>rail.height===1.5&&rail.bottom===midPlaza.height&&rail.columns>10),'Classical parapets stand on the terrace with repeated miniature columns');
 const fronts=balustrades.filter(rail=>rail.axis==='x');
-assert(fronts[0].to+.33<-6&&fronts[1].from-.33>6,'Newel posts leave the full stair width unobstructed');
+assert.equal(fronts[0].to,-5.65,'Left terrace corner aligns exactly with the stair rail');
+assert.equal(fronts[1].from,5.65,'Right terrace corner aligns exactly with the stair rail');
+assert(fronts[1].from-fronts[0].to-.66>10.6,'Joined corner posts preserve the broad stair passage');
 for(const rail of balustrades){
  const along=(rail.from+rail.to)/2;
  const local=new T.Vector3(rail.axis==='x'?along:rail.fixed,midPlaza.height+.02,rail.axis==='x'?rail.fixed:along);
@@ -366,3 +368,16 @@ for(const rail of cityRails.filter(rail=>rail.end[1]>rail.start[1])){
  assert(p.distanceTo(before)>.15,'City stair rail has physical edge protection');
 }
 console.log('City entry, all palace stairs and galleries share smooth gray classical balustrades.');
+
+for(const turn of [false,true]){
+ const parts=[],context={add:(geometry)=>parts.push(geometry),colliders:[],newels:new Set()};
+ appendStoneBalustrade(context,new T.Vector3(0,0,8),new T.Vector3(0,2,4),8);
+ appendStoneBalustrade(context,new T.Vector3(0,2,4),turn?new T.Vector3(4,2,4):new T.Vector3(0,2,0));
+ const posts=finishStoneBalustrades(context);
+ assert.equal(posts.length,3,'Two joined segments share one endpoint column');
+ const junction=posts.find(post=>post.position[2]===4&&post.position[0]===0);
+ assert.equal(junction.large,turn,'Only direction changes receive a large corner post');
+ assert.equal(finishStoneBalustrades(context).length,0,'Finalizing twice cannot duplicate posts');
+ parts.forEach(part=>part.dispose());
+}
+console.log('Unified rail junctions: single corner pillar and slim columns at straight stair-to-landing joins validated.');

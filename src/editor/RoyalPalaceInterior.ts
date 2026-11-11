@@ -1,4 +1,4 @@
-import {appendStoneBalustrade} from './StoneBalustrade';
+import {appendStoneBalustrade,finishStoneBalustrades} from './StoneBalustrade';
 import {createRoyalLibrary} from './RoyalLibrary';
 import {appendRoyalSeat} from './RoyalSeat';
 import {createRoyalKitchen} from './RoyalKitchen';
@@ -92,14 +92,14 @@ export function createRoyalPalaceInterior(z:(value:number)=>number,front:number)
  flight.push([-halfHall,ground,back,halfHall,throne,platformFront]);
  // The narrow step allowance keeps the last riser climbable while sealing the base.
  colliders.push([-halfHall,ground,back,halfHall,throne-.35,platformFront]);
- rail(-halfHall,platformFront,-5.3,platformFront,throne);
- rail(5.3,platformFront,halfHall,platformFront,throne);
+ rail(-halfHall,platformFront,-4.65,platformFront,throne);
+ rail(4.65,platformFront,halfHall,platformFront,throne);
  for(const side of [-1,1])flights.push(stair(new T.Vector3(side*7,throne,branchZ),new T.Vector3(side*22,upper,branchZ),branchWidth));
  // Open arcades support the lateral galleries.
  const sideFront=z(9.2);
  deck(-26.2,-22,back,sideFront,upper);deck(22,26.2,back,sideFront,upper);
  for(const side of [-1,1]){
-  rail(side*22,branchZ+branchWidth/2+.35,side*22,sideFront,upper);
+  rail(side*22,branchZ+branchWidth/2-.35,side*22,sideFront,upper);
   const lo=side<0?-52.4:27.8,hi=side<0?-27.8:52.4;
   deck(lo,hi,z(-27),front-1.3,upper);
   // Doorway paving stops exactly at the bedroom floor, without coplanar overlap.
@@ -296,6 +296,7 @@ export function createRoyalPalaceInterior(z:(value:number)=>number,front:number)
   box(side*2.91,throne+.032,throneCarpet.front-.09,.18,.016,.18,gold);
  }
  const carpet={borderColor:'#c5a45a',width:runnerWidth,entryZ:front+.2,throneZ:throneCarpet.back,stairTreads:main.count,throneRectangle:throneCarpet};
+ finishStoneBalustrades(railContext);
  for(const [material,parts]of batches){const g=mergeGeometries(parts);parts.forEach(p=>p.dispose());if(!g)continue;const mesh=new T.Mesh(g,material);mesh.castShadow=mesh.receiveShadow=true;mesh.userData.cityObject=true;mesh.userData.palaceComplexMesh=true;if(material===hallPaving)mesh.userData.cityPaving=true;root.add(mesh);}
  root.userData.cityObject=true;
  root.userData.stoneBalustrades=balustrades;

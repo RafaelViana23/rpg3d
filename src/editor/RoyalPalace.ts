@@ -1,4 +1,4 @@
-import {appendStoneBalustrade,CITY_BALUSTRADE_MATERIAL} from './StoneBalustrade';
+import {appendStoneBalustrade,finishStoneBalustrades,CITY_BALUSTRADE_MATERIAL} from './StoneBalustrade';
 import { createPrincessPalaceLayout } from './PrincessPalaceRoutine';
 import {createRoyalPalaceInterior} from './RoyalPalaceInterior';
 import {cityStairGeometry} from './CityStairs';
@@ -235,6 +235,7 @@ export function createRoyalPalace(elevation=ROYAL_PALACE_ELEVATION){
    cityStairBalustrades.push(appendStoneBalustrade(cityRailContext,new T.Vector3(x,0,77),new T.Vector3(x,plazaFloor,58),Math.max(24,Math.ceil(plazaFloor/.25))));
    cityStairBalustrades.push(appendStoneBalustrade(cityRailContext,new T.Vector3(x,plazaFloor,58),new T.Vector3(x,plazaFloor,57)));
   }
+  finishStoneBalustrades(cityRailContext);
   const railNewels=new Set<string>();
   const balustrade=(axis:'x'|'z',fixed:number,from:number,to:number)=>{
    const length=to-from,centre=(from+to)/2,y=intermediatePlazaFloor,height=1.5;
@@ -257,11 +258,11 @@ export function createRoyalPalace(elevation=ROYAL_PALACE_ELEVATION){
    terraceBalustrades.push({axis,fixed,from,to,bottom:y,height,columns:count-1});
   };
   // Leave the full twelve-metre stair opening plus clearance for its end posts.
-  const railFront=accessLandingFront-.36,railSide=54-.36,stairClearance=6.7;
+  const railFront=accessLandingFront-.36,railSide=54-.36,stairClearance=5.65;
   balustrade('x',railFront,-railSide,-stairClearance);
   balustrade('x',railFront,stairClearance,railSide);
   for(const side of [-1,1])balustrade('z',side*railSide,keepFront+.36,railFront);
-  const stairRail=(x:number,front:number,back:number,bottom:number,top:number)=>{
+  const stairRail=(x:number,front:number,back:number,bottom:number,top:number,startPost=true,endPost=true)=>{
    const run=front-back,rise=top-bottom,steps=Math.max(24,Math.ceil(rise/.25));
    const yAt=(t:number)=>bottom+rise*t;
    const supportAt=(t:number)=>t<=0?bottom:t>=1?top:bottom+rise*Math.ceil(t*steps)/steps;
@@ -273,8 +274,8 @@ export function createRoyalPalace(elevation=ROYAL_PALACE_ELEVATION){
    const count=Math.max(2,Math.ceil(run/.85));
    for(let i=0;i<=count;i++){
     const t=i/count,z=front-run*t,foot=supportAt(t),cap=yAt(t)+1.16;
-    if(i===0||i===count){
-     const key=`${x},${z}`;if(railNewels.has(key))continue;railNewels.add(key);
+    if(i===0||i===count){const key=`${x},${z}`;if(railNewels.has(key))continue;railNewels.add(key);}
+    if((i===0&&startPost)||(i===count&&endPost)){
      box(x,foot+.09,z,.62,.18,.62,concrete,false);
      box(x,(foot+.18+cap+.24)/2,z,.4,cap+.24-foot-.18,.4,concrete,false);
      box(x,cap+.33,z,.66,.18,.66,concrete,false);
@@ -296,14 +297,10 @@ export function createRoyalPalace(elevation=ROYAL_PALACE_ELEVATION){
   for(const side of [-1,1]){
    // Seat the plinths on the treads, with the outer caps aligned to the stair edge.
    const x=side*5.65;
-   stairRail(x,47,accessLandingFront,plazaFloor,intermediatePlazaFloor);
-   stairRail(x,accessLandingFront,railFront,intermediatePlazaFloor,intermediatePlazaFloor);
+   stairRail(x,47,accessLandingFront,plazaFloor,intermediatePlazaFloor,true,false);
+   stairRail(x,accessLandingFront,railFront,intermediatePlazaFloor,intermediatePlazaFloor,false,true);
    stairRail(x,accessLandingBack,keepFront,intermediatePlazaFloor,raisedFloor);
-   // Butt-jointed return joins the terrace parapet without overlapping top faces.
-   const a=5.65+.27,b=stairClearance-.33,c=side*(a+b)/2;
-   box(c,intermediatePlazaFloor+.09,railFront,b-a,.18,.48,concrete,false);
-   box(c,intermediatePlazaFloor+1.36,railFront,b-a,.16,.42,concrete,false);
-   box(c,intermediatePlazaFloor+1.47,railFront,b-a,.06,.54,concrete,false);
+
   }
 
  }
