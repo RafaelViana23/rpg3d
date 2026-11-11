@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import {build} from 'esbuild';
-const result=await build({stdin:{contents:"export {createRoyalPalace,applyRoyalPalaceLayout} from './src/editor/RoyalPalace';export {LowPolyCityBuilder} from './src/editor/LowPolyCityBuilder';export {createRoyalAvenue,updateRoyalAvenueUV} from './src/editor/RoyalAvenue';export {CITY_AVENUE_GRAY} from './src/editor/CityStone';export * as T from 'three';",resolveDir:process.cwd()},bundle:true,write:false,platform:'node',format:'esm'});
-const {T,createRoyalPalace,applyRoyalPalaceLayout,LowPolyCityBuilder,createRoyalAvenue,updateRoyalAvenueUV,CITY_AVENUE_GRAY}=await import(`data:text/javascript;base64,${Buffer.from(result.outputFiles[0].text).toString('base64')}`);
+const result=await build({stdin:{contents:"export {CITY_BALUSTRADE_MATERIAL} from './src/editor/StoneBalustrade';export {createRoyalPalace,applyRoyalPalaceLayout} from './src/editor/RoyalPalace';export {LowPolyCityBuilder} from './src/editor/LowPolyCityBuilder';export {createRoyalAvenue,updateRoyalAvenueUV} from './src/editor/RoyalAvenue';export {CITY_AVENUE_GRAY} from './src/editor/CityStone';export * as T from 'three';",resolveDir:process.cwd()},bundle:true,write:false,platform:'node',format:'esm'});
+const {CITY_BALUSTRADE_MATERIAL,T,createRoyalPalace,applyRoyalPalaceLayout,LowPolyCityBuilder,createRoyalAvenue,updateRoyalAvenueUV,CITY_AVENUE_GRAY}=await import(`data:text/javascript;base64,${Buffer.from(result.outputFiles[0].text).toString('base64')}`);
 const {city}=JSON.parse(await readFile('src/editor/default-city.json','utf8')),saved=Object.values(city).find(s=>s.kind==='palace'),model=createRoyalPalace(0);
 assert.equal(model.userData.stairFlights.length,1,'Only the city-to-plaza stair flight remains');
 assert.deepEqual(model.userData.stairFlights.map(s=>[s.bottom,s.top]),[[0,6]],'Palace shares the plaza elevation');
@@ -348,3 +348,21 @@ for(let x=-40;x<=40;x+=.1){
  assert(p.distanceTo(before)<.05,'Midway landing stays open for access to both sides of the plaza');
 }
 console.log('Sloping cement handrails, supported stair columns, protected sides and open cross-landing validated.');
+
+const cityRails=raised.userData.cityStairBalustrades;
+assert.equal(cityRails.filter(rail=>rail.end[1]>rail.start[1]).length,2,'City entrance stairs have a sloping rail on each side');
+assert(cityRails.every(rail=>Math.abs(rail.start[0])===9.65),'City rail plinths rest on the outer treads');
+assert(cityRails.some(rail=>rail.end[2]===57),'City rails continue across the top landing into the gateway');
+const royalInterior=raised.getObjectByName('Interior real: escadaria e galeria');
+const interiorRails=royalInterior.userData.stoneBalustrades;
+assert.equal(interiorRails.filter(rail=>rail.end[1]>rail.start[1]).length,6,'All three palace stair flights have classical railings on both sides');
+assert.equal(interiorRails.filter(rail=>rail.end[1]===rail.start[1]).length,4,'Throne and gallery parapets match the stair railings');
+assert.equal(CITY_BALUSTRADE_MATERIAL.color.getHexString(),'66635a','All balustrades retain the approved visible wall gray');
+assert.equal(CITY_BALUSTRADE_MATERIAL.map,null,'Classical cement remains smooth and untextured');
+assert.equal(CITY_BALUSTRADE_MATERIAL.bumpMap,null);
+for(const rail of cityRails.filter(rail=>rail.end[1]>rail.start[1])){
+ const p=raised.localToWorld(new T.Vector3().fromArray(rail.start).lerp(new T.Vector3().fromArray(rail.end),.5)),before=p.clone();
+ raisedBuilder.resolveCollisions(p,.32);
+ assert(p.distanceTo(before)>.15,'City stair rail has physical edge protection');
+}
+console.log('City entry, all palace stairs and galleries share smooth gray classical balustrades.');

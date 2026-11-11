@@ -1,3 +1,4 @@
+import {appendStoneBalustrade} from './StoneBalustrade';
 import {createRoyalLibrary} from './RoyalLibrary';
 import {appendRoyalSeat} from './RoyalSeat';
 import {createRoyalKitchen} from './RoyalKitchen';
@@ -44,12 +45,10 @@ export function createRoyalPalaceInterior(z:(value:number)=>number,front:number)
   const finish=new T.PlaneGeometry(x1-x0,z1-z0);finish.rotateX(-Math.PI/2);finish.translate((x0+x1)/2,y,(z0+z1)/2);alignCityPavingUV(finish);add(finish,hallPaving);
   surfaces.push([x0,z0,x1,z1,y]);flight.push([x0,bottom,z0,x1,y,z1]);
  };
+ const balustrades:ReturnType<typeof appendStoneBalustrade>[]=[];
+ const railContext={add,colliders,newels:new Set<string>()};
  const rail=(x0:number,z0:number,x1:number,z1:number,y:number)=>{
-  const len=Math.hypot(x1-x0,z1-z0),count=Math.ceil(len/1.6);
-  for(let i=0;i<=count;i++)box(x0+(x1-x0)*i/count,y+.65,z0+(z1-z0)*i/count,.14,1.3,.14,CITY_WOOD_MATERIAL);
-  const alongX=Math.abs(x1-x0)>.01;
-  for(const h of [.55,1.25])box((x0+x1)/2,y+h,(z0+z1)/2,alongX?len:.14,.14,alongX?.14:len,CITY_WOOD_MATERIAL);
-  colliders.push([Math.min(x0,x1)-.07,y,Math.min(z0,z1)-.07,Math.max(x0,x1)+.07,y+1.35,Math.max(z0,z1)+.07]);
+  balustrades.push(appendStoneBalustrade(railContext,new T.Vector3(x0,y,z0),new T.Vector3(x1,y,z1)));
  };
  const stair=(start:T.Vector3,end:T.Vector3,width:number)=>{
   const length=Math.hypot(end.x-start.x,end.z-start.z),count=Math.ceil((end.y-start.y)/.25);
@@ -77,14 +76,10 @@ export function createRoyalPalaceInterior(z:(value:number)=>number,front:number)
    const bounds=[Math.min(...xs),Math.min(...zs),Math.max(...xs),Math.max(...zs),y];
    surfaces.push(bounds);flight.push([bounds[0],start.y-.25,bounds[1],bounds[2],y,bounds[3]]);
   }
-  // Sloping wooden handrails follow the flights, with posts outside the treads.
+  // Classical stone railings share the exterior style and rest on the outer treads.
   for(const side of [-1,1]){
-   const offset=new T.Vector3(side*(width/2+.12),0,0).transformDirection(new T.Matrix4().makeRotationY(angle)).multiplyScalar(width/2+.12);
-   const a=start.clone().add(offset).add(new T.Vector3(0,1.2,0)),b=end.clone().add(offset).add(new T.Vector3(0,1.2,0));
-   const beam=new T.BoxGeometry(.14,a.distanceTo(b),.14);
-   beam.applyQuaternion(new T.Quaternion().setFromUnitVectors(new T.Vector3(0,1,0),b.clone().sub(a).normalize()));beam.translate(...a.clone().add(b).multiplyScalar(.5).toArray());add(beam,CITY_WOOD_MATERIAL);
-   colliders.push([Math.min(a.x,b.x)-.07,start.y,Math.min(a.z,b.z)-.07,Math.max(a.x,b.x)+.07,end.y+1.3,Math.max(a.z,b.z)+.07]);
-   for(let i=0;i<=count;i+=3){const t=i/count,p=start.clone().lerp(end,t).add(offset);box(p.x,p.y+.6,p.z,.14,1.2,.14,CITY_WOOD_MATERIAL);}
+   const offset=new T.Vector3(side*(width/2-.35),0,0).applyAxisAngle(new T.Vector3(0,1,0),angle);
+   balustrades.push(appendStoneBalustrade(railContext,start.clone().add(offset),end.clone().add(offset),count));
   }
   return {start:start.toArray(),end:end.toArray(),width,count};
  };
@@ -104,7 +99,7 @@ export function createRoyalPalaceInterior(z:(value:number)=>number,front:number)
  const sideFront=z(9.2);
  deck(-26.2,-22,back,sideFront,upper);deck(22,26.2,back,sideFront,upper);
  for(const side of [-1,1]){
-  rail(side*22,branchZ+branchWidth/2+.15,side*22,sideFront,upper);
+  rail(side*22,branchZ+branchWidth/2+.35,side*22,sideFront,upper);
   const lo=side<0?-52.4:27.8,hi=side<0?-27.8:52.4;
   deck(lo,hi,z(-27),front-1.3,upper);
   // Doorway paving stops exactly at the bedroom floor, without coplanar overlap.
@@ -303,5 +298,6 @@ export function createRoyalPalaceInterior(z:(value:number)=>number,front:number)
  const carpet={borderColor:'#c5a45a',width:runnerWidth,entryZ:front+.2,throneZ:throneCarpet.back,stairTreads:main.count,throneRectangle:throneCarpet};
  for(const [material,parts]of batches){const g=mergeGeometries(parts);parts.forEach(p=>p.dispose());if(!g)continue;const mesh=new T.Mesh(g,material);mesh.castShadow=mesh.receiveShadow=true;mesh.userData.cityObject=true;mesh.userData.palaceComplexMesh=true;if(material===hallPaving)mesh.userData.cityPaving=true;root.add(mesh);}
  root.userData.cityObject=true;
+ root.userData.stoneBalustrades=balustrades;
  return {root,lightPlacements,propPlacements,surfaces,colliders,flight,flights,throne,upper,branchZ,doorZ,carpet,daises,arcades,royalSeats,closedGalleryRear:{back,front:closureEnd,bottom:ground,top:upper-.3},gallerySides:[[-26.2,back,-22,sideFront],[22,back,26.2,sideFront]],banquetHalls:[-1,1].map(side=>({x:side*10,y:ground,z:z(0),seats:12})),filledHall:{left:-halfHall,right:halfHall,back,front:platformFront,bottom:ground,top:throne},bedrooms:[-1,1].flatMap(side=>[[-27,-8],[-8,9.2]].map(([a,b])=>({x:side*40.5,y:upper,z:(z(a)+z(b))/2,width:24.6,depth:z(b)-z(a)-.3}))),royalPositions:[[-.8,throne+daisRise,z(-24)],[.8,throne+daisRise,z(-24)]]};
 }

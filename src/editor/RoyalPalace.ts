@@ -1,3 +1,4 @@
+import {appendStoneBalustrade,CITY_BALUSTRADE_MATERIAL} from './StoneBalustrade';
 import { createPrincessPalaceLayout } from './PrincessPalaceRoutine';
 import {createRoyalPalaceInterior} from './RoyalPalaceInterior';
 import {cityStairGeometry} from './CityStairs';
@@ -209,6 +210,7 @@ export function createRoyalPalace(elevation=ROYAL_PALACE_ELEVATION){
  for(const bounds of colliders.slice(keepColliderStart)){bounds[2]=keepZ(bounds[2]);bounds[5]=keepZ(bounds[5]);bounds[1]+=elevation;bounds[4]+=elevation;}
  for(const surface of surfaces.slice(keepSurfaceStart)){surface[1]=keepZ(surface[1]);surface[3]=keepZ(surface[3]);}
  for(const roof of roofs){roof[2]=keepZ(roof[2]);roof[5]=keepZ(roof[5]);roof[1]+=elevation;roof[4]+=elevation;}
+ const cityStairBalustrades:ReturnType<typeof appendStoneBalustrade>[]=[];
  const stairBalustrades:{x:number;front:number;back:number;bottom:number;top:number}[]=[];
  const terraceBalustrades:{axis:'x'|'z';fixed:number;from:number;to:number;bottom:number;height:number;columns:number}[]=[];
  const interior=createRoyalPalaceInterior(keepZ,keepFront);
@@ -226,7 +228,13 @@ export function createRoyalPalace(elevation=ROYAL_PALACE_ELEVATION){
   stairs(47,accessLandingFront,12,plazaFloor,intermediatePlazaFloor);
   stairs(accessLandingBack,keepFront,12,intermediatePlazaFloor,raisedFloor);
   // Match the wall's visible gray after its texture tint, rather than its pale base color.
-  const concrete=new T.MeshStandardMaterial({color:CITY_MERLON_MATERIAL.color.clone(),roughness:.97,metalness:0});
+  const concrete=CITY_BALUSTRADE_MATERIAL;
+  const cityRailContext={add,colliders,newels:new Set<string>()};
+  for(const side of [-1,1]){
+   const x=side*(ROYAL_PRECINCT.portalWidth/2-.35);
+   cityStairBalustrades.push(appendStoneBalustrade(cityRailContext,new T.Vector3(x,0,77),new T.Vector3(x,plazaFloor,58),Math.max(24,Math.ceil(plazaFloor/.25))));
+   cityStairBalustrades.push(appendStoneBalustrade(cityRailContext,new T.Vector3(x,plazaFloor,58),new T.Vector3(x,plazaFloor,57)));
+  }
   const railNewels=new Set<string>();
   const balustrade=(axis:'x'|'z',fixed:number,from:number,to:number)=>{
    const length=to-from,centre=(from+to)/2,y=intermediatePlazaFloor,height=1.5;
@@ -359,6 +367,7 @@ export function createRoyalPalace(elevation=ROYAL_PALACE_ELEVATION){
  root.userData.palaceFloorElevation=6.08+elevation;
  root.userData.plazaFloorElevation=plazaFloor;
  root.userData.palaceAccessStairs=elevation>0?{front:47,back:keepFront,width:12,bottom:plazaFloor,top:6.08+elevation}:null;
+ root.userData.cityStairBalustrades=cityStairBalustrades;
  root.userData.stairBalustrades=stairBalustrades;
  root.userData.terraceBalustrades=terraceBalustrades;
  root.userData.intermediatePlaza=elevation>0?{left:-54,right:54,front:accessLandingFront,back:keepFront,height:intermediatePlazaFloor,landingFront:accessLandingFront,landingBack:accessLandingBack,landingDepth:accessLandingDepth}:null;
