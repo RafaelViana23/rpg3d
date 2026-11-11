@@ -317,3 +317,18 @@ for(const x of [-40,0,40])for(const z of [midPlaza.landingBack+.8,(midPlaza.land
 }
 for(const post of raised.userData.npcGuardPosts.slice(-2))assert.equal(post[1],midPlaza.height,'Entrance guards stand on the intermediate plaza');
 console.log('Two exterior palace flights, full-width intermediate plaza, flat landing and guard support validated.');
+
+const balustrades=raised.userData.terraceBalustrades;
+assert.equal(balustrades.length,4,'Intermediate plaza has two front balustrades and two side returns');
+assert(balustrades.every(rail=>rail.height===1.5&&rail.bottom===midPlaza.height&&rail.columns>10),'Classical parapets stand on the terrace with repeated miniature columns');
+const fronts=balustrades.filter(rail=>rail.axis==='x');
+assert(fronts[0].to+.33<-6&&fronts[1].from-.33>6,'Newel posts leave the full stair width unobstructed');
+for(const rail of balustrades){
+ const along=(rail.from+rail.to)/2;
+ const local=new T.Vector3(rail.axis==='x'?along:rail.fixed,midPlaza.height+.02,rail.axis==='x'?rail.fixed:along);
+ const p=raised.localToWorld(local.clone()),before=p.clone();
+ raisedBuilder.resolveCollisions(p,.32);
+ assert(p.distanceTo(before)>.15,'Parapet collision prevents walking through the terrace edge');
+}
+assert(raised.children.length<=model.children.length+1,'All concrete railings share a single additional geometry batch');
+console.log('Cement Doric balustrades, protected terrace edges, clear stairs and shared draw batch validated.');

@@ -209,6 +209,7 @@ export function createRoyalPalace(elevation=ROYAL_PALACE_ELEVATION){
  for(const bounds of colliders.slice(keepColliderStart)){bounds[2]=keepZ(bounds[2]);bounds[5]=keepZ(bounds[5]);bounds[1]+=elevation;bounds[4]+=elevation;}
  for(const surface of surfaces.slice(keepSurfaceStart)){surface[1]=keepZ(surface[1]);surface[3]=keepZ(surface[3]);}
  for(const roof of roofs){roof[2]=keepZ(roof[2]);roof[5]=keepZ(roof[5]);roof[1]+=elevation;roof[4]+=elevation;}
+ const terraceBalustrades:{axis:'x'|'z';fixed:number;from:number;to:number;bottom:number;height:number;columns:number}[]=[];
  const interior=createRoyalPalaceInterior(keepZ,keepFront);
  if(elevation>0){
   const raisedFloor=6.08+elevation,top=raisedFloor-.24;
@@ -223,6 +224,34 @@ export function createRoyalPalace(elevation=ROYAL_PALACE_ELEVATION){
   floor(0,(keepFront+accessLandingFront)/2,108,terraceDepth,intermediatePlazaFloor);
   stairs(47,accessLandingFront,12,plazaFloor,intermediatePlazaFloor);
   stairs(accessLandingBack,keepFront,12,intermediatePlazaFloor,raisedFloor);
+  const concrete=new T.MeshStandardMaterial({color:'#c7c3b9',roughness:.97,metalness:0});
+  const railNewels=new Set<string>();
+  const balustrade=(axis:'x'|'z',fixed:number,from:number,to:number)=>{
+   const length=to-from,centre=(from+to)/2,y=intermediatePlazaFloor,height=1.5;
+   const piece=(along:number,bottom:number,w:number,h:number,d:number)=>box(axis==='x'?along:fixed,y+bottom+h/2,axis==='x'?fixed:along,axis==='x'?w:d,h,axis==='x'?d:w,concrete,false);
+   // Continuous plinth and capped handrail, with tapered Doric miniature columns.
+   piece(centre,0,length,.18,.48);piece(centre,1.28,length,.16,.42);piece(centre,1.44,length+.12,.06,.54);
+   const count=Math.max(2,Math.ceil(length/.85));
+   for(let i=1;i<count;i++){
+    const along=from+length*i/count;
+    piece(along,.18,.34,.1,.34);piece(along,1.16,.34,.12,.34);
+    const shaft=new T.CylinderGeometry(.105,.14,.88,10);
+    shaft.translate(axis==='x'?along:fixed,y+.72,axis==='x'?fixed:along);add(shaft,concrete);
+   }
+   for(const along of [from,to]){
+    const key=`${axis==='x'?along:fixed},${axis==='x'?fixed:along}`;
+    if(railNewels.has(key))continue;railNewels.add(key);
+    piece(along,0,.62,.18,.62);piece(along,.18,.4,1.22,.4);piece(along,1.4,.66,.18,.66);
+   }
+   colliders.push(axis==='x'?[from-.33,y,fixed-.33,to+.33,y+height+.08,fixed+.33]:[fixed-.33,y,from-.33,fixed+.33,y+height+.08,to+.33]);
+   terraceBalustrades.push({axis,fixed,from,to,bottom:y,height,columns:count-1});
+  };
+  // Leave the full twelve-metre stair opening plus clearance for its end posts.
+  const railFront=accessLandingFront-.36,railSide=54-.36,stairClearance=6.7;
+  balustrade('x',railFront,-railSide,-stairClearance);
+  balustrade('x',railFront,stairClearance,railSide);
+  for(const side of [-1,1])balustrade('z',side*railSide,keepFront+.36,railFront);
+
  }
  interior.root.position.y=elevation;
  for(const bounds of [...interior.colliders,...interior.flight]){bounds[1]+=elevation;bounds[4]+=elevation;}
@@ -284,6 +313,7 @@ export function createRoyalPalace(elevation=ROYAL_PALACE_ELEVATION){
  root.userData.palaceFloorElevation=6.08+elevation;
  root.userData.plazaFloorElevation=plazaFloor;
  root.userData.palaceAccessStairs=elevation>0?{front:47,back:keepFront,width:12,bottom:plazaFloor,top:6.08+elevation}:null;
+ root.userData.terraceBalustrades=terraceBalustrades;
  root.userData.intermediatePlaza=elevation>0?{left:-54,right:54,front:accessLandingFront,back:keepFront,height:intermediatePlazaFloor,landingFront:accessLandingFront,landingBack:accessLandingBack,landingDepth:accessLandingDepth}:null;
  root.userData.palaceAccessFlights=elevation>0?[{front:47,back:accessLandingFront,width:12,bottom:plazaFloor,top:intermediatePlazaFloor},{front:accessLandingBack,back:keepFront,width:12,bottom:intermediatePlazaFloor,top:6.08+elevation}]:[];
  root.userData.palaceExtension={back:keepBack,front:keepFront,depth:keepFront-keepBack};
