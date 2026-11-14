@@ -82,6 +82,20 @@ export class DatabaseSaves {
     this.recordRevision();
   }
 
+  private async refreshRevision() {
+    const remote = await this.request('GET') as RemoteSave;
+    if (!Number.isSafeInteger(remote.revision) || remote.revision < 0) throw new Error('Revisão inválida no banco.');
+    this.revision = remote.revision;
+    this.conflict = false;
+    if (remote.payload) {
+      validateSnapshot(remote.payload);
+      this.committed = { ...remote.payload.entries };
+      this.lastSaved = fingerprint(remote.payload.entries);
+    }
+    this.ready = true;
+    this.recordRevision();
+  }
+
   hasMapChanges() {
     return MAP_KEYS.some(key => this.options.storage.getItem(key) !== (this.committed[key] ?? null));
   }
@@ -90,7 +104,13 @@ export class DatabaseSaves {
   async save(includeMap = false): Promise<void> {
     if (this.pending) { await this.pending; return this.save(includeMap); }
     const action = async () => {
-      if (this.conflict) throw new Error('Outra sessão alterou o banco. Recarregue o jogo; a cópia local está preservada.');
+      if (this.conflict) {
+        if (!includeMap) throw new Error('Outra sessão alterou o banco. Recarregue o jogo; a cópia local está preservada.');
+        // An explicit Build save is the user's decision to publish the map
+        // currently open. Refresh only the optimistic-lock revision here;
+        // never hydrate the scene over the edits being saved.
+        await this.refreshRevision();
+      }
       if (!this.ready) {
         // Do not hydrate over a running scene after an offline start.
         const remote = await this.request('GET') as RemoteSave;
@@ -112,7 +132,16 @@ export class DatabaseSaves {
         }
       }
       if (fingerprint(payload.entries) === this.lastSaved) return;
-      await this.write(payload);
+      try {
+        await this.write(payload);
+      } catch (error) {
+        // A second tab/session may have committed between the revision check and
+        // the POST. Refresh the compare-and-swap token and publish this explicit
+        // Build save once more instead of permanently locking the session.
+        if (!(error instanceof Error) || !this.conflict || !includeMap) throw error;
+        await this.refreshRevision();
+        await this.write(payload);
+      }
     };
     this.pending = action();
     try { await this.pending; } finally { this.pending = null; }
