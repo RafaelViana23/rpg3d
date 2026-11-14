@@ -1,3 +1,4 @@
+import {appendCityCurtain} from './CityCurtain';
 import {appendRoyalSeat} from './RoyalSeat';
 import * as T from 'three';
 import {mergeGeometries} from 'three/addons/utils/BufferGeometryUtils.js';
@@ -60,12 +61,9 @@ export function createRoyalSittingRoom(floor:number,back:number,front:number){
  ])appendRoyalPainting(floor,painting,add);
  // Banners, curtains and a timber coffered ceiling retain distinct cloth and metal.
  for(const x of [29.5,51]){box(x,4.7,back+.35,2.1,3.5,.08,wine);crown(x,4.6,back+.41,.9);box(x,6.5,back+.35,2.6,.1,.12,gold);}
- for(const zz of [center-4,center+4]){box(52.1,4,zz,.12,5,1.1,wine);box(51.99,2.9,zz,.16,.22,1.15,gold);}
- // Front facade window, opposite the partition, opens onto the exterior.
- for(const x of [37.6,43.4]){
-  box(x,3.85,front-.3,.8,5,.12,wine);box(x,2.7,front-.4,.85,.17,.14,gold);
- }
- box(40.5,6.45,front-.3,7,.12,.12,CITY_WOOD_MATERIAL);
+ appendCityCurtain(52.1,floor+1.5,center,9.1,5.1,.18,-Math.PI/2,add);
+ // Front facade window, opposite the partition.
+ appendCityCurtain(40.5,floor+1.35,front-.3,7,5.16,.18,Math.PI,add);
  appendRoyalWoodCeiling(floor,back,front,add);
  lights.push(...appendRoyalChandelier(floor,back,front,'royal-sitting-chandelier',add));
  lights.push({pack:'candle',x:40.9,y:floor+.8,z:center,height:.32,rotation:0});

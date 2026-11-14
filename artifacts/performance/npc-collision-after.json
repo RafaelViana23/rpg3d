@@ -1,0 +1,23 @@
+{
+  "method": "Node CPU benchmark; static shells and exact transforms from repository default map; no live save, GLB props, GPU or FPS measurement.",
+  "buildings": 180,
+  "shapes": 39037,
+  "queries": 4096,
+  "coldMs": 115.0932499999999,
+  "medianMs": 19.037124999999833,
+  "p95Ms": 27.908208000000286,
+  "checksum": "774d5424508e9227ab7d82097bf09503ee950fb4fa4391ac6dcd7b874d57837b",
+  "speedup": 2.286300216025305,
+  "reductionPercent": 56.261212198173894,
+  "paired": {
+    "legacy": {
+      "medianMs": 73.13374999999996,
+      "p95Ms": 105.40704100000039
+    },
+    "cached": {
+      "medianMs": 26.51916600000004,
+      "p95Ms": 45.17904200000066
+    },
+    "reductionPercent": 63.738812791631695
+  }
+}

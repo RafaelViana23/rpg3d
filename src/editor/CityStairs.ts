@@ -1,5 +1,10 @@
 import * as T from 'three';
 
+/** Palace proportions: the same riser count for a given flight height. */
+export function cityStoneStairCount(from:number,to:number){
+ return Math.max(24,Math.ceil(Math.abs(to-from)/.25));
+}
+
 /** A single closed stair profile, without overlapping boxes or internal faces. */
 export function cityStairGeometry(front:number,back:number,width:number,from:number,to:number,count:number,base=from-.3){
  const run=(front-back)/count,profile=new T.Shape();

@@ -1,0 +1,22 @@
+{
+  "originalSource": {
+    "triangles": 789,
+    "geometryBytes": 59580
+  },
+  "originalBatched": {
+    "triangles": 789,
+    "vertices": 2131,
+    "drawCalls": 5,
+    "geometryKiBMeasured": 75.03
+  },
+  "prototype": {
+    "triangles": 180,
+    "vertices": 358,
+    "geometryBytes": 16496,
+    "drawCalls": 2
+  },
+  "lightsPerFixture": 1,
+  "lightShadows": false,
+  "triangleReductionPercent": 77.18631178707224,
+  "gameReplaced": true
+}

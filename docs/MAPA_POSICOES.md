@@ -234,3 +234,60 @@ O save efetivamente aberto no Chrome **Rafael (Rafaeal Viana)** em `http://local
 - Comparação após a migração e teste do botão Salvar: nenhuma posição, rotação ou escala dos objetos existentes de `city`/`assets` foi alterada.
 
 O Build grava o JSON no banco pelo botão **Salvar**. A abertura carrega o banco antes de inicializar a cena; um estado local diferente é preservado antes da carga. Não restaurar os arquivos default ou backups antigos para simular esse carregamento. Os números completos permanecem no JSON, sem arredondamento.
+
+## Planejamento dos distritos no mapa do jogo
+
+O minimapa e o mapa ampliado mostram os distritos Real, Nobre, Comercial, Militar e Residencial. Por decisão do usuário, a fatia superior direita delimitada pelas avenidas é Nobre e a inferior direita é Militar. O Distrito Real coincide exclusivamente com o retângulo real do palácio, considerando posição, rotação e escala; todas as demais áreas excluem esse retângulo. O Distrito Comercial ocupa um círculo de raio de 90 metros no centro da avenida, ao redor da fonte e do mercado, com contorno no mapa e no minimapa; o piso físico da praça permanece intacto. O raio alcança a taverna; as 32 moradias já atribuídas aos guardas permanecem vinculadas à distribuição original (raio comercial de 40 metros), evitando redistribuir moradores ao ampliar o zoneamento. Essas divisões acompanham as avenidas salvas sem mover construções.
+
+A legenda contabiliza os prédios existentes pela área em que se encontram atualmente, sem inventar mansões nem relocalizar os estabelecimentos para simular o planejamento. Não há distritos separados de viajantes, religioso, serviços ou artesãos; seus estabelecimentos permanecem nas áreas delimitadas pelas avenidas e pelo círculo comercial.
+
+Esta alteração não moveu construções nem substituiu saves. O JSON integral consultado no banco (revisão 954) foi preservado em `backups/district-planning/before-districts.json`. A geometria real da igreja nessa cópia foi validada contra ambas as avenidas e a praça central: não há interseção, portanto sua posição foi preservada. O teste `node scripts/validate-city-districts.mjs backups/district-planning/before-districts.json` reproduz essa verificação; sem argumento, verifica o mapa padrão.
+
+## Praça da fonte e rua circular — 12/11/2026
+
+Alteração solicitada pelo usuário aplicada ao mapa corrente de http://localhost:5173/, perfil Chrome Rafael. Praça externa: raio de 26 para 60 metros; ilha da fonte e do mercado: raio de 33 metros, incluindo o alcance real das barracas (até 31,24 m), com faixa de contorno de 0,9 m e rua circular livre de 26,1 m. Fonte, mercado, estabelecimentos, muralhas, portões e avenida mantêm seus transforms. 57 casas foram redistribuídas nos mesmos lados das avenidas, preservando IDs, alturas, rotações e escalas; validação dos telhados não encontrou novas interseções físicas, casas na praça/avenidas ou fora da fundação.
+
+Cópias integrais: `backups/central-plaza-expansion/before.json` (banco anterior), `browser-before.json` (mapa realmente aberto, confirmado idêntico), `applied.json` (revisão 2857). Coordenadas completas, sem arredondamento, em `plan.json` e `proposed-map.json`. Nenhum default ou backup antigo foi restaurado.
+
+
+## Ruas marcadas na imagem — 13/11/2026
+
+Aplicadas no mapa aberto em `http://localhost:5173/`, Chrome Rafael (Rafaeal Viana). Trechos retos com pista de 13 m, mesma largura da avenida secundária, e bordas de 0,9 m. O ramo marcado com X foi excluído. Por instrução final do usuário, todas as ruas marcadas foram feitas sem mover as casas; o usuário ajustará as construções depois.
+
+Cópia anterior: `backups/marked-tavern-streets/before-straight-fix.json`. Resultado aplicado: `backups/marked-tavern-streets/straight-streets.json`, SHA-256 `b081a67e1850981aa56a9ada1ffebe7a814d55e5dadead0af459fb3eacc98502`. A única entrada alterada nessa correção é `city-marked-tavern-streets-v1`; transforms das construções e demais campos foram preservados. Coordenadas completas, sem arredondamento, estão no JSON. Piso e bordas são polígonos separados, sem sobreposição.
+
+Correção posterior: `connected-streets.json` usa eixos exatos das avenidas, com encontros de 90° e ângulos internos de 120°. As ruas se conectam às avenidas principal e secundária. A entrada `city-royal-avenue-v1` recebe somente `streetBorderOpenings`, que retira bordas nas junções sem alterar seu transform; casas, demais objetos e terreno permanecem preservados. SHA-256: `eb64006083e7ccf51a716b90aa887d8c994fba6c24104e7e90b796248f23ed54`.
+
+
+## Correção das ruas paralelas — 13/11/2026
+
+Traçado refeito a partir dos segmentos da referência, com famílias de trechos paralelos, pista de 13 m e encontros contínuos. Aplicado diretamente ao banco do jogo em localhost:5173, revisão 3780, usando o mapa efetivamente exportado do Chrome Rafael às 14:19, sem restaurar snapshots antigos. Construções, fonte, mercado, terreno e transforms da avenida preservados em relação ao mapa aberto; somente a geometria de city-marked-tavern-streets-v1 e streetBorderOpenings foram alterados.
+
+Correção seguinte, revisão 3781: todos os segmentos novos usam exatamente os dois eixos da avenida salva (0° ou 90° no espaço local), eliminando as famílias diagonais aproximadas. Aplicada ao banco corrente alterando somente a rua e as aberturas das bordas.
+
+Revisão 3782 substitui a grade anterior: duas ruas com trechos correspondentes paralelos, quatro cotovelos abertos de 120° e ligações transversais perpendiculares de 90°. Ângulos e paralelismo verificados por produto escalar e determinante antes da gravação. Somente rua e recortes das bordas alterados no save corrente.
+
+Verificação no jogo às 14:29: o Chrome permanecia no traçado antigo por QuotaExceededError durante restoreSave. Corrigida a hidratação para arquivar em disco os snapshots que ocupavam a quota antes de repetir a carga. Exportação real rpg-map-2026-11-13 (4).json confirmou geometria da rua idêntica à revisão 3782; mudança também conferida visualmente no Build. Testes de saves, regressão de quota cheia e TypeScript aprovados.
+
+## Rua desenhada pelo usuário no Canva — 13/11/2026, 15:07
+
+Substituído o traçado anterior pelo próprio contorno cinza da captura `Captura de Tela 2026-11-13 às 15.07.57 (2).png`, extraído por cor e projetado no mapa pelos centros dos telhados de referência. Não foram impostos ângulos de 120° nem desvios para evitar casas. Preservadas as três quadras fechadas, ligações internas e pontas do desenho. Somente `pavedStreet` de `city-marked-tavern-streets-v1` e `streetBorderOpenings` da avenida mudaram; construções, terreno e demais transforms foram comparados e preservados integralmente.
+
+Backup corrente em `backups/drawn-streets/immediately-before.json`; resultado em `backups/drawn-streets/database-after.json`, revisão 3821, com leitura de retorno idêntica. A alteração paralela de inventário da revisão 3820 foi preservada. Extração reproduzível em `scripts/trace-drawn-streets.py`; máscara e referências em `backups/drawn-streets/`. Mesmo endereço `http://localhost:5173/` e perfil Chrome Rafael (Rafaeal Viana).
+
+### Paralelismo das pontas — 13/11/2026
+
+A pedido do usuário, corrigidas as pequenas diferenças angulares copiadas da rasterização: a ponta superior direita e o trecho externo direito diferiam aproximadamente 5,4° na referência. O desenho mantém as três quadras e ligações, agora construído com vetores compartilhados para cada família de trechos. Paralelismo validado também no espaço XZ do mapa (produto vetorial normalizado abaixo de 1e-12). Nenhuma construção foi movida. Revisão 3903; backup integral corrente e resultado em `backups/parallel-street-tips/`, gerador `scripts/align-drawn-streets.py`. Resultado lido de volta e conferido idêntico após gravação.
+
+Correção seguinte, revisão 3944: o par do lado direito foi adotado como referência aprovada e sua inclinação foi espelhada exatamente no par do lado esquerdo, inclusive no cotovelo inferior. As duas inclinações direitas são `-42,62640419776335°`; as duas esquerdas são `+42,62640419776335°`, com desvio de espelhamento igual a zero. A rua termina na avenida, sem atravessá-la. Casas e demais transforms continuam preservados. Backup e resultado em `backups/mirrored-street-angles/`.
+
+Correção seguinte, revisão 3962: fechados os vãos das duas bocas com a avenida principal. Os trechos finais foram prolongados em linha reta até sobrepor o piso da avenida e os recortes das bordas foram atualizados, sem atravessar para o outro lado. Ambos encontram o eixo da avenida a `90°` exatos. Casas e demais transforms preservados. Backup e resultado em `backups/connected-street-mouths/`.
+
+Correção seguinte, revisão 3988: toda a malha das ruas desenhadas foi reconstruída por eixos no espaço local da avenida, com largura uniforme exata de `13 m`; a largura variável herdada da projeção da captura foi eliminada. As quatro bocas foram ligadas: duas à avenida principal e duas à avenida secundária. Cada encontro foi validado com produto escalar zero, portanto `90°` exatos. A rua apenas se sobrepõe ao piso das avenidas na emenda e não atravessa para o lado oposto. Casas e demais transforms preservados. Backup e resultado em `backups/four-connected-street-mouths/`.
+
+Correção seguinte, revisão 4013: a malha aprovada do primeiro distrito residencial foi espelhada exatamente pelo eixo local `x=0` da avenida principal para formar o segundo distrito residencial. São cinco eixos originais e cinco espelhados, todos com largura de `13 m`; para cada ponto espelhado, `x'=-x` e `z'=z`, sem desvio numérico. As oito bocas resultantes mantêm encontros de `90°` com as avenidas. Casas e demais transforms preservados. Backup e resultado em `backups/mirrored-residential-district/`.
+
+Correção seguinte, revisão 4050: o material das ruas residenciais passou a projetar UV usando exatamente o transform salvo da avenida, mantendo as fiadas de pedra alinhadas ao padrão horizontal da avenida nos encontros. A borda da rua agora é subtraída pela área completa das avenidas incluindo os `0,9 m` de acabamento. O recorte côncavo anterior foi substituído por oito retângulos convexos, um por boca, retirando a borda da avenida sobre as ruas e evitando z-fighting. TypeScript aprovado; casas e demais transforms preservados. Backup e resultado em `backups/aligned-street-mouths/`.
+## Revisão 4340 — ruas residenciais com 12 m
+
+As ruas desenhadas de `city-marked-tavern-streets-v1` foram recalculadas para largura uniforme de 12 m, mantendo eixos, espelhamento, encontros perpendiculares e posições dos prédios. O save ativo foi atualizado sem substituir os demais dados.

@@ -1,3 +1,4 @@
+import {createRoyalBread} from '../inventory/royalBread';
 import * as T from 'three';
 import {mergeGeometries} from 'three/addons/utils/BufferGeometryUtils.js';
 import {CITY_WOOD_MATERIAL as wood} from './CityWood';
@@ -11,7 +12,7 @@ export function createRoyalKitchen(floor:number,back:number,front:number,windowZ
  const batches=new Map<T.Material,T.BufferGeometry[]>(),colliders:number[][]=[],lights:RoyalRoomLight[]=[];
  const copper=new T.MeshStandardMaterial({color:'#b97446',metalness:.75,roughness:.38}),iron=new T.MeshStandardMaterial({color:'#343338',metalness:.75,roughness:.5});
  const linen=new T.MeshLambertMaterial({color:'#e9dec4'}),wine=new T.MeshLambertMaterial({color:'#722b35'}),gold=new T.MeshStandardMaterial({color:'#c5a45a',metalness:.6,roughness:.4});
- const green=new T.MeshLambertMaterial({color:'#507244'}),red=new T.MeshLambertMaterial({color:'#ae4434'}),bread=new T.MeshLambertMaterial({color:'#c89a54'}),water=new T.MeshStandardMaterial({color:'#658e99',roughness:.2});
+ const green=new T.MeshLambertMaterial({color:'#507244'}),water=new T.MeshStandardMaterial({color:'#658e99',roughness:.2});
  const add=(g:T.BufferGeometry,m:T.Material)=>{const geo=g.index?g.toNonIndexed():g;if(geo!==g)g.dispose();const list=batches.get(m)??[];list.push(geo);batches.set(m,list);};
  const box=(x:number,y:number,z:number,w:number,h:number,d:number,m:T.Material)=>{const g=new T.BoxGeometry(w,h,d);g.translate(x,floor+y,z);add(g,m);};
  const solid=(x:number,z:number,w:number,h:number,d:number)=>colliders.push([x-w/2,floor,z-d/2,x+w/2,floor+h,z+d/2]);
@@ -19,8 +20,18 @@ export function createRoyalKitchen(floor:number,back:number,front:number,windowZ
  const ring=(x:number,y:number,z:number,r:number,m:T.Material,flat=true)=>{const g=new T.TorusGeometry(r,.035,5,16);if(flat)g.rotateX(Math.PI/2);g.translate(x,floor+y,z);add(g,m);};
  const cylinder=(x:number,y:number,z:number,r:number,h:number,m:T.Material)=>{const g=new T.CylinderGeometry(r,r,h,12);g.translate(x,floor+y,z);add(g,m);};
  const table=(x:number,z:number,w:number,d:number)=>{box(x,1.05,z,w,.16,d,wood);for(const dx of [-w/2+.18,w/2-.18])for(const dz of [-d/2+.18,d/2-.18])box(x+dx,.48,z+dz,.18,.96,.18,wood);solid(x,z,w,1.13,d);};
- const loaf=(x:number,y:number,z:number)=>{sphere(x,y,z,.22,bread,1.7,.6,.8);for(let i=0;i<3;i++)box(x-.18+i*.18,y+.12,z,.025,.015,.22,linen);};
- const basket=(x:number,y:number,z:number,kind:number)=>{cylinder(x,y+.16,z,.48,.32,wood);ring(x,y+.33,z,.49,wood);for(let i=0;i<7;i++){const a=i*2.4,r=i===0?0:.3;sphere(x+Math.sin(a)*r,y+.4,z+Math.cos(a)*r,.14,kind?green:red);}if(kind===2)loaf(x,y+.5,z);};
+ const loaf=(x:number,y:number,z:number)=>{
+  const model=createRoyalBread();model.position.set(x,floor+y,z);model.updateMatrixWorld(true);
+  model.traverse(child=>{if(child instanceof T.Mesh)add(child.geometry.clone().applyMatrix4(child.matrixWorld),child.material as T.Material);});
+ };
+ const basket=(x:number,y:number,z:number,kind:number)=>{
+  cylinder(x,y+.16,z,.48,.32,wood);ring(x,y+.33,z,.49,wood);
+  for(let i=0;i<7;i++){
+   const a=(i-1)*Math.PI/3,r=i===0?0:.31,pack=kind?'grapes':'apple';
+   props.push({pack,label:pack==='apple'?'Maçã da cozinha':'Uvas da cozinha',x:x+Math.sin(a)*r,y:floor+y+.33,z:z+Math.cos(a)*r,height:.28,rotation:a,room:'royalKitchen'});
+  }
+  if(kind===2)loaf(x,y+.742,z);
+ };
  // Full-depth work zones keep a broad circulation lane along the inner wall.
  const zones=Array.from({length:5},(_,i)=>back+7+(front-back-14)*i/4);
  for(const [i,z]of zones.entries()){

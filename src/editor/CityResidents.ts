@@ -1,6 +1,12 @@
+import {marketStallWorkstation} from './CentralPlazaLayout';
+import {innRoomOffers} from '../inventory/InnRooms';
+import {innOfficeAccess} from './InnOfficeAccess';
+import {cityNameVisibility} from './CityLightInteriors';
+import {RoyalPlazaPatrol} from './RoyalPlazaPatrol';
+import {cityGateGuardPost} from './CityGateGuardPosts';
 import {attachRoyalCrown} from './RoyalCrown';
 import {RoyalCoupleRoutine,royalCoupleLayout,royalCoupleActivity} from './RoyalCoupleRoutine';
-import {citizenHairColor} from './CitizenHair';
+import {citizenHairColor,citizenHairStyle} from './CitizenHair';
 import {PalaceStaffRoutine,isPalaceStaff,palaceStaffActivity,palaceStaffLayout} from './PalaceStaffRoutine';
 import {openDoorForResident} from './ChurchDoors';
 import { princessActivity,PrincessPalaceRoutine } from './PrincessPalaceRoutine';
@@ -9,8 +15,10 @@ import { dressCitizen, clearCitizenOutfit } from './CitizenOutfits';
 import { CitySleeping, cityBedSide, type CityBedAnchor } from './CitySleeping';
 import { armorColor, GUARD_ARMOR } from '../inventory/armorMaterials';
 import { ITEM_BY_ID } from '../inventory/catalog';
+import { CLOTH_SHIRT_COLORS } from '../inventory/clothColors';
 import * as THREE from 'three';
-import { DEFAULT_CONFIG, ProceduralCharacter } from '../character';
+import { DEFAULT_CONFIG, DEFAULT_SHIELD_TRANSFORMS, ProceduralCharacter } from '../character';
+import { createProceduralItem } from '../inventory/proceduralItem';
 import { citizenRoutine, CITIZEN_ROLE_LABELS, MERCHANT_ROLES } from './ResidentSchedule';
 import { CITY_WOOD_MATERIAL } from './CityWood';
 import type { MerchantSession } from '../inventory/ShopPanel';
@@ -176,7 +184,7 @@ export class CityResidents{
       const work=this.buildings.get(r.citizen.workId)??r.home;
       const routine=citizenRoutine(worldTime,r.citizen.role);
       r.routine=routine;r.path=[];r.wait=0;r.walking=false;r.seated=false;
-      r.atWork=routine==='work';r.indoors=!r.atWork&&routine!=='roam'&&routine!=='return';
+      r.atWork=routine==='work';r.indoors=!r.atWork;
       r.anchor=r.atWork?work:r.home;
       if((r.citizen.role==='rei'||r.citizen.role==='rainha')&&r.home.userData.princessPalace){
         const activity=royalCoupleActivity(worldTime),layout=royalCoupleLayout(r.home,r.citizen.role);
@@ -191,13 +199,13 @@ export class CityResidents{
         const activity=palaceStaffActivity(worldTime,r.citizen),layout=palaceStaffLayout(work);
         r.position.copy(work.localToWorld(new THREE.Vector3(...layout.nodes[activity.target])));
       }else if(r.atWork)r.position.copy(this.workPoint(r,work));
-      else r.position.copy(this.homePoint(r,routine==='roam',routine==='sleep'));
+      else r.position.copy(this.homePoint(r,false,routine==='sleep'));
       if(r.actor){
         const actor=r.actor;this.sleeping.restore(actor.group);
         actor.group.position.copy(r.position);actor.group.rotation.set(0,r.angle,0);actor.group.visible=true;
         actor.setAnimation(r.seated?'sit':'idle');actor.update(0);
         const royal=(r.citizen.role==='rei'||r.citizen.role==='rainha')&&r.home.userData.princessPalace;
-        const bed=royal?royalCoupleLayout(r.home,r.citizen.role as 'rei'|'rainha').bed:r.citizen.role==='princesa'&&r.home.userData.princessBed?cityBedSide(r.home.userData.princessBed,1):r.home.userData.npcBed;
+        const bed=royal?royalCoupleLayout(r.home,r.citizen.role as 'rei'|'rainha').bed:r.citizen.role==='princesa'&&r.home.userData.princessBed?cityBedSide(r.home.userData.princessBed,1):this.residentBed(r);
         const crown=actor.group.getObjectByName('CitizenRoleDecoration');if(crown&&royal)crown.visible=r.routine!=='sleep';
         if(r.routine==='sleep'&&bed)this.sleeping.place(actor.group,r.home,bed);
         else if(royal&&r.seated)this.placeRoyalSeat(r,actor);
@@ -213,6 +221,7 @@ export class CityResidents{
   private readonly navigation=new ResidentNavigation();
   private readonly sleeping=new CitySleeping();
   private routeBudget=0;
+  private routeCursor=0;
   private pendingRoute:{resident:Resident;search:Generator<void,THREE.Vector3[],void>}|null=null;
   private readonly viewFrustum=new THREE.Frustum();
   private readonly viewMatrix=new THREE.Matrix4();
@@ -226,7 +235,8 @@ export class CityResidents{
       const home=buildings.get(citizen.homeId);if(!home)return;
       const anchor=buildings.get(citizen.workId)??home,info=anchor.userData.building;
       let local=new THREE.Vector3(i%2?-1.4:1.4,.08,(info?.depth??16)/2+2.5),angle=0;
-      if(citizen.role==='guarda-torre'){local.set(0,10.825,0);angle=Math.atan2(anchor.position.x,anchor.position.z);}
+      if(citizen.role==='guarda-portao'){const guard=cityGateGuardPost(anchor,citizen.post,buildings.values());local.copy(anchor.worldToLocal(guard.position));angle=guard.angle;}
+      else if(citizen.role==='guarda-torre'){local.set(0,10.825,0);angle=Math.atan2(anchor.position.x,anchor.position.z);}
       else if(citizen.role==='guarda-palacio'){
         const side=citizen.post%2?-1:1,row=Math.floor(citizen.post/2);
         local.set(side*(row===0?info.doorWidth/2+1.3:info.width*.32),.08,row===0?info.depth/2+1.3:row===1?info.depth*.15:-info.depth*.28);
@@ -234,6 +244,11 @@ export class CityResidents{
       else if(citizen.role==='princesa'&&anchor.userData.npcRoyalDaughterPosition)local.fromArray(anchor.userData.npcRoyalDaughterPosition);
       else if(citizen.role==='padre')local.set(0,.08,-info.depth*.27);
       else if(['armeiro','alquimista','taverneira','guilda','estalajadeira'].includes(citizen.role))local.set(0,.08,-info.depth*.27-1.1);
+      if(citizen.role==='nobre'){
+        const occupants=this.population.filter(c=>c.homeId===citizen.homeId);
+        const slot=occupants.findIndex(c=>c.id===citizen.id);
+        local.x=(slot-(occupants.length-1)/2)*1.4;
+      }
       const actor=citizen.existingIndex===undefined?null:existing[citizen.existingIndex]??null;
       const r:Resident={careTime:0,citizen,actor,home,anchor,local,position:new THREE.Vector3(),angle,walking:citizen.role==='morador'&&citizen.existingIndex===undefined&&i%3!==0,seated:false,phase:i*1.73,wait:i%4,direction:1,distance:0,label:null,routine:'',path:[],destination:i,indoors:false,atWork:false};
       this.residents.push(r);
@@ -243,28 +258,30 @@ export class CityResidents{
         dressCitizen(actor,citizen);this.registerActor(r,actor);
       }
       anchor.updateWorldMatrix(true,false);r.position.copy(local).applyMatrix4(anchor.matrixWorld);
+      if(citizen.role==='morador'||citizen.role==='nobre'){r.position.copy(this.homePoint(r,false));r.indoors=true;}
       if(actor)actor.group.position.copy(r.position);
     });
     this.bindingSignature=[...buildings].map(([id,b])=>`${id}:${b.id}`).join(';');
     this.scene.userData.cityPopulation=this.population;
   }
   private registerActor(r:Resident,actor:ProceduralCharacter){
-    r.actor=actor;actor.group.name=`NPC_Morador_${r.citizen.name}`;
+    r.actor=actor;actor.group.name=`NPC_Plebeu_${r.citizen.name}`;
     actor.group.userData.buildEditable=false;actor.group.userData.mapHidden=false;actor.group.userData.cityResidentManaged=true;
     actor.group.userData.resident={...r.citizen,activity:r.seated?'sentado na taverna':r.walking?'passeando':r.citizen.role};
     actor.group.traverse(o=>o.layers.enable(0));
     if(!actor.group.parent)this.scene.add(actor.group);
     const label=document.createElement('div');label.className='npc-name'+(CITIZEN_ROLE_LABELS[r.citizen.role]?' npc-special':'');
-    label.textContent=`${r.citizen.name} (${CITIZEN_ROLE_LABELS[r.citizen.role]??'Morador'})`;
+    label.textContent=`${r.citizen.name} (${CITIZEN_ROLE_LABELS[r.citizen.role]??'Plebeu'})`;
     document.querySelector('#viewport')?.append(label);r.label=label;
   }
   private createActor(r:Resident,player:THREE.Vector3){
     const index=this.population.indexOf(r.citizen);
-    const config={...DEFAULT_CONFIG,name:r.citizen.name,body:r.citizen.gender==='homem'?'masculino' as const:'feminino' as const,hairStyle:'curto' as const,helmetHair:true,hair:citizenHairColor(r.citizen.role,index),outfit:r.citizen.role==='padre'?'#211f24':outfits[index%outfits.length],skin:DEFAULT_CONFIG.skin};
+    const hairStyle=citizenHairStyle(r.citizen);
+    const config={...DEFAULT_CONFIG,name:r.citizen.name,body:r.citizen.gender==='homem'?'masculino' as const:'feminino' as const,hairStyle,helmetHair:hairStyle!=='longo',hair:citizenHairColor(r.citizen.role==='estalajadeira'?'estalajadeira':r.citizen.socialClass==='nobre'?'nobre':r.citizen.role,r.citizen.role==='nobre'?r.citizen.post:index),outfit:r.citizen.role==='padre'?'#211f24':outfits[index%outfits.length],skin:DEFAULT_CONFIG.skin};
     let actor:ProceduralCharacter;
     const loaded=this.residents.filter(x=>x.actor&&x.citizen.existingIndex===undefined);
     if(loaded.length>=28){
-      const recyclable=loaded.filter(x=>x.citizen.id!==this.companion?.id&&x.citizen.id!==this.conversationId).filter(x=>x.position.distanceToSquared(player)>85*85||(!!MERCHANT_ROLES[r.citizen.role]||isPalaceStaff(r.citizen.role)||r.citizen.role==='padre'||r.citizen.role==='guilda')&&(x.citizen.role==='morador'||isPalaceStaff(r.citizen.role)&&x.citizen.role.startsWith('guarda-'))&&x.position.distanceToSquared(player)>20*20).sort((a,b)=>b.position.distanceToSquared(player)-a.position.distanceToSquared(player))[0];
+      const recyclable=loaded.filter(x=>x.citizen.id!==this.companion?.id&&x.citizen.id!==this.conversationId).filter(x=>x.position.distanceToSquared(player)>85*85||(!!MERCHANT_ROLES[r.citizen.role]||r.citizen.role==='feirante'||isPalaceStaff(r.citizen.role)||r.citizen.role==='padre'||r.citizen.role==='guilda')&&(x.citizen.role==='morador'||isPalaceStaff(r.citizen.role)&&x.citizen.role.startsWith('guarda-'))&&x.position.distanceToSquared(player)>20*20).sort((a,b)=>b.position.distanceToSquared(player)-a.position.distanceToSquared(player))[0];
       if(!recyclable?.actor)return;
       actor=recyclable.actor;recyclable.actor=null;recyclable.label?.remove();recyclable.label=null;
       const oldDecoration=actor.group.getObjectByName('CitizenRoleDecoration');
@@ -284,14 +301,21 @@ export class CityResidents{
     actor.setClothing('sword',false);actor.setClothing('shield',false);
     actor.setCivilianClothingColor(config.outfit);
     if(r.citizen.role.startsWith('guarda-')){
+      actor.setCivilianClothingColor(CLOTH_SHIRT_COLORS['tunic-red']);
       for(const item of ['armor','armorPants','armorBoots','armorGloves','steelHelmet'] as const)actor.setClothing(item,true);
       for(const [slot,id] of Object.entries(GUARD_ARMOR)){
         const item=ITEM_BY_ID.get(id)!;
         actor.setArmorPartColor(slot==='head'?'helmet':slot as 'torso'|'legs'|'boots'|'gloves',armorColor(item.visual));
       }
       actor.group.userData.equippedItems={...GUARD_ARMOR};
-      actor.setArmorShouldersVisible(true);actor.equipRightHand('espada');actor.equipLeftHand('escudo');
+      actor.setArmorShouldersVisible(true);
+      actor.equipLeftHand('espada');
+      actor.equipProceduralHand(createProceduralItem(ITEM_BY_ID.get('steel-shield')!), 'right', 'shield');
+      const shieldFit=DEFAULT_SHIELD_TRANSFORMS.right;
+      actor.setShieldTransform(shieldFit.position,shieldFit.rotation,shieldFit.scale,'right');
+      actor.group.userData.equippedItems={...GUARD_ARMOR,leftHand:'steel-shield'};
       if(r.citizen.role==='guarda-arqueiro'){
+        actor.group.userData.equippedItems={...GUARD_ARMOR};
         actor.equipRightHand('nenhum');actor.equipLeftHand('nenhum');
         const bow=new THREE.Group();
         const curve=new THREE.QuadraticBezierCurve3(new THREE.Vector3(0,-.65,0),new THREE.Vector3(.5,0,0),new THREE.Vector3(0,.65,0));
@@ -331,9 +355,14 @@ export class CityResidents{
       }).catch(error=>console.error('Não foi possível carregar a coroa real',error));
     }
     dressCitizen(actor,r.citizen);
+    if((r.citizen.role==='nobre'||r.citizen.socialClass==='nobre')&&r.citizen.gender==='homem'){
+      actor.equipProceduralHand(createProceduralItem(ITEM_BY_ID.get('steel-sword')!), 'left', 'weapon');
+      actor.setSwordSheathed(true);
+      actor.group.userData.equippedItems={...(actor.group.userData.equippedItems??{}),rightHand:'steel-sword'};
+    }
     actor.setAnimation(r.seated?(r.citizen.role==='rei'||r.citizen.role==='rainha'?'sit':'sitDrink'):r.walking?'walk':'idle');actor.update(.05);
     this.registerActor(r,actor);actor.group.position.copy(r.position);
-    const bed=r.citizen.role==='princesa'?cityBedSide(r.home.userData.princessBed,1):(r.citizen.role==='rei'||r.citizen.role==='rainha')&&r.home.userData.princessPalace?royalCoupleLayout(r.home,r.citizen.role).bed:r.home.userData.npcBed;
+    const bed=r.citizen.role==='princesa'?cityBedSide(r.home.userData.princessBed,1):(r.citizen.role==='rei'||r.citizen.role==='rainha')&&r.home.userData.princessPalace?royalCoupleLayout(r.home,r.citizen.role).bed:this.residentBed(r);
     if(r.routine==='sleep'&&bed){this.sleeping.place(actor.group,r.home,bed);if(!r.home.userData.princessPalace)r.position.copy(actor.group.position);}
     if(r.seated&&r.citizen.role!=='rei'&&r.citizen.role!=='rainha')void loadCityPropTemplate('tavern-tankard').then(template=>{
       if(r.actor!==actor)return;
@@ -341,12 +370,25 @@ export class CityResidents{
     });
   }
   update(dt:number,player:THREE.Vector3,heightAt:(x:number,z:number,feetY?:number)=>number,collide:(p:THREE.Vector3,r:number)=>void,worldTime=8/24){
+    const officeCollision=innOfficeAccess(this.buildings.values());
+    const worldCollision=collide;
+    collide=(position,radius)=>{worldCollision(position,radius);officeCollision(position,radius);};
+    // Clear any passer-by already inside the office and invalidate its route.
+    for(const resident of this.residents){
+      if(resident.citizen.role==='estalajadeira')continue;
+      if(officeCollision(resident.position,.32)){
+        resident.path=[];resident.wait=0;resident.walking=false;
+        if(resident.actor)resident.actor.group.position.copy(resident.position);
+        if(this.pendingRoute?.resident===resident)this.pendingRoute=null;
+      }
+    }
     this.elapsed+=dt;this.spawnElapsed+=dt;this.routeBudget=1;
 
     if(this.elapsed>=1){
       this.elapsed=0;
       const layout=[...this.buildings.values()].map(b=>{b.updateWorldMatrix(true,false);return `${b.id}:${b.matrixWorld.elements.join(',')}:${b.userData.colliderRevision??0}`;}).join(';');
       if(layout!==this.navigationSignature){
+        this.gateGuardPosts.clear();
         this.navigationSignature=layout;this.navigation.clear();this.companionNavigation.clear();this.companionSearch=null;this.companionRepath=0;this.pendingRoute=null;
         for(const r of this.residents)r.path=[];
       }
@@ -368,7 +410,10 @@ export class CityResidents{
       }
     }
     if(this.timeSyncPending)this.applyScheduledTime(worldTime);
-    for(const r of this.residents){
+    // Rotate the first candidate so later-added citizens also receive routes.
+    const routeOrder=this.residents.slice(this.routeCursor).concat(this.residents.slice(0,this.routeCursor));
+    this.routeCursor=(this.routeCursor+1)%Math.max(1,this.residents.length);
+    for(const r of routeOrder){
       if(r.citizen.id===this.conversationId){this.updateConversation(r,dt,player);continue;}
 
       if(r.citizen.id===this.companion?.id&&this.companionBedHome){
@@ -424,14 +469,16 @@ export class CityResidents{
       }
       const work=this.buildings.get(r.citizen.workId)??r.home;
       if(r.routine!==routine){
+        this.plazaPatrols.delete(r.citizen.id);
         const initial=!r.routine;
-        if(r.atWork&&routine!=='work')r.position.copy(this.doorPoint(work));
+        if(r.atWork&&routine!=='work'&&r.citizen.role!=='feirante')r.position.copy(this.doorPoint(work));
         if(this.pendingRoute?.resident===r)this.pendingRoute=null;
         r.routine=routine;r.path=[];r.wait=0;r.seated=false;r.walking=false;r.atWork=false;
         if((routine==='roam'||routine==='work')&&(r.indoors||initial)){
-          r.position.copy(this.homePoint(r,true));r.indoors=false;
+          // Wait inside until a complete route is available.
+          r.position.copy(this.homePoint(r,false));r.indoors=true;
         }
-        if(routine==='work'&&!isPalaceStaff(r.citizen.role)&&r.citizen.role!=='cavalarico'&&(MERCHANT_ROLES[r.citizen.role]||work===r.home||initial))r.atWork=true;
+        if(routine==='work'&&!isPalaceStaff(r.citizen.role)&&r.citizen.role!=='cavalarico'&&work===r.home)r.atWork=true;
       }
       r.anchor=r.atWork?work:r.home;
       const nearby=r.position.distanceToSquared(player)<70*70;
@@ -442,11 +489,11 @@ export class CityResidents{
           this.routeBudget--;
           const destinations=[...this.buildings.values()].filter(b=>b.userData.building&&b.parent&&!b.userData.building.perimeter&&b.name!=='Cidade:tower');
           const target=routine==='return'?r.home:routine==='work'?work:destinations[(r.destination++*37+Math.floor(r.phase))%Math.max(1,destinations.length)]??r.home;
-          const end=this.doorPoint(target);
+          const end=routine==='work'&&r.citizen.role==='feirante'?this.workPoint(r,work):this.doorPoint(target);
           if(routine!=='roam'&&r.position.distanceTo(end)<4){
             r.atWork=routine==='work';r.indoors=routine==='return';r.walking=false;
           }else{
-            this.pendingRoute={resident:r,search:this.navigation.routeSteps(r.position.clone(),end,heightAt,collide)};
+            this.pendingRoute={resident:r,search:this.navigation.routeSteps(r.indoors?this.homePoint(r,true):r.position.clone(),end,heightAt,collide)};
           }
         }
         const next=r.path[0];
@@ -467,12 +514,35 @@ export class CityResidents{
       }
       if(r.atWork){
         r.anchor=work;
-        if(isPalaceStaff(r.citizen.role)&&work.userData.princessPalace){
+        const plazaGuard=r.citizen.role==='guarda-palacio'&&r.citizen.post<2&&!!work.userData.npcPlazaPatrolRoutes;
+        if(plazaGuard){
+          let patrol=this.plazaPatrols.get(r.citizen.id);if(!patrol){patrol=new RoyalPlazaPatrol();this.plazaPatrols.set(r.citizen.id,patrol);}
+          const state=patrol.update(dt,work,r.citizen.post,r.position,collide);
+          r.walking=state.walking;if(state.walking)r.angle=state.angle;r.indoors=false;
+        }else if(isPalaceStaff(r.citizen.role)&&work.userData.princessPalace){
           let staff=this.staffRoutines.get(r.citizen.id);if(!staff){staff=new PalaceStaffRoutine();this.staffRoutines.set(r.citizen.id,staff);}
           const before=r.position.clone(),state=staff.update(dt,worldTime,work,r.position,r.citizen,heightAt,collide);
           r.walking=state.walking;r.local.set(0,0,0);
           const direction=r.position.clone().sub(before);if(direction.lengthSq()>.00001)r.angle=Math.atan2(direction.x,direction.z);
           if(r.actor)r.actor.group.userData.staffActivity=state.label;
+        }else if(r.citizen.role==='empregada-pousada'){
+          const serving=r.citizen.post>=2;
+          let target:THREE.Vector3;
+          if(serving){
+            // Each server has a separate aisle beside two dining tables.
+            const phase=r.careTime%24,z=phase<8?-5+phase:phase<12?3:phase<20?3-(phase-12):-5;
+            target=new THREE.Vector3(r.citizen.post===2?-13.5:-5.5,.08,z).applyMatrix4(work.matrixWorld);
+          }else{
+            const phase=r.careTime%70,x=phase<30?-16+phase:phase<35?14:phase<65?14-(phase-35):-16;
+            target=new THREE.Vector3(x,5*(r.citizen.post+1)+.08,4).applyMatrix4(work.matrixWorld);
+          }
+          if(r.careTime===0)r.position.copy(target);
+          r.careTime+=dt;this.direction.copy(target).sub(r.position);this.direction.y=0;
+          const distance=this.direction.length();r.walking=distance>.025;
+          if(r.walking){this.direction.normalize();r.position.addScaledVector(this.direction,Math.min(distance,dt*1.2));r.angle=Math.atan2(this.direction.x,this.direction.z);}
+          else if(serving){const facing=new THREE.Vector3(-1,0,0).transformDirection(work.matrixWorld);r.angle=Math.atan2(facing.x,facing.z);}
+          r.position.y=target.y;collide(r.position,.32);r.indoors=true;
+          if(r.actor)r.actor.group.userData.staffActivity=serving?(r.walking?'atendendo as mesas da pousada':'servindo a mesa'):r.walking?'cuidando dos quartos da pousada':'limpando a pousada';
         }else if(r.citizen.role==='cavalarico'){
           // Walk between the three stalls, pausing to tend each horse.
           r.careTime+=dt;const index=Math.floor(r.careTime/18)%3;
@@ -482,7 +552,8 @@ export class CityResidents{
           if(r.walking){this.direction.normalize();r.position.addScaledVector(this.direction,Math.min(distance,dt*1.2));r.position.y=heightAt(r.position.x,r.position.z);collide(r.position,.32);r.angle=Math.atan2(this.direction.x,this.direction.z);}
         }else{r.position.copy(this.workPoint(r,work));r.walking=false;}
         const forward=new THREE.Vector3(0,0,1).transformDirection(work.matrixWorld);
-        if(!isPalaceStaff(r.citizen.role)&&(r.citizen.role!=='cavalarico'||!r.walking))r.angle=Math.atan2(forward.x,forward.z)+(r.citizen.role==='cavalarico'?Math.PI:0);
+        if(r.citizen.role==='guarda-portao')r.indoors=false;
+        else if(!plazaGuard&&r.citizen.role!=='empregada-pousada'&&!isPalaceStaff(r.citizen.role)&&(r.citizen.role!=='cavalarico'||!r.walking))r.angle=Math.atan2(forward.x,forward.z)+(r.citizen.role==='cavalarico'?Math.PI:r.citizen.role==='atendente-pousada'?(work.userData.npcCounter?.rotation??0):0);
       }else if(r.indoors)r.position.copy(this.homePoint(r,false,routine==='sleep'));
       if(r.actor){
         const actor=r.actor;
@@ -509,7 +580,7 @@ export class CityResidents{
           r.position.copy(actor.group.position);
         }
         if(routine==='sleep'&&r.indoors&&r.home.userData.npcBed){
-          this.sleeping.place(actor.group,r.home,r.home.userData.npcBed);
+          this.sleeping.place(actor.group,r.home,this.residentBed(r)!);
           r.position.copy(actor.group.position);
         }
         actor.group.userData.resident={...r.citizen,activity:royalSeated?'sentado no trono':routine==='sleep'?'dormindo':r.atWork&&r.citizen.role==='cavalarico'?'cuidando dos cavalos':r.atWork?(actor.group.userData.staffActivity??'em serviço'):r.indoors?'em casa':routine==='return'?'voltando para casa':routine==='work'?'indo trabalhar':'passeando',routine};
@@ -522,6 +593,7 @@ export class CityResidents{
       const result=this.pendingRoute.search.next();
       if(result.done){
         const r=this.pendingRoute.resident;r.path=result.value;r.wait=r.path.length?0:3;
+        if(r.path.length&&r.indoors){r.position.copy(this.homePoint(r,true));r.indoors=false;}
         this.pendingRoute=null;
       }
     }
@@ -532,12 +604,13 @@ export class CityResidents{
     }
     const active=this.residents.filter(r=>r.actor&&r.position.distanceToSquared(player)<70*70);
     for(let i=0;i<active.length;i++){
-      const r=active[i];if(r.citizen.id===this.conversationId||r.indoors||r.seated||r.citizen.role!=='morador'||r.citizen.existingIndex!==undefined&&this.existingBusy(r.citizen.existingIndex))continue;
+      const r=active[i];if(r.citizen.id===this.conversationId||r.indoors||r.seated||(r.citizen.role!=='morador'&&r.citizen.role!=='nobre')||r.citizen.existingIndex!==undefined&&this.existingBusy(r.citizen.existingIndex))continue;
       for(let j=0;j<i;j++){const other=active[j];if(Math.abs(other.position.y-r.position.y)<1)resolveCircleCollision(r.actor!.group.position,.32,other.actor!.group.position,.32,this.previous);}
       if(Math.abs(player.y-r.position.y)<1.5)resolveCircleCollision(r.actor!.group.position,.32,player,.38,this.previous);
     }
   }
   transformWithCity(matrix:THREE.Matrix4){
+    this.gateGuardPosts.clear();
     for(const r of this.residents){
       r.position.applyMatrix4(matrix);
       for(const point of r.path)point.applyMatrix4(matrix);
@@ -549,7 +622,7 @@ export class CityResidents{
   }
   private spawnPriority(r:Resident){
     if(r.citizen.id===this.companion?.id)return -1;
-    return MERCHANT_ROLES[r.citizen.role]?0:isPalaceStaff(r.citizen.role)?1:r.citizen.role==='padre'||r.citizen.role==='guilda'?1:r.citizen.role.startsWith('guarda-')?2:3;
+    return MERCHANT_ROLES[r.citizen.role]||r.citizen.role==='feirante'?0:isPalaceStaff(r.citizen.role)||r.citizen.role==='empregada-pousada'?1:r.citizen.role==='padre'||r.citizen.role==='guilda'?1:r.citizen.role.startsWith('guarda-')?2:3;
   }
   private placeRoyalSeat(r:Resident,actor:ProceduralCharacter){
     const forward=new THREE.Vector3(0,0,1).transformDirection(r.home.matrixWorld);
@@ -574,8 +647,23 @@ export class CityResidents{
     if(building.userData.princessPalace)return new THREE.Vector3(...building.userData.princessPalace.nodes.cityEntry as [number,number,number]).applyMatrix4(building.matrixWorld);
     return new THREE.Vector3(0,.08,(building.userData.building?.depth??16)/2+3).applyMatrix4(building.matrixWorld);
   }
+  private readonly plazaPatrols=new Map<string,RoyalPlazaPatrol>();
+  private readonly gateGuardPosts=new Map<string,ReturnType<typeof cityGateGuardPost>>();
+  private gateGuardPost(work:THREE.Group,post:number){
+    const key=`${work.uuid}:${post}`;
+    let guard=this.gateGuardPosts.get(key);
+    if(!guard){guard=cityGateGuardPost(work,post,this.buildings.values());this.gateGuardPosts.set(key,guard);}
+    return guard;
+  }
   private workPoint(r:Resident,work:THREE.Group){
     work.updateWorldMatrix(true,false);
+    if(r.citizen.role==='guarda-portao'){const guard=this.gateGuardPost(work,r.citizen.post);r.angle=guard.angle;return guard.position;}
+    if(r.citizen.role==='feirante'){
+      const station=work.userData.marketStallWorkstations?.[r.citizen.post]??marketStallWorkstation(r.citizen.post);
+      const forward=new THREE.Vector3(Math.sin(station.angle),0,Math.cos(station.angle)).transformDirection(work.matrixWorld);
+      r.angle=Math.atan2(forward.x,forward.z);r.indoors=false;
+      return new THREE.Vector3(station.x,station.y,station.z).applyMatrix4(work.matrixWorld);
+    }
     const info=work.userData.building??{width:16,depth:16,doorWidth:4};
     const p=new THREE.Vector3(0,.08,-info.depth*.27-1.1);
     if(r.citizen.role==='princesa'&&work.userData.npcRoyalDaughterPosition)return p.fromArray(work.userData.npcRoyalDaughterPosition).applyMatrix4(work.matrixWorld);
@@ -599,12 +687,13 @@ export class CityResidents{
       const side=r.citizen.post%2?-1:1,row=Math.floor(r.citizen.post/2);
       p.set(side*(row===0?info.doorWidth/2+1.3:info.width*.32),.08,row===0?info.depth/2+1.3:row===1?info.depth*.15:-info.depth*.28);
     }else if(r.citizen.role==='rei'||r.citizen.role==='rainha')p.set(r.citizen.role==='rei'?-1.5:1.5,.08,-info.depth*.27);
+    else if(r.citizen.role==='estalajadeira'&&work.userData.npcInnOffice){const point=work.userData.npcInnOffice;p.set(point.x,point.y,point.z);}
     else if(work.userData.npcCounter){const point=work.userData.npcCounter;p.set(point.x,point.y,point.z);}
     return p.applyMatrix4(work.matrixWorld);
   }
   merchant(id:string):MerchantSession|null{
     const r=this.residents.find(r=>r.citizen.id===id),kind=r&&MERCHANT_ROLES[r.citizen.role];
-    return r&&kind&&r.atWork&&r.routine==='work'&&r.anchor.parent?{id,name:r.citizen.name,kind,workId:r.citizen.workId}:null;
+    return r&&kind&&r.atWork&&r.routine==='work'&&r.anchor.parent?{id,name:r.citizen.name,kind,workId:r.citizen.workId,...(kind==='lodging'?{rooms:innRoomOffers(r.anchor.userData.innRooms??[])}:{})}:null;
   }
   guildContact(player:THREE.Vector3){
     const r=this.residents.find(r=>r.citizen.role==='guilda'&&r.atWork&&r.routine==='work'&&r.anchor.parent&&Math.abs(r.position.y-player.y)<2&&r.position.distanceToSquared(player)<5.5*5.5);
@@ -627,25 +716,42 @@ export class CityResidents{
     const r=this.residents.filter(r=>this.tradeAvailable(r,player)).sort((a,b)=>a.position.distanceToSquared(player)-b.position.distanceToSquared(player))[0];
     return r?this.merchant(r.citizen.id):null;
   }
+  private homeSlot(r:Resident){
+    const occupants=this.population.filter(c=>c.homeId===r.citizen.homeId);
+    return {index:Math.max(0,occupants.findIndex(c=>c.id===r.citizen.id)),count:occupants.length};
+  }
+  private residentBed(r:Resident):CityBedAnchor|undefined{
+    const bed=r.home.userData.npcBed as CityBedAnchor|undefined;
+    if(!bed)return;
+    const {index,count}=this.homeSlot(r);
+    if(count<=1)return bed;
+    const width=bed.width/count;
+    const matrix=new THREE.Matrix4().fromArray(bed.matrix)
+      .multiply(new THREE.Matrix4().makeTranslation(0,0,(index-(count-1)/2)*width));
+    return {...bed,matrix:matrix.toArray(),width:width*.92};
+  }
   private homePoint(r:Resident,outside:boolean,sleep=false){
     r.home.updateWorldMatrix(true,false);
-    const info=r.home.userData.building,bed=r.home.userData.npcBed;
-    const p=new THREE.Vector3(0,.08,(info?.depth??16)/2+(outside?3:-2));
+    const info=r.home.userData.building,bed=this.residentBed(r);
+    const slot=this.homeSlot(r);
+    const p=new THREE.Vector3((slot.index-(slot.count-1)/2)*1.4,.08,(info?.depth??16)/2+(outside?3:-2));
     if(sleep&&bed){const anchor=bed as CityBedAnchor;p.set(0,anchor.mattressY,0).applyMatrix4(new THREE.Matrix4().fromArray(anchor.matrix));}
     else if(sleep){const room=r.home.userData.upperBedroom;if(room)p.set(room.x,room.y+.2,room.z);}
     return p.applyMatrix4(r.home.matrixWorld);
   }
   updateLabels(camera:THREE.Camera,player:THREE.Vector3,viewport:HTMLElement){
+    const sameEnvironment=cityNameVisibility(this.buildings.values(),player);
     this.viewFrustum.setFromProjectionMatrix(this.viewMatrix.multiplyMatrices(camera.projectionMatrix,camera.matrixWorldInverse));
     for(const r of this.residents){
       const {actor,label}=r;if(!actor||!label)continue;
       this.actorBounds.center.copy(actor.group.position).y+=1.3;
       actor.group.visible=!!r.anchor.parent&&(r.routine!=='sleep'||!!r.home.userData.npcBed||r.citizen.role==='princesa'&&!!r.home.userData.princessBed||(r.citizen.role==='rei'||r.citizen.role==='rainha')&&!!r.home.userData.kingBedroom)&&actor.group.position.distanceToSquared(player)<85*85&&this.viewFrustum.intersectsSphere(this.actorBounds);
       this.scratch.copy(actor.group.position);this.scratch.y+=2.95;this.scratch.project(camera);
-      const visible=r.routine!=='sleep'&&actor.group.visible&&actor.group.position.distanceToSquared(player)<=(!r.citizen.role.startsWith('guarda-')&&CITIZEN_ROLE_LABELS[r.citizen.role]?45*45:12*12)&&this.scratch.z>-1&&this.scratch.z<1&&Math.abs(this.scratch.x)<1&&Math.abs(this.scratch.y)<1;
+      const visible=r.routine!=='sleep'&&actor.group.visible&&actor.group.position.distanceToSquared(player)<=(!r.citizen.role.startsWith('guarda-')&&CITIZEN_ROLE_LABELS[r.citizen.role]?45*45:12*12)&&this.scratch.z>-1&&this.scratch.z<1&&Math.abs(this.scratch.x)<1&&Math.abs(this.scratch.y)<1&&sameEnvironment(actor.group.position);
       label.classList.toggle('visible',visible);
       if(visible){label.style.left=`${(this.scratch.x*.5+.5)*viewport.clientWidth}px`;label.style.top=`${(-this.scratch.y*.5+.5)*viewport.clientHeight}px`;}
     }
+    return sameEnvironment;
   }
   resolveCollisions(position:THREE.Vector3,radius:number){
     for(const r of this.residents)if(r.anchor.parent&&Math.abs(position.y-r.position.y)<1.8)resolveCircleCollision(position,radius,r.actor?.group.position??r.position,.3,this.scratch);

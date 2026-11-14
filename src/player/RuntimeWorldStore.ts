@@ -10,5 +10,8 @@ export class RuntimeWorldStore {
     try { this.state = JSON.parse(localStorage.getItem(storageKey) ?? "{}") as RuntimeWorldState; }
     catch { this.state = {}; }
   }
-  save() { localStorage.setItem(this.storageKey, JSON.stringify(this.state)); }
+  save() {
+    try { localStorage.setItem(this.storageKey, JSON.stringify(this.state)); }
+    catch (error) { console.warn('[saves] Não foi possível persistir a posição local.', error); }
+  }
 }

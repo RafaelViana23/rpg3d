@@ -18,14 +18,16 @@ export const CITIZEN_TASKS:Record<string,Task>={
  freira:{title:'Ervas para a enfermaria',request:CITIZEN_DIALOGUE_DATA.freira.mission,detail:'Colha o pequeno grupo de ervas ao lado esquerdo da igreja e volte à freira.',landmark:'church',offset:[-1,0],object:'herbs',gold:25,xp:65},
  guilda:{title:'A estrada ameaçada',request:CITIZEN_DIALOGUE_DATA.guilda.mission,detail:'Investigue as pegadas junto à estrada diante da guilda e relate o que encontrou. Os contratos de caça ficam no quadro da guilda.',landmark:'guild',offset:[0,1],object:'tracks',gold:40,xp:85},
  cavalarico:{title:'O cavalo desaparecido',request:'Um dos cavalos fugiu. Poderia procurar suas pegadas nos arredores do estábulo?',detail:'Localize as pegadas atrás do estábulo e volte ao cavalariço para organizar o resgate.',landmark:'stable',offset:[0,-1],object:'tracks',gold:35,xp:75},
- morador:{title:'Ajuda à vizinhança',request:'Você poderia separar dois pães para uma família da nossa rua?',detail:'Entregue 2 pães a este morador.',items:[['bread',2]],gold:15,xp:35},
+ morador:{title:'Ajuda à vizinhança',request:'Você poderia separar dois pães para uma família da nossa rua?',detail:'Entregue 2 pães a este plebeu.',items:[['bread',2]],gold:15,xp:35},
  taverneira:{title:'Água para a cozinha',request:'O salão está cheio. Pode trazer água fresca para a cozinha?',detail:'Entregue 2 águas frescas.',items:[['water-flask',2]],gold:20,xp:45},
+ 'atendente-pousada':{title:'Um brinde aos viajantes',request:'Uma caravana chegou para passar a noite e nosso estoque de bebidas está acabando. Pode trazer duas cervejas e um vinho para receber os hóspedes?',detail:'Entregue 2 cervejas e 1 vinho a Cerys. Recompensa: 100 ouro e 50 XP.',items:[['beer',2],['wine',1]],gold:100,xp:50},
  estalajadeira:{title:'Acolher os viajantes',request:'Chegaram hóspedes sem provisões. Pode ajudar com pão e água?',detail:'Entregue 2 pães e 1 água fresca.',items:[['bread',2],['water-flask',1]],gold:25,xp:50},
  alquimista:{title:'Ingredientes da enfermaria',request:'Preciso de uma amostra das ervas que crescem junto à igreja.',detail:'Colha as ervas à esquerda da igreja e traga a amostra.',landmark:'church',offset:[-1,0],object:'herbs',gold:30,xp:65},
 };
 const extras:Record<string,string[]>={
  taverneira:['Entre e descanse um pouco. A estrada pode esperar.','Cada mesa guarda uma história diferente.','Uma boa refeição ajuda mais que uma noite em claro.','Ouvi viajantes falando de uivos perto da estrada.','Se precisar de mantimentos, posso mostrar o que temos.'],
- estalajadeira:['Seja bem-vindo. Aqui os viajantes encontram descanso.','Uma cama tranquila faz diferença depois de uma longa viagem.','A cidade é mais silenciosa antes do amanhecer.','Não deixe sua bagagem pelo caminho.','Fale comigo se precisar de provisões.'],
+ 'atendente-pousada':['Bem-vindo à pousada da Selena.','Recebemos viajantes e caravanas. Aqui você encontra descanso e provisões para a estrada.','Sim, cuido da recepção e do atendimento aos hóspedes. Também vendo provisões.','A dona Selena está no escritório dela, atrás desta parede.'],
+ estalajadeira:['Seja bem-vindo. Aqui os viajantes encontram descanso.','Uma cama tranquila faz diferença depois de uma longa viagem.','A cidade é mais silenciosa antes do amanhecer.','Não deixe sua bagagem pelo caminho.','Tenho quartos individuais, duplos e uma suíte nobre.'],
  alquimista:['Bem-vindo. Cuidado com os frascos sobre a prateleira.','Uma poção certa pode mudar o resultado de uma batalha.','Vigor e saúde merecem o mesmo cuidado.','As plantas guardam segredos que o aço não conhece.','Escolha com calma; posso mostrar minhas poções.'],
  guard:['Mantenha o caminho livre, viajante.','Nossa vigília protege quem vive dentro destas muralhas.','Se perceber algo estranho, avise à guarda.','As estradas exigem atenção mesmo durante o dia.','Coragem também é saber quando pedir reforços.'],
 };
@@ -58,17 +60,15 @@ export class CitizenConversations{
  private topic:{kind:'talk'|'context';step:number}|null=null;
  private subtitle=document.createElement('aside');
  private host:HTMLElement;
- private turns=new Map<string,number>();
- private greeted=new Set<string>();
  private greetingUntil=0;
  private greeting=document.createElement('aside');
  private markers=new Map<string,THREE.Group>();
  get open(){return this.contact!==null;}
  get activeCitizenId(){return this.contact?.citizen.id??null;}
- constructor(parent:HTMLElement,private scene:THREE.Scene,private buildings:Map<string,THREE.Group>,private state:PersistedInventory,private player:THREE.Vector3,private contacts:()=>Contact[],private ground:(x:number,z:number)=>number,private changed:()=>void,private trade:()=>void,private guild:()=>void,private companionChanged:()=>void=()=>{},private requestKiss:(id:string)=>boolean=()=>false){
+ constructor(parent:HTMLElement,private scene:THREE.Scene,private buildings:Map<string,THREE.Group>,private state:PersistedInventory,private player:THREE.Vector3,private contacts:()=>Contact[],private ground:(x:number,z:number)=>number,private changed:()=>void,private trade:(id:string)=>void,private guild:()=>void,private companionChanged:()=>void=()=>{},private requestKiss:(id:string)=>boolean=()=>false,private accepted:(title:string)=>void=()=>{}){
   this.host=parent;
   this.subtitle.id='citizen-response';this.subtitle.className='citizen-response';this.subtitle.hidden=true;this.subtitle.setAttribute('aria-live','polite');this.subtitle.setAttribute('aria-atomic','true');parent.append(this.subtitle);
-  this.element.className='citizen-conversation';this.element.hidden=true;this.element.setAttribute('role','dialog');this.element.setAttribute('aria-label','Conversa com morador');this.element.setAttribute('aria-modal','true');this.element.setAttribute('aria-describedby','citizen-response');parent.append(this.element);
+  this.element.className='citizen-conversation';this.element.hidden=true;this.element.setAttribute('role','dialog');this.element.setAttribute('aria-label','Conversa com plebeu');this.element.setAttribute('aria-modal','true');this.element.setAttribute('aria-describedby','citizen-response');parent.append(this.element);
   this.greeting.className='citizen-greeting';this.greeting.hidden=true;parent.append(this.greeting);
   this.element.addEventListener('click',event=>{const button=(event.target as HTMLElement).closest<HTMLButtonElement>('button');if(button)this.action(button.dataset.action??'');});
   this.element.addEventListener('keydown',event=>{
@@ -79,20 +79,19 @@ export class CitizenConversations{
   });
  }
  nearest(){return this.contacts().filter(r=>r.actor?.group.visible&&r.routine!=='sleep'&&r.position.distanceTo(this.player)<=3).sort((a,b)=>a.position.distanceToSquared(this.player)-b.position.distanceToSquared(this.player))[0];}
- show(){const c=this.nearest();if(!c)return false;this.contact=c;this.lastAction='';this.taskDiscussed=false;this.topic=null;this.princessInvite=false;this.host.classList.add('citizen-talking');this.greeted.add(c.citizen.id);this.line=commonLines(c.citizen)[0];this.render();this.element.hidden=false;this.greeting.hidden=true;this.element.querySelector<HTMLButtonElement>('button')?.focus();return true;}
+ show(){const c=this.nearest();if(!c)return false;this.contact=c;this.lastAction='';this.taskDiscussed=false;this.topic=null;this.princessInvite=false;this.host.classList.add('citizen-talking');this.line=commonLines(c.citizen)[0];this.render();this.element.hidden=false;this.greeting.hidden=true;this.element.querySelector<HTMLButtonElement>('button')?.focus();return true;}
  close(){this.contact=null;this.element.hidden=true;this.subtitle.hidden=true;this.host.classList.remove('citizen-talking');}
  private finish(line:string){
   const name=this.contact?.citizen.name;this.close();
   this.greeting.textContent=`${name}: ${line}`;this.greetingUntil=performance.now()+6000;this.greeting.hidden=false;
  }
- private nextLine(c:Citizen){const n=this.turns.get(c.id)??0;this.turns.set(c.id,n+1);return commonLines(c)[n%commonLines(c).length];}
  private task(c:Citizen){return CITIZEN_TASKS[c.role]??null;}
  private progress(c:Citizen){return this.state.citizenQuests?.[c.id];}
  private ready(c:Citizen){const task=this.task(c),p=this.progress(c);return !!task&&p?.status==='active'&&(task.landmark?p.found:!task.items||task.items.every(([id,n])=>(this.state.quantities[id]??0)>=n));}
  private action(action:string){
   const c=this.contact?.citizen;if(!c)return;
   if(action==='close'){this.close();return;}
-  if(action==='trade'){this.close();this.trade();return;}
+  if(action==='trade'){this.close();this.trade(c.id);return;}
   if(action==='guild'){this.close();this.guild();return;}
   if(c.role==='princesa'){
     if(action==='kiss'&&this.state.companion?.id===c.id){
@@ -137,8 +136,8 @@ export class CitizenConversations{
   if(action==='accept'&&task&&!progress){
    const target=task.landmark?this.taskTarget(task):undefined;
    if(task.landmark&&!target){this.line='Ainda não posso indicar o local desta tarefa.';this.render();return;}
-   (this.state.citizenQuests??={})[c.id]={status:'active',found:false,target:target?.toArray() as [number,number,number]|undefined};
-   this.line=`Obrigado por ajudar. ${task.detail}`;this.changed();
+   (this.state.citizenQuests??={})[c.id]={status:'active',giverName:c.name,found:false,target:target?.toArray() as [number,number,number]|undefined};
+   this.line=`Obrigado por ajudar. ${task.detail}`;this.changed();this.accepted(task.title);
   }
   if(action==='claim'&&task&&this.ready(c)){
    for(const [id,n]of task.items??[])if(!task.landmark)this.state.quantities[id]-=n;
@@ -155,10 +154,6 @@ export class CitizenConversations{
  update(enabled=true){
   if(!enabled){this.close();this.greeting.hidden=true;}
   if(this.contact&&(!this.contact.actor?.group.visible||this.contact.position.distanceTo(this.player)>4||this.contact.routine==='sleep'))this.close();
-  const nearest=enabled?this.nearest():undefined;
-  if(nearest&&!this.open&&!this.greeted.has(nearest.citizen.id)){
-   this.greeted.add(nearest.citizen.id);this.greeting.textContent=`${nearest.citizen.name}: ${this.nextLine(nearest.citizen)}`;this.greetingUntil=performance.now()+5000;this.greeting.hidden=false;
-  }
   if(performance.now()>this.greetingUntil)this.greeting.hidden=true;
   for(const [id,p]of Object.entries(this.state.citizenQuests??{})){
    if(p.status!=='active'||p.found||!p.target){this.removeMarker(id);continue;}
@@ -186,8 +181,14 @@ export class CitizenConversations{
  private render(){
   const c=this.contact?.citizen;if(!c)return;const task=this.task(c),p=this.progress(c),ready=this.ready(c);
   this.element.replaceChildren();
-  const title=document.createElement('h2');title.textContent=`${c.name} (${CITIZEN_ROLE_LABELS[c.role]??(c.gender==='mulher'?'Moradora':'Morador')})`;this.element.append(title);
-  this.subtitle.textContent=`${c.name}: ${this.line.replace(/\n+/g,' ')}`;this.subtitle.hidden=false;
+  const title=document.createElement('h2');title.textContent=`${c.name} (${CITIZEN_ROLE_LABELS[c.role]??(c.gender==='mulher'?'Plebeia':'Plebeu')})`;this.element.append(title);
+  this.subtitle.replaceChildren();
+  const [speech,...details]=this.line.split('\n\n');
+  const spoken=document.createElement('span');spoken.textContent=`${c.name}: ${speech}`;this.subtitle.append(spoken);
+  if(details.length){
+    const objective=document.createElement('span');objective.className='citizen-mission-description';objective.textContent=details.join(' ');this.subtitle.append(objective);
+  }
+  this.subtitle.hidden=false;
   const choices=document.createElement('nav');this.element.append(choices);
   const button=(label:string,action:string)=>{const b=document.createElement('button');b.textContent=label;b.dataset.action=action;b.className=this.lastAction===action?'chosen':'';choices.append(b);};
   if(this.princessInvite){
@@ -213,9 +214,11 @@ export class CitizenConversations{
     return;
   }
   const question=c.role==='princesa'?'Como é viver no castelo?':c.role==='rei'?'O que devo saber sobre o reino?':c.role==='rainha'?'Como está o povo do reino?':c.role==='freira'?'Como é o seu trabalho na igreja?':c.role==='padre'?'Que conselho pode me dar?':'O que pode me contar sobre este lugar?';
+  if(c.role==='estalajadeira')button('Quero alugar um quarto.','trade');
+  if(c.role==='atendente-pousada')button('O que você tem pra vender?','trade');
   button(question,'talk');button('Como estão as coisas por aqui?','context');
   if(task){button(p?.status==='active'?'Pode me lembrar o que preciso fazer?':'Precisa de alguma ajuda?','task');if(ready)button('Terminei o que você me pediu.','claim');}
-  if(MERCHANT_ROLES[c.role])button('O que você tem para vender?','trade');
+  if(MERCHANT_ROLES[c.role]&&c.role!=='atendente-pousada'&&c.role!=='estalajadeira')button('O que você tem para vender?','trade');
   if(c.role==='guilda')button('Quais contratos a guilda tem disponíveis?','guild');
   if(c.role==='princesa'){
     if(this.state.companion?.id===c.id){

@@ -16,7 +16,7 @@ try{
   const gltf=await new GLTFLoader().parseAsync(JSON.stringify(json),'');
   return piece?gltf.scene.getObjectByName(piece):gltf.scene;
  }
- const crate=await load('box-low-poly'),barrel=await load('farm','Barrel'),table=await load('tavern-round-table'),bottles=await Promise.all(['green','brown','yellow'].map(c=>load(`tavern-bottle-${c}`)));assert(crate&&barrel);
+ const crate=await load('box-low-poly'),barrel=await load('farm','Barrel'),table=await load('royal-timber-table'),bottles=await Promise.all(['green','brown','yellow'].map(c=>load(`tavern-bottle-${c}`)));assert(crate&&barrel);
  const palace=createRoyalPalace(0),before=palace.userData.localColliders.length;
  placeRoyalKitchenStorage(palace,crate,barrel,{table,bottles});
  assert(palace.userData.kitchenStorageLoaded);

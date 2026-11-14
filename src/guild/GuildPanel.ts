@@ -10,14 +10,14 @@ export class GuildPanel{
   private readonly tracker=document.createElement('aside');
   private trackerHtml='';
   get open(){return this.contact!==null;}
-  constructor(parent:HTMLElement,private state:PersistedInventory,private available:(id:string)=>boolean,private changed:()=>void){
+  constructor(parent:HTMLElement,private state:PersistedInventory,private available:(id:string)=>boolean,private changed:()=>void,private accepted:(title:string)=>void=()=>{}){
     this.element.className='city-shop guild-panel';this.element.hidden=true;this.element.setAttribute('role','dialog');this.element.setAttribute('aria-modal','true');this.element.setAttribute('aria-label','Missões da guilda');parent.append(this.element);this.tracker.className='guild-tracker';this.tracker.hidden=true;parent.append(this.tracker);watchItemThumbnails(this.element);
     this.element.addEventListener('click',event=>{
       const button=(event.target as HTMLElement).closest<HTMLButtonElement>('button');if(!button||!this.contact)return;
       if(button.dataset.close!==undefined){this.close();return;}
       if(!this.available(this.contact.id)){this.close();return;}
       const id=button.dataset.accept??button.dataset.claim;if(!id)return;
-      if(button.dataset.accept&&acceptGuildQuest(this.state,id)){this.message='Missão aceita. Volte à guilda para receber a recompensa.';this.changed();}
+      if(button.dataset.accept&&acceptGuildQuest(this.state,id)){this.state.guildQuests![id].giverName=this.contact.name;this.message='Missão aceita. Volte à guilda para receber a recompensa.';this.changed();this.accepted(GUILD_QUESTS.find(quest=>quest.id===id)!.title);}
       if(button.dataset.claim&&claimGuildQuest(this.state,id)){const q=GUILD_QUESTS.find(q=>q.id===id)!;this.message=`Missão concluída! +${q.reward.xp} XP · +${q.reward.gold} ouro`;this.changed();}
       this.render();
     });

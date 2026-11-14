@@ -1,3 +1,4 @@
+export const CLOTH_KHAKI_COLOR = '#a38b60';
 /** One palette for cloth shirts in the inventory, displays and equipped avatar. */
 export const CLOTH_SHIRT_COLORS: Record<string, string> = {
   tunic: '#f4f1e8',
@@ -5,11 +6,13 @@ export const CLOTH_SHIRT_COLORS: Record<string, string> = {
   'tunic-blue': '#254b86',
   'tunic-black': '#17171b',
   'tunic-green': '#3e693d',
+  'tunic-khaki': '#927a53',
 };
 export const clothShirtColor = (visual: string) => CLOTH_SHIRT_COLORS[visual];
 
 export const CLOTH_PANTS_COLORS: Record<string, string> = {
-  'cloth-pants-khaki': '#a38b60',
+  'cloth-pants-khaki': CLOTH_KHAKI_COLOR,
+  'cloth-pants-brown': '#65452f',
   'cloth-pants-white': CLOTH_SHIRT_COLORS.tunic,
   'cloth-pants-blue': CLOTH_SHIRT_COLORS['tunic-blue'],
   'cloth-pants-red': CLOTH_SHIRT_COLORS['tunic-red'],

@@ -3,9 +3,11 @@ import type {InventoryItem,ItemCategory,ItemRarity,ItemStats,EquipmentSlot} from
 const item=(id:string,name:string,category:ItemCategory,rarity:ItemRarity,description:string,visual:string,stats:ItemStats={},slot?:EquipmentSlot,quantity=1,stackable=false):InventoryItem=>({id,name,category,rarity,description,visual,stats,slot,quantity,stackable});
 
 export const INVENTORY_CATALOG:InventoryItem[]=[
-  item('nimbus-2000','Nimbus 2000','magic','Lendário','Vassoura encantada de corrida. Equipe em uma das mãos e pressione F para voar.','nimbus-2000',{},'rightHand'),
+  item('nimbus-2000','Vassoura Voadora','magic','Lendário','Vassoura encantada de corrida. Equipe em uma das mãos e pressione F para voar.','nimbus-2000',{},'rightHand'),
   // Item legado preservado: os 54 itens solicitados vêm abaixo.
   item('starter-shield','Escudo de Ferro','weapon','Comum','Escudo inicial para bloquear ataques.','shield',{defense:8},'leftHand'),
+  item('wooden-shield','Escudo de Madeira','weapon','Comum','Escudo de madeira com bolinha central de ferro.','shield',{defense:5},'leftHand'),
+  item('steel-shield','Escudo de Aço','weapon','Incomum','Escudo de aço com bolinha central amarela.','shield',{defense:12},'leftHand'),
   item('bronze-sword','Espada de Bronze','weapon','Comum','Espada com lâmina metálica de bronze.','sword-bronze',{attack:12},'rightHand'),
   item('steel-sword','Espada de Aço','weapon','Incomum','Espada com lâmina de aço cinza prata.','sword-steel',{attack:20},'rightHand'),
   item('iron-sword','Espada de Ferro','weapon','Comum','Espada robusta forjada em ferro.','sword-iron',{attack:16},'rightHand'),
@@ -27,6 +29,7 @@ export const INVENTORY_CATALOG:InventoryItem[]=[
   item('tunic-blue','Camisa de Pano Azul','armor','Comum','Camisa leve de pano azul.','tunic-blue',{},'torso'),
   item('tunic-black','Camisa de Pano Preta','armor','Comum','Camisa leve de pano preto.','tunic-black',{},'torso'),
   item('tunic-green','Camisa de Pano Verde','armor','Comum','Camisa leve de pano verde.','tunic-green',{},'torso'),
+  item('tunic-khaki','Camisa de Pano Caqui','armor','Comum','Camisa de pano bege caqui levemente escurecido.','tunic-khaki',{},'torso'),
   item('leather-vest','Camisa de Couro','armor','Comum','Camisa de couro curtido que não limita os movimentos.','leather',{},'torso'),
   item('leather-chest','Peitoral de Couro','armor','Comum','Peitoral resistente feito de couro curtido.','leather-chest',{defense:7},'armor'),
   item('iron-shirt','Camisa de Ferro','armor','Incomum','Camisa reforçada com placas de ferro.','iron-shirt',{defense:10},'torso'),
@@ -45,6 +48,7 @@ export const INVENTORY_CATALOG:InventoryItem[]=[
   item('leather-armor-boots','Botas de Couro Reforçadas','armor','Comum','Botas de couro usadas como proteção leve.','leather-armor-boots',{defense:4},'boots'),
   item('iron-boots','Botas de Ferro','armor','Incomum','Botas protegidas por placas de ferro.','iron-boots',{defense:8},'boots'),
   item('steel-boots','Botas de Aço','armor','Raro','Botas de aço temperado para combate pesado.','steel-boots',{defense:12},'boots'),
+  item('cloth-pants-brown','Calça de Pano Marrom','armor','Comum','Calça comprida de pano marrom, sem bônus de atributos.','cloth-pants-brown',{},'legs'),
   item('cloth-pants-khaki','Calça de Pano Caqui','armor','Comum','Calça leve de pano caqui, sem bônus de atributos.','cloth-pants-khaki',{},'legs'),
   item('cloth-pants-white','Calça de Pano Branca','armor','Comum','Calça leve de pano branco, sem bônus de atributos.','cloth-pants-white',{},'legs'),
   item('cloth-pants-blue','Calça de Pano Azul','armor','Comum','Calça leve de pano azul, sem bônus de atributos.','cloth-pants-blue',{},'legs'),
@@ -64,6 +68,9 @@ export const INVENTORY_CATALOG:InventoryItem[]=[
   item('swift-boots','Botas Velozes','accessory','Incomum','Botas leves para deslocamentos rápidos.','boots',{defense:3},'boots'),
   item('guardian-bracelet','Bracelete do Guardião','accessory','Lendário','Bracelete ancestral de proteção excepcional.','bracelet',{defense:12,hp:35},'accessory'),
 
+  item('beer','Cerveja','consumable','Comum','Cerveja na garrafa amarela da taverna.','tavern-bottle-yellow',{},undefined,1,true),
+  item('wine','Vinho','consumable','Comum','Vinho na garrafa verde da taverna.','tavern-bottle-green',{},undefined,1,true),
+  item('rum','Rum','consumable','Comum','Rum na garrafa marrom da taverna.','tavern-bottle-brown',{},undefined,1,true),
   item('magic-potion','Poção de Magia','consumable','Incomum','Recupera 40 de vigor, a energia usada para lançar magias.','potion-magic',{stamina:40},undefined,6,true),
   item('hp-potion','Poção de HP','consumable','Comum','Recupera 35 pontos de vida.','potion-red',{hp:35},undefined,6,true),
   item('greater-hp-potion','Poção Maior de HP','consumable','Incomum','Recupera 80 pontos de vida.','potion-red-large',{hp:80},undefined,3,true),
@@ -72,8 +79,7 @@ export const INVENTORY_CATALOG:InventoryItem[]=[
   item('healing-crystal','Cristal de Cura','consumable','Raro','Restaura 120 pontos de vida imediatamente.','crystal-green',{hp:120},undefined,2,true),
   item('teleport-crystal','Cristal de Teleporte','consumable','Épico','Teleporta o grupo para a cidade segura.','crystal-blue',{},undefined,1,true),
   item('antidote','Antídoto','consumable','Comum','Remove efeitos de veneno.','vial-green',{},undefined,4,true),
-  item('bread','Pão de Tolbana','consumable','Comum','Alimento simples que recupera vida e vigor.','bread',{hp:12,stamina:8},undefined,8,true),
-  item('ragout','Ragout de Coelho','consumable','Raro','Prato raro que restaura grandes reservas.','food',{hp:70,stamina:50},undefined,2,true),
+  item('bread','Pão','consumable','Comum','Alimento simples que recupera vida e vigor.','bread',{hp:12,stamina:8},undefined,8,true),
   item('grapes','Uvas','consumable','Comum','Cacho de uvas do mercado. Recupera 12 de fome, 8 de sede e 5 de vida.','grapes',{hp:5,hunger:12,thirst:8},undefined,10,true),
   item('apple','Maçã Vermelha','consumable','Comum','Maçã do mercado. Recupera 18 de fome, 4 de sede e 8 de vida.','apple',{hp:8,hunger:18,thirst:4},undefined,10,true),
 
@@ -88,8 +94,13 @@ export const INVENTORY_CATALOG:InventoryItem[]=[
   item('blue-crystal','Cristal Azul','material','Incomum','Cristal carregado de energia espacial.','crystal-blue',{},undefined,11,true),
   item('red-crystal','Cristal Vermelho','material','Raro','Cristal de energia ofensiva.','crystal-red',{},undefined,4,true),
   item('star-fragment','Fragmento Estelar','material','Lendário','Material lendário caído do céu de Aincrad.','star',{},undefined,1,true)
-  ,item('deer-meat','Carne de Cervo','consumable','Incomum','Corte nutritivo obtido ao caçar cervos.','venison-meat',{hunger:42,hp:8},undefined,0,true)
+  ,item('deer-meat','Carne de Veado','consumable','Incomum','Corte nutritivo obtido ao caçar cervos.','venison-meat',{hunger:42,hp:8},undefined,0,true)
   ,item('rabbit-meat','Carne de Coelho','consumable','Comum','Carne leve obtida ao caçar coelhos.','rabbit-meat',{hunger:26,hp:4},undefined,0,true)
+  ,item('mountain-lion-meat','Carne de Leão da Montanha','consumable','Comum','Carne obtida ao investigar um leão da montanha abatido.','mountain-lion-meat',{hunger:32,hp:6},undefined,0,true)
+  ,item('bear-meat','Carne de Urso','consumable','Comum','Carne obtida ao investigar um urso abatido.','bear-meat',{hunger:45,hp:8},undefined,0,true)
+  ,item('wolf-meat','Carne de Lobo','consumable','Comum','Carne obtida ao investigar um lobo abatido.','wolf-meat',{hunger:30,hp:5},undefined,0,true)
+  ,item('chicken-meat','Carne de Galinha','consumable','Comum','Carne obtida ao investigar uma galinha abatida.','chicken-meat',{hunger:24,hp:4},undefined,0,true)
+  ,item('fish','Peixe','consumable','Comum','O mesmo peixe dos rios e do mar. Reservado também para o futuro sistema de pesca.','fish',{hunger:24,hp:4},undefined,1,true)
   ,item('water-flask','Água Fresca','consumable','Comum','Água limpa para recuperar a sede.','potion-blue',{thirst:40},undefined,3,true)
 ];
 

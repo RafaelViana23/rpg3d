@@ -1,0 +1,38 @@
+{
+  "method": "Node CPU benchmark, six deterministic routes, alternating implementations in the same process; no live save, GPU or FPS measurement.",
+  "paths": [
+    {
+      "name": "rua reta",
+      "points": 49
+    },
+    {
+      "name": "trajeto diagonal",
+      "points": 68
+    },
+    {
+      "name": "desvio de parede",
+      "points": 48
+    },
+    {
+      "name": "destino cercado",
+      "points": 0
+    },
+    {
+      "name": "interior com obstaculo",
+      "points": 23
+    },
+    {
+      "name": "interior com degraus",
+      "points": 16
+    }
+  ],
+  "before": {
+    "medianMs": 6.402749999999969,
+    "p95Ms": 7.277917000000002
+  },
+  "after": {
+    "medianMs": 5.682667000000038,
+    "p95Ms": 7.011750000000006
+  },
+  "reductionPercent": 11.246464409822888
+}

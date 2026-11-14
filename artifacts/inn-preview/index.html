@@ -1,0 +1,19 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Pousada da Selena — prévia arquitetônica</title><style>body{margin:0;background:#b6c7d0}canvas{display:block}#label{position:absolute;top:20px;left:22px;font:18px system-ui;color:#28302b;background:#fffC;padding:14px;border-radius:8px}button{font:inherit;margin-left:12px}</style></head><body><div id="label">Pousada da Selena · 3 andares · 44 × 24 <button id="cut">Ver corte</button><button id="night">Interior à noite</button><button id="rooms">Porta do quarto</button><button id="door">Abrir / fechar quarto</button><button id="stairs">Escadas</button></div><script type="module">
+import * as T from '/node_modules/three/build/three.module.js';
+import {OrbitControls} from '/node_modules/three/examples/jsm/controls/OrbitControls.js';
+import {toggleChurchDoor,updateChurchDoors} from '/src/editor/ChurchDoors.ts';
+import {addCityProps} from '/src/editor/CityProps.ts';
+import {updateCityFirelights} from '/src/editor/CityFirelight.ts';
+import {updateCityPropLoading} from '/src/editor/CityPropLoading.ts';
+import {createSelenaInn} from '/src/editor/SelenaInn.ts';
+const scene=new T.Scene();scene.background=new T.Color('#b6c7d0');const model=createSelenaInn();scene.add(model);addCityProps(model,1);
+const ambient=new T.HemisphereLight(0xfff2d4,0x71868d,2.6);scene.add(ambient);const sun=new T.DirectionalLight(0xffe7c4,3);sun.position.set(-35,70,45);scene.add(sun);
+const renderer=new T.WebGLRenderer({antialias:true});renderer.setSize(innerWidth,innerHeight);renderer.setPixelRatio(devicePixelRatio);document.body.append(renderer.domElement);
+const camera=new T.PerspectiveCamera(42,innerWidth/innerHeight,.1,500);camera.position.set(57,42,60);const controls=new OrbitControls(camera,renderer.domElement);controls.target.set(0,7,0);controls.update();
+const plane=new T.Mesh(new T.PlaneGeometry(180,180),new T.MeshLambertMaterial({color:0xa8ad91}));plane.rotation.x=-Math.PI/2;plane.position.y=-.25;scene.add(plane);
+document.querySelector("#night").onclick=()=>{ambient.intensity=.04;sun.intensity=0;renderer.localClippingEnabled=false;renderer.clippingPlanes=[];camera.position.set(-16,2.2,8);controls.target.set(12,2.9,0);controls.update();};
+document.querySelector("#rooms").onclick=()=>{renderer.localClippingEnabled=false;renderer.clippingPlanes=[];const room=model.userData.innRooms.find(r=>r.y===10);camera.position.set(room.x,11.7,4);controls.target.set(room.x,11.7,0);controls.update();};
+document.querySelector("#door").onclick=()=>{const room=model.userData.innRooms.find(r=>r.y===10);toggleChurchDoor(new T.Vector3(room.x,11.2,1));};
+document.querySelector("#stairs").onclick=()=>{renderer.localClippingEnabled=true;renderer.clippingPlanes=[new T.Plane(new T.Vector3(-1,0,0),21.6)];camera.position.set(38,8,5);controls.target.set(18.5,5.5,0);controls.update();};
+let cut=false;document.querySelector('#cut').onclick=()=>{cut=!cut;renderer.localClippingEnabled=cut;renderer.clippingPlanes=cut?[new T.Plane(new T.Vector3(0,-1,0),11.6)]:[];camera.position.set(35,65,55);controls.target.set(0,5,0);controls.update();};renderer.setAnimationLoop(()=>{updateCityPropLoading(new T.Vector3(0,1,0));updateChurchDoors(.016);updateCityFirelights(.016,new T.Vector3(0,1,0),0,3);renderer.render(scene,camera);});
+</script></body></html>

@@ -1,4 +1,5 @@
 import * as T from 'three';
+import {appendRoyalTimberTable} from './RoyalTimberTable';
 import {mergeGeometries} from 'three/addons/utils/BufferGeometryUtils.js';
 import {CITY_WOOD_MATERIAL as wood} from './CityWood';
 import {appendRoyalBookcase,appendRoyalPainting,appendRoyalChandelier,type RoyalRoomLight} from './RoyalRoomDetails';
@@ -44,8 +45,7 @@ export function createRoyalLibrary(floor:number,back:number,front:number,doorZ:n
  root.userData.shelfRows=shelfRows;
  root.userData.shelfAisleWidth=6-2.3;
  // Same 6.4 x 2.6 timber table and human-scale seats used elsewhere in the palace.
- box(cx,1.05,center,6.4,.16,2.6,wood);solid(cx,center,6.4,1.13,2.6);
- for(const dx of [-2.9,2.9])for(const dz of [-1.05,1.05])box(cx+dx,.48,center+dz,.18,.96,.18,wood);
+ appendRoyalTimberTable(cx,floor,center,add);solid(cx,center,6.4,1.13,2.6);
  for(const dx of [-2,2]){
   appendRoyalSeat(floor,cx+dx,center-2.55,2.6,0,add,colliders);
   appendRoyalSeat(floor,cx+dx,center+2.55,2.6,Math.PI,add,colliders);

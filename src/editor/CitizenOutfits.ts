@@ -1,3 +1,4 @@
+import { CLOTH_SHIRT_COLORS, CLOTH_PANTS_COLORS } from '../inventory/clothColors';
 import { createSmoothClothMaterial } from '../inventory/clothMaterial';
 import * as THREE from 'three';
 import type { ProceduralCharacter } from '../character';
@@ -7,15 +8,28 @@ import type { Citizen } from './CityPopulation';
 export function dressCitizen(actor:ProceduralCharacter,citizen:Citizen){
   actor.setClothing('belt',false);
   if(citizen.role.startsWith('guarda-'))return;
-  const role=citizen.role,female=citizen.gender==='mulher';
+  const role=citizen.role==='feirante'?'morador':citizen.role,female=citizen.gender==='mulher';
+  const maid=role==='empregada-real'||role==='empregada-pousada';
+  const noble=role==='nobre'||citizen.socialClass==='nobre';
   const royal=['rei','rainha','princesa'].includes(role),clergy=role==='padre'||role==='freira';
-  const color=role==='empregada-real'?'#17171b':role==='cozinheiro-real'?'#e9e3d4':role==='rei'?'#8d2433':role==='rainha'||role==='guilda'?'#254b86':role==='princesa'?'#c66698':clergy?'#242329':role==='armeiro'?'#67452f':role==='cavalarico'?'#746044':role==='lojista'?'#3e5137':female?'#586443':'#687052';
+  const color=role==='estalajadeira'?CLOTH_SHIRT_COLORS['tunic-green']:role==='morador'?(female?[CLOTH_SHIRT_COLORS['tunic-green'],CLOTH_SHIRT_COLORS['tunic-khaki'],CLOTH_PANTS_COLORS['cloth-pants-brown']][Number(citizen.id.replace(/\D/g,''))%3]:CLOTH_SHIRT_COLORS['tunic-khaki']):noble?['tunic','tunic-red','tunic-blue','tunic-black'].map(id=>CLOTH_SHIRT_COLORS[id])[citizen.post%4]:maid?'#17171b':role==='cozinheiro-real'?'#e9e3d4':role==='rei'?'#8d2433':role==='rainha'||role==='guilda'?'#254b86':role==='princesa'?'#c66698':clergy?'#242329':role==='armeiro'?'#67452f':role==='cavalarico'?'#746044':role==='lojista'?CLOTH_SHIRT_COLORS['tunic-green']:CLOTH_SHIRT_COLORS['tunic-green'];
   if(female){actor.setClothing('pants',false);actor.setClothing('boots',false);actor.setClothing('gloves',false);actor.setClothing('armorGloves',false);}
-  actor.setCivilianClothingColor(female||clergy||royal?color:'#e4d5b8',female);
+  actor.setCivilianClothingColor(female||clergy||royal||noble||role==='morador'?color:CLOTH_SHIRT_COLORS.tunic,female);
+  if(!female&&!royal){
+    const pants=role==='morador'?'cloth-pants-brown':noble?['cloth-pants-blue','cloth-pants-black','cloth-pants-white'][Math.floor(citizen.post/4)%3]:'cloth-pants-blue';
+    actor.setClothPantsColor(CLOTH_PANTS_COLORS[pants]);
+  }
   const roots:THREE.Object3D[]=[];
   const root=(bone:string)=>{const g=new THREE.Group();g.name='CitizenOutfit';actor.group.getObjectByName(bone)!.add(g);roots.push(g);return g;};
-  if(female){
-    const shoeColor = role==='rainha'||role==='princesa' ? '#f4f1e8' : '#4a2818';
+  if(noble&&!female){
+    actor.setClothing('boots',true);
+    actor.setClothing('armorBoots',false);
+    actor.setArmorPartColor('boots','#4a2818');
+  }
+  if(female||role==='morador'){
+    actor.setClothing('boots',false);
+    actor.setClothing('armorBoots',false);
+    const shoeColor = noble||role==='rainha'||role==='princesa' ? '#f4f1e8' : '#4a2818';
     // Reuse only the rigged foot surface. The calf retains its skin material,
     // so these shoes stop at the heel/ankle instead of forming a boot shaft.
     for(const side of ['L','R']){
@@ -44,21 +58,36 @@ export function dressCitizen(actor:ProceduralCharacter,citizen:Citizen){
   const cloth=female||clergy||role==='guilda'?createSmoothClothMaterial(color):fabric(color),cream=fabric('#eee4d0'),gold=new THREE.MeshStandardMaterial({color:'#d8b04e',metalness:.65,roughness:.35});
   const add=(g:THREE.Group,geo:THREE.BufferGeometry,mat:THREE.Material,x:number,y:number,z:number)=>{const m=new THREE.Mesh(geo,mat);m.position.set(x,y,z);m.castShadow=m.receiveShadow=true;g.add(m);return m;};
   const box=(g:THREE.Group,w:number,h:number,d:number,x:number,y:number,z:number,m:THREE.Material)=>add(g,new THREE.BoxGeometry(w,h,d),m,x,y,z);
-  if(role==='princesa'||role==='rainha'||role==='empregada-real'){
+  if(role==='princesa'||role==='rainha'||maid){
     actor.setCivilianSleevesVisible(false);
     for(const side of ['L','R']){
-      const puff=add(root(`UpperArm_${side}`),new THREE.IcosahedronGeometry(.21,1),role==='empregada-real'?fabric('#f2eee4'):cloth,0,-.08,0);
+      const puff=add(root(`UpperArm_${side}`),new THREE.IcosahedronGeometry(.21,1),maid?fabric('#f2eee4'):cloth,0,-.08,0);
       puff.name=`Manga bufante ${side}`;puff.scale.set(1.05,1,.95);
     }
   }
   // Open neckline; the shirt underneath supplies the sleeves and collar.
-  if(!female){
+  if(!female&&!noble&&role!=='morador'){
   const vest=add(chest,new THREE.CylinderGeometry(.34,royal?.36:.30,royal?.68:.47,12,1,true),cloth,0,royal?-.245:-.14,0);vest.scale.z=.77;
   }
   if(royal&&!female){
     // Overlap the shirt at the hips to keep the waist covered when seated.
     const waist=add(hips,new THREE.CylinderGeometry(.35,.39,.30,12,1,true),cloth,0,.22,0);
     waist.scale.z=.77;
+  }
+  if(noble)actor.setCivilianClothingColor(color,female);
+  if(female&&(noble||role==='princesa'||role==='rainha')){
+      const chokerMaterial=gold.clone();
+      chokerMaterial.color.set('#ffd52a');
+      chokerMaterial.side=THREE.DoubleSide;
+      const choker=add(root('Neck'),new THREE.CylinderGeometry(.14,.145,.035,24,1,true),chokerMaterial,0,.105,.003);
+      choker.name='Gargantilha dourada da nobre';
+      const waistBand=add(hips,new THREE.CylinderGeometry(.30,.315,.045,24,1,true),chokerMaterial,0,.17,0);
+      waistBand.name='Faixa dourada da cintura da nobre';
+      waistBand.scale.z=.76;
+      for(const side of ['L','R']){
+        const bracelet=add(root(`Wrist_${side}`),new THREE.CylinderGeometry(.078,.076,.035,16,1,true),chokerMaterial,0,-.015,0);
+        bracelet.name=`Pulseira dourada da nobre ${side}`;
+      }
   }
   const long=female||clergy||role==='guilda';
   if(long){
@@ -77,7 +106,7 @@ export function dressCitizen(actor:ProceduralCharacter,citizen:Citizen){
         new THREE.Vector2(.39,.04),new THREE.Vector2(.285,.14),
         new THREE.Vector2(.26,.24),
       ],18).scale(1,1,.68);
-      if(role==='empregada-real'||role==='princesa'){
+      if(maid||role==='princesa'){
         const positions=lining.getAttribute('position');
         // Keep the waist fixed and bring the hem up to the knee.
         const waist=.24,hem=-.94,knee=-.50;
@@ -92,7 +121,7 @@ export function dressCitizen(actor:ProceduralCharacter,citizen:Citizen){
       const skirtGeometry=new THREE.CylinderGeometry(.38,.53,1.08,16,10,true);skirtGeometry.scale(1,1,.72);skirtGeometry.translate(0,-.40,0);
       addFoldingDress(actor,hips,skirtGeometry,cloth).name='Saia articulada da túnica';
       const hemGeometry=new THREE.CylinderGeometry(.526,.535,.055,16,1,true);hemGeometry.scale(1,1,.72);hemGeometry.translate(0,-.91,0);
-      addFoldingDress(actor,hips,hemGeometry,role==='guilda'?gold:cream).name='Barra articulada da túnica';
+      addFoldingDress(actor,hips,hemGeometry,role==='guilda'&&!noble?gold:cream).name='Barra articulada da túnica';
     }
   }
   if(role==='cozinheiro-real'){
@@ -102,8 +131,8 @@ export function dressCitizen(actor:ProceduralCharacter,citizen:Citizen){
   if(royal||role==='guilda'){
     // The guild keeps its mantle; royal shirts have no cape.
     if(!royal)box(chest,.81,1.35,.08,0,-.48,-.25,cloth);
-    if(!royal)for(const side of [-1,1])box(chest,.055,.56,.045,side*.28,-.12,.26,gold);
-    if(!royal)box(chest,.77,.10,.38,0,.12,0,gold);
+    if(!royal&&!noble)for(const side of [-1,1])box(chest,.055,.56,.045,side*.28,-.12,.26,gold);
+    if(!royal&&!noble)box(chest,.77,.10,.38,0,.12,0,gold);
     if(female&&!royal){
       const panel=add(hips,new THREE.CylinderGeometry(.16,.29,1.0,4,1,true,Math.PI*.25,Math.PI*.5),cream,0,-.4,.13);panel.scale.z=.8;
     }

@@ -13,6 +13,25 @@ try{
    for(let i=1;i<values.length;i+=3)assert(center.y+values[i]>1000,`${type} stays above the roof after movement and respawn`);
   }
  }
+ // Repeated impacts must never accumulate into a horizontal strip on a roof.
+ for(const type of ['rain','snow']){
+  weather.setWeather(type);
+  const values=type==='rain'?weather.rainPositions:weather.snowPositions;
+  values.fill(0);weather.positioned=false;weather.update(.05,new Vector3(),()=>1000);
+  const heights=[];
+  for(let i=1;i<values.length;i+=type==='rain'?6:3)heights.push(values[i]);
+  assert(Math.max(...heights)-Math.min(...heights)>8,`${type}: roof impacts are distributed vertically`);
+ }
+ const {createMedievalBuilding}=await server.ssrLoadModule('/src/editor/MedievalBuildings.ts');
+ const {LowPolyCityBuilder:RoofBuilder}=await server.ssrLoadModule('/src/editor/LowPolyCityBuilder.ts');
+ for(const kind of ['house','inn']){
+  const scene=new Scene(),builder=new RoofBuilder(scene,()=>0),building=createMedievalBuilding(kind);
+  builder.root.add(building);builder.objects.set(kind,building);builder.prepareWeatherCover();
+  const pitch=building.userData.weatherPitch;
+  assert(Math.abs(builder.roofHeightAt(0,0)-(pitch.eaves+pitch.rise+.2))<1e-6);
+  const x=pitch.axis==='x'?pitch.halfWidth*.8:0,z=pitch.axis==='z'?pitch.halfWidth*.8:0;
+  assert(builder.roofHeightAt(x,z)<builder.roofHeightAt(0,0),'Cover follows roof slope');
+ }
  const {createRoyalStyleBed}=await server.ssrLoadModule('/src/editor/RoyalStyleBed.ts');
  const {CITY_WOOD_MATERIAL}=await server.ssrLoadModule('/src/editor/CityWood.ts');
  const {cityBedAnchor}=await server.ssrLoadModule('/src/editor/CitySleeping.ts');
@@ -57,7 +76,8 @@ try{
  fireScene.updateMatrixWorld(true);
  for(const viewer of [new Vector3(),new Vector3(400,0,0),new Vector3(-400,0,0)]){
   updateCityFirelights(.05,viewer,0,1,.5);
-  assert(torches.every(t=>{const l=t.getObjectByName('Luz da tocha');return l.visible&&l.intensity>130;}),'All twelve palace torches remain lit simultaneously with a one-emitter nearby budget, regardless of player position');
+  assert(torches.every(t=>!t.getObjectByName('Luz da tocha').visible),'Palace torches never bypass the shared emitter budget');
+  assert(fireScene.children.filter(o=>o.isPointLight&&o.visible&&o.intensity>0).length<=1,'One-emitter budget is respected near and far');
  }
  console.log('Chuva e neve bloqueadas após movimento/respawn; cama de manta verde e colchão, tochas e velas nos quatro quartos reais validados.');
 }finally{await server.close();}

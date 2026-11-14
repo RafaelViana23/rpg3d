@@ -4,13 +4,30 @@ import * as T from 'three';
 export const CITY_WOOD_COLOR='#7b603f';
 export const CITY_WOOD_MATERIAL=new T.MeshLambertMaterial({color:CITY_WOOD_COLOR});
 const painted=new WeakMap<T.Material,T.Material>();
-export function cityWoodMaterial(source:T.Material,solid=false):T.Material{
+const paintedDoors=new WeakMap<T.Material,T.Material>();
+const doorPalettes=new WeakMap<T.Texture,T.Texture>();
+function doorPalette(source:T.Texture){
+  let texture=doorPalettes.get(source);
+  if(!texture){
+    // These atlases contain unused magenta cells. Mipmaps blend them into
+    // the wood at Build-camera distances, defeating the wood color mask.
+    texture=source.clone();
+    texture.generateMipmaps=false;
+    texture.minFilter=T.NearestFilter;
+    texture.magFilter=T.NearestFilter;
+    texture.needsUpdate=true;
+    doorPalettes.set(source,texture);
+  }
+  return texture;
+}
+export function cityWoodMaterial(source:T.Material,solid=false,door=false):T.Material{
   if(solid)return CITY_WOOD_MATERIAL;
   if(!(source instanceof T.MeshStandardMaterial||source instanceof T.MeshLambertMaterial||source instanceof T.MeshBasicMaterial))return source;
-  const cached=painted.get(source);if(cached)return cached;
+  const cache=door?paintedDoors:painted;
+  const cached=cache.get(source);if(cached)return cached;
   // Imported palette GLBs can be unlit; use the same lighting model as the house.
   const material=new T.MeshLambertMaterial({
-    name:source.name,color:source.color,map:source.map,side:source.side,
+    name:source.name,color:source.color,map:door&&source.map?doorPalette(source.map):source.map,side:source.side,
     transparent:source.transparent,opacity:source.opacity,alphaTest:source.alphaTest,
     alphaMap:source.alphaMap,vertexColors:source.vertexColors,
     depthWrite:source.depthWrite,depthTest:source.depthTest,
@@ -26,7 +43,7 @@ export function cityWoodMaterial(source:T.Material,solid=false):T.Material{
       if(wooden)diffuseColor.rgb=cityWoodColor;`);
   };
   material.customProgramCacheKey=()=> `city-lantern-wood-lit-v3-${source.name==='IronWood'?'market':'palette'}`;
-  painted.set(source,material);
+  cache.set(source,material);
   return material;
 }
 export function applyCityWood(root:T.Object3D,pack:string){
@@ -37,7 +54,7 @@ export function applyCityWood(root:T.Object3D,pack:string){
       if(pack==='wood-floor')return CITY_WOOD_MATERIAL;
       if(/metall?|cloth|covers|cork/i.test(m.name))return m;
       if(pack==='medieval-market'&&m.name!=='IronWood')return m;
-      return cityWoodMaterial(m,['tavern-round-table','tavern-stool','box-low-poly','wood-floor','wood-stairs','shelf','sign-board','wagon'].includes(pack)||/^(wood|wood_texture_dark)$/i.test(m.name));
+      return cityWoodMaterial(m,['tavern-round-table','tavern-stool','box-low-poly','wood-floor','wood-stairs','shelf','sign-board','wagon'].includes(pack)||/^(wood|wood_texture_dark)$/i.test(m.name),pack==='village-door'||pack==='church-door');
     };
     child.material=Array.isArray(child.material)?child.material.map(paint):paint(child.material);
   });

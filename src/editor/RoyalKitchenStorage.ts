@@ -1,3 +1,4 @@
+import {registerCityInteriorProp} from './CityInteriorStreaming';
 import * as T from 'three';
 import {clone as cloneSkeleton} from 'three/addons/utils/SkeletonUtils.js';
 
@@ -32,7 +33,7 @@ export function placeRoyalKitchenStorage(building:T.Group,crate:T.Group,barrel:T
  for(const [x,z]of [[34,back+16],[34.5,back+26],[46,front-3],[33.8,front-24]])place(fit(crate,.7),x,room.y,z,'Caixa avulsa da cozinha');
  if(extras){
   for(const [index,z]of [back+14,back+27,front-10].entries()){
-   const table=place(fit(extras.table,.85),46,room.y,z,'Mesa redonda da cozinha');
+   const table=place(fit(extras.table,.85),46,room.y,z,'Mesa da cozinha');
    const bottle=fit(extras.bottles[index%extras.bottles.length],.35);
    place(bottle,46,table.max.y,z,'Garrafa da taverna sobre a mesa');
   }
@@ -41,6 +42,6 @@ export function placeRoyalKitchenStorage(building:T.Group,crate:T.Group,barrel:T
    place(lying,30.8,room.y,z,'Barril deitado da cozinha');
   }
  }
- for(const {prop,bounds}of pending){building.add(prop);building.userData.localColliders.push([...bounds.min.toArray(),...bounds.max.toArray()]);}
+ for(const {prop,bounds}of pending){building.add(prop);registerCityInteriorProp(building,prop);building.userData.localColliders.push([...bounds.min.toArray(),...bounds.max.toArray()]);}
  building.userData.kitchenStorageLoaded=true;building.userData.colliderRevision=(building.userData.colliderRevision??0)+1;
 }

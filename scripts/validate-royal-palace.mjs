@@ -315,7 +315,11 @@ for(const x of [-40,0,40])for(const z of [midPlaza.landingBack+.8,(midPlaza.land
  assert(hit?.object.userData.cityPaving,'Intermediate plaza has real paving geometry');
  assert(Math.abs(hit.point.y-midPlaza.height)<1e-5,'Visible paving matches collision support');
 }
-for(const post of raised.userData.npcGuardPosts.slice(-2))assert.equal(post[1],midPlaza.height,'Entrance guards stand on the intermediate plaza');
+for(const post of raised.userData.npcGuardPosts.slice(-2)){
+ assert.equal(post[1],midPlaza.height,'Entrance guards stand on the upper stair landing');
+ assert(Math.abs(post[2]-(midPlaza.landingBack+1.1))<1e-8,'Entrance guards stand directly in front of the upper rail corners');
+ assert.equal(Math.abs(post[0]),5.76,'Entrance guards align with the upper rail corners');
+}
 console.log('Two exterior palace flights, full-width intermediate plaza, flat landing and guard support validated.');
 
 const balustrades=raised.userData.terraceBalustrades;

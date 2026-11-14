@@ -1,0 +1,18 @@
+Mapa conceitual de planejamento da capital
+
+Proposta visual baseada na primeira referência fornecida pelo usuário.
+Não modifica o mapa 3D nem os saves. Orientações cardinais são as da ilustração.
+
+01 Norte: Bairro Residencial — casas, poço comunitário e pequenas praças.
+02 Nordeste: Distrito Nobre — mansões, jardins e capela nobre.
+03 Leste: Distrito Real — palácio, pátio, sala do trono, biblioteca e administração.
+04 Sudeste: Bairro dos Viajantes — Pousada da Selena, taverna, estábulo e pátio de carroças.
+05 Sul: Distrito Religioso — igreja principal, capela dos viajantes e enfermaria.
+06 Sudoeste: Distrito Militar — quartel, pátio de treino e armazém militar.
+07 Oeste/noroeste: Distrito dos Artesãos — ferraria, carpintaria e oficina de reparos.
+08 Centro: Distrito Comercial — mercado, fonte, lojas gerais, alimentos e suprimentos.
+09 Centro-sul: Distrito de Serviços — guilda de aventureiros, loja de armas e loja de poções.
+
+Circulação: quatro portões ligados à praça central; avenidas livres para pedestres e carroças; pátios de serviço junto às muralhas.
+
+Produzido com a ferramenta integrada image_gen. Prompt completo em prompt.txt.

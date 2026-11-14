@@ -53,6 +53,14 @@ try{
  panel.show();panel.action('wait');assert.equal(state.companion.mode,'wait');assert(!panel.open);
  panel.show();panel.action('follow');assert.equal(state.companion.mode,'follow');
  panel.show();panel.action('dismiss');assert(!state.companion);assert(!panel.open);assert(panel.greeting.textContent.includes('da próxima eu quero um beijo'));
+ citizen.id='citizen-090';citizen.role='atendente-pousada';citizen.name='Cerys';
+ let tradedId;panel.trade=id=>{tradedId=id;};
+ assert(panel.show());assert.equal(panel.element.children[1].children[0].dataset.action,'trade');
+ panel.action('trade');assert.equal(tradedId,citizen.id);assert(!panel.open);
+ panel.show();panel.action('task');panel.action('accept');
+ state.quantities.beer=2;state.quantities.wine=1;const beforeInnReward=state.gold;
+ panel.action('claim');assert.equal(state.gold,beforeInnReward+100);assert.equal(state.quantities.beer,0);assert.equal(state.quantities.wine,0);
+ panel.action('claim');assert.equal(state.gold,beforeInnReward+100,'Reception mission rewards only once');
  const restored=JSON.parse(JSON.stringify(state));assert.equal(restored.citizenQuests['citizen-001'].status,'claimed');assert.equal(restored.citizenQuests['citizen-003'].status,'claimed');
  console.log('Falas variadas/contextuais, recusa, exploração, entregas, consumo único, recompensas únicas e persistência validados.');
 }finally{await server.close();delete globalThis.document;}

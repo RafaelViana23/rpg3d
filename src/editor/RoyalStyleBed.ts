@@ -1,3 +1,4 @@
+import {batchStaticSiblings} from './StaticMeshBatch';
 import * as T from 'three';
 import { CITY_WOOD_MATERIAL } from './CityWood';
 const linen=new T.MeshLambertMaterial({color:'#ded7bc'});
@@ -11,5 +12,6 @@ export function createRoyalStyleBed(){
  box(4.5,.16,4.35,.5,1.08,0,green);
  box(.3,3.4,4.8,-2.85,1.7,0,CITY_WOOD_MATERIAL);
  for(const z of [-1.05,1.05])box(1,.3,1.7,-1.8,1.1,z,linen);
+ batchStaticSiblings(root);
  return root;
 }

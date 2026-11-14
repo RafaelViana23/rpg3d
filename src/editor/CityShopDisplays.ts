@@ -1,14 +1,15 @@
+import {registerCityInteriorProp} from './CityInteriorStreaming';
 import * as T from 'three';
 import { ITEM_BY_ID } from '../inventory/catalog';
 import { createProceduralItem } from '../inventory/proceduralItem';
-import { merchantItems, TAVERN_ITEM_IDS } from '../inventory/commerce';
+import { merchantItems } from '../inventory/commerce';
 import { scheduleCityPropBatch } from './CityPropBatching';
 
 /** The shop displays use the same item geometry and IDs as the inventory. */
 export function addCityShopDisplays(building:T.Group){
   const kind=building.name.slice(7),info=building.userData.building;if(!info)return;
-  if(kind!=='weapons'&&kind!=='tavern')return;
-  const ids=kind==='weapons'?merchantItems('weapons').filter(i=>i.category==='weapon'&&i.visual!=='shield').map(i=>i.id):TAVERN_ITEM_IDS.filter(id=>id!=='water-flask');
+  if(kind!=='weapons')return;
+  const ids=merchantItems('weapons').filter(i=>i.category==='weapon'&&i.visual!=='shield').map(i=>i.id);
   const columns=Math.max(1,Math.floor((info.width-3)/1.4));
   ids.forEach((id,index)=>{
     const item=ITEM_BY_ID.get(id);if(!item)return;
@@ -23,7 +24,7 @@ export function addCityShopDisplays(building:T.Group){
     const fitted=new T.Box3().setFromObject(model),center=fitted.getCenter(new T.Vector3());
     model.position.set(x-center.x,y-fitted.min.y,-info.depth/2+.6-center.z);
     model.name=`Mercadoria: ${item.name}`;model.userData.inventoryItemId=id;model.userData.cityObject=true;model.userData.batchableCityProp=true;
-    building.add(model);
+    building.add(model);registerCityInteriorProp(building,model);
   });
   scheduleCityPropBatch(building);
 }

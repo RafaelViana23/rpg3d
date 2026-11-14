@@ -1,0 +1,17 @@
+import assert from 'node:assert/strict';
+import {build} from 'esbuild';
+const result=await build({stdin:{contents:"export {configureDirectLightShader} from './src/world/DirectLightShader';export {ShaderChunk} from 'three';",resolveDir:process.cwd()},bundle:true,write:false,platform:'node',format:'esm'});
+const {configureDirectLightShader,ShaderChunk}=await import(`data:text/javascript;base64,${Buffer.from(result.outputFiles[0].text).toString('base64')}`);
+const original=ShaderChunk.lights_fragment_begin;
+configureDirectLightShader();
+const configured=ShaderChunk.lights_fragment_begin;
+const point=original.slice(original.indexOf('#if ( NUM_POINT_LIGHTS > 0 )'),original.indexOf('#if ( NUM_SPOT_LIGHTS > 0 )'));
+assert(configured.includes(point),'Shadowed point-light path remains unchanged');
+assert(configured.endsWith(original.slice(original.indexOf('#if ( NUM_SPOT_LIGHTS > 0 )'))),'Spot, directional and indirect lighting remain unchanged');
+assert(configured.includes('cityLightIndex < NUM_POINT_LIGHTS'),'Every active direct emitter remains included');
+const dynamic=configured.slice(configured.indexOf('// city-direct-light-loop'),configured.indexOf('#else\n'+point));
+assert(!dynamic.includes('#pragma unroll_loop'),'Shadow-free loop is not expanded per emitter');
+assert(dynamic.includes('cityPointLight.distance > 0.0'),'Unlimited-range lights are not discarded');
+assert(dynamic.includes('getPointLightInfo( cityPointLight'),'Use the original attenuation model');
+configureDirectLightShader();assert.equal(ShaderChunk.lights_fragment_begin,configured,'Initialization is idempotent');
+console.log('Direct-light shader: all emitters retained, compact shadow-free loop, original attenuation and shadowed/other-light paths preserved.');

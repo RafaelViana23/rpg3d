@@ -1,5 +1,6 @@
 import {CITY_PLAIN_STONE_MATERIAL} from '../editor/CityStone';
-import {cityStairGeometry} from '../editor/CityStairs';
+import {cityStairGeometry,cityStoneStairCount} from '../editor/CityStairs';
+import {ROYAL_PRECINCT,ROYAL_PALACE_ELEVATION} from '../editor/RoyalPalace';
 import { cityPavingMaterial, alignCityPavingUV } from './CityPaving';
 import * as THREE from "three";
 
@@ -9,6 +10,8 @@ export class MedievalCityFloor {
   private signature="";
   private readonly stone:THREE.MeshStandardMaterial;
   private readonly stairSurfaces:{group:THREE.Group;x:number;z:number;dx:number;dz:number;width:number;length:number;top:number;bottom:number;count:number}[]=[];
+  private readonly stairPoint=new THREE.Vector3();
+  private readonly stairTransforms=new WeakMap<THREE.Group,{matrix:THREE.Matrix4;inverse:THREE.Matrix4;bounds:THREE.Box3}>();
   getEditableStairs(){return this.stairSurfaces.map(s=>s.group).filter(g=>g.parent);}
   constructor(scene:THREE.Scene){
     this.root.name="Piso medieval da cidade";
@@ -24,22 +27,50 @@ export class MedievalCityFloor {
     const center=towers.reduce((v,t)=>v.add(t.position),new THREE.Vector3()).multiplyScalar(1/8);
     const points=towers.map(t=>new THREE.Vector2(t.position.x,t.position.z));
     points.sort((a,b)=>Math.atan2(a.y-center.z,a.x-center.x)-Math.atan2(b.y-center.z,b.x-center.x));
-    // Four metres of masonry cover the buried wall bases and exposed grass.
-    const top=center.y+4;
+    // Tower origins are now at the real model ground. The city cap therefore
+    // uses that same elevation, with no legacy buried-origin offset.
+    const top=.2;
     const shape=new THREE.Shape(points.map(p=>new THREE.Vector2(p.x,-p.y)));
-    const slabGeometry=new THREE.ExtrudeGeometry(shape,{depth:4,bevelEnabled:false,steps:1});
-    slabGeometry.rotateX(-Math.PI/2);slabGeometry.translate(0,top-4,0);
+    const slabGeometry=new THREE.ExtrudeGeometry(shape,{depth:top,bevelEnabled:false,steps:1});
+    slabGeometry.rotateX(-Math.PI/2);slabGeometry.translate(0,0,0);
+    // Keep the foundation sealed. Only the upper cap receives paving;
+    // the underside uses the same plain masonry as the vertical foundation.
+    const normals=slabGeometry.getAttribute('normal');slabGeometry.clearGroups();
+    let groupStart=0,materialIndex=normals.getY(0)>.5?0:1;
+    for(let i=3;i<=normals.count;i+=3){
+      const next=i<normals.count?(normals.getY(i)>.5?0:1):-1;
+      if(next!==materialIndex){slabGeometry.addGroup(groupStart,i-groupStart,materialIndex);groupStart=i;materialIndex=next;}
+    }
     alignCityPavingUV(slabGeometry);
     const slab=new THREE.Mesh(slabGeometry,[this.stone,new THREE.MeshStandardMaterial({color:0x555b63,roughness:1})]);
-    slab.receiveShadow=true;this.root.add(slab);
+    slab.name="Chão elevado da cidade";slab.receiveShadow=true;this.root.add(slab);
     const trimMaterial=new THREE.MeshStandardMaterial({color:0x929aa3,roughness:.92});
     for(let i=0;i<8;i++){
       const a=points[i],b=points[(i+1)%8];
-      const length=a.distanceTo(b),edge=new THREE.Mesh(new THREE.BoxGeometry(length, .16,1.5),trimMaterial);
-      // Keep the entire coping inside the polygon, flush with the paving.
-      // Previously half its width projected outside and made a raised lip.
+      const length=a.distanceTo(b),direction=b.clone().sub(a).normalize();
       const inward=new THREE.Vector2(center.x-(a.x+b.x)/2,center.z-(a.y+b.y)/2).normalize();
-      edge.position.set((a.x+b.x)/2+inward.x*.8,top-.055,(a.y+b.y)/2+inward.y*.8);edge.rotation.y=-Math.atan2(b.y-a.y,b.x-a.x);edge.receiveShadow=true;this.root.add(edge);
+      // The perimeter coping must stop at the gateway jambs, never cross
+      // the avenue between its paving and the first stair tread.
+      let spans:[number,number][]=[[0,length]];
+      for(const gate of gates){
+        const offset=new THREE.Vector2(gate.position.x-a.x,gate.position.z-a.y);
+        const along=offset.dot(direction),distance=Math.abs(offset.x*direction.y-offset.y*direction.x);
+        if(distance>3||along<0||along>length)continue;
+        const halfWidth=Math.max(20,6.2*Math.abs(gate.scale.x))/2+.9;
+        spans=spans.flatMap(([lo,hi])=>{
+          if(along+halfWidth<=lo||along-halfWidth>=hi)return [[lo,hi] as [number,number]];
+          const pieces:[number,number][]=[];
+          if(along-halfWidth>lo)pieces.push([lo,along-halfWidth]);
+          if(along+halfWidth<hi)pieces.push([along+halfWidth,hi]);
+          return pieces;
+        });
+      }
+      for(const [lo,hi] of spans){
+        const mid=a.clone().addScaledVector(direction,(lo+hi)/2).addScaledVector(inward,.8);
+        const edge=new THREE.Mesh(new THREE.BoxGeometry(hi-lo,.16,1.5),trimMaterial);
+        edge.position.set(mid.x,top-.055,mid.y);edge.rotation.y=-Math.atan2(direction.y,direction.x);
+        edge.receiveShadow=true;this.root.add(edge);
+      }
     }
     // Concentric inlays and spokes give the central square a crafted focal point.
     const inlay=new THREE.MeshStandardMaterial({color:0x505963,roughness:.88});
@@ -54,23 +85,43 @@ export class MedievalCityFloor {
     this.root.userData.floorPolygon=points;
     this.stairSurfaces.length=0;
     const stairMaterial=CITY_PLAIN_STONE_MATERIAL;
-    for(const gate of gates){
+    // The city gates no longer generate attached stair flights.
+    for(const gate of [] as THREE.Object3D[]){
+      // The saved gate origin is buried in the foundation, below city paving.
+      // Fit only the door leaf to the paving, preserving the masonry transform.
+      gate.updateWorldMatrix(true,false);
+      const floorPoint=gate.getWorldPosition(new THREE.Vector3());floorPoint.y=top;
+      const floorY=gate.worldToLocal(floorPoint).y;
+      gate.userData.wallGateFloorY=floorY;
+      gate.userData.setWallGateFloor?.(floorY);
       const outward=new THREE.Vector2(gate.position.x-center.x,gate.position.z-center.z).normalize();
+      const inwardPoint=gate.getWorldPosition(new THREE.Vector3()).add(new THREE.Vector3(-outward.x,0,-outward.y));
+      const inwardSign=gate.worldToLocal(inwardPoint).z>=0?1:-1;
+      gate.userData.wallGateInwardSign=inwardSign;gate.userData.setWallGateInward?.(inwardSign);
       // Begin outside the slab: the old three-metre overlap put the first
       // tread and the paving on exactly the same plane (z-fighting).
       const x=gate.position.x+outward.x*.02,z=gate.position.z+outward.y*.02;
-      // Match the full arch opening, with a slight overlap into its jambs.
-      const length=24,width=Math.max(5,6.2*gate.scale.x+.4);
-      const bottom=groundAt?.(x+outward.x*length,z+outward.y*length)??top-4;
-      if(bottom>=top-.15)continue;
-      const count=Math.max(8,Math.ceil((top-bottom)/.25));
+      // Copy the palace entrance flight at full size. Its lower steps are
+      // intentionally buried where the natural terrain meets the solid stone.
+      const length=19,width=ROYAL_PRECINCT.portalWidth;
+      gate.userData.wallGateApproach={x:gate.position.x,z:gate.position.z,dx:outward.x,dz:outward.y,length};
+      const bottom=top-(6.08+ROYAL_PALACE_ELEVATION)/2;
+      const ground=groundAt?.(x+outward.x*length,z+outward.y*length)??top-4;
+      if(ground>=top-.15)continue;
+      let base=Math.min(bottom,ground)-.6;
+      // Extend the closed foundation below the terrain across the entire flight.
+      for(let along=0;along<=length;along+=1)for(const across of [-width/2,0,width/2]){
+        const terrain=groundAt?.(x+outward.x*along+outward.y*across,z+outward.y*along-outward.x*across);
+        if(terrain!==undefined)base=Math.min(base,terrain-.6);
+      }
+      const count=cityStoneStairCount(bottom,top);
       const stairs=new THREE.Group();stairs.name="Escadaria de pedra do portão";
       // Stairs belong to the capital foundation. They are regenerated from
       // the gate transforms and must not drift away as independent assets.
       stairs.userData.buildEditable=false;
       stairs.userData.buildId=`city-stairs-${gate.userData.cityId}`;
       stairs.position.set(x,0,z);stairs.rotation.y=Math.atan2(outward.x,outward.y);
-      const geometry=cityStairGeometry(length,0,width,bottom,top,count,bottom-.6);
+      const geometry=cityStairGeometry(length,0,width,bottom,top,count,base);
       const block=new THREE.Mesh(geometry,stairMaterial);
       block.receiveShadow=true;stairs.add(block);
       this.root.add(stairs);
@@ -92,11 +143,19 @@ export class MedievalCityFloor {
     for(const s of this.stairSurfaces){
       if(!s.group.parent)continue;
       s.group.updateWorldMatrix(true,false);
-      const local=s.group.worldToLocal(new THREE.Vector3(x,s.group.position.y,z));
+      let cached=this.stairTransforms.get(s.group);
+      if(!cached||!cached.matrix.equals(s.group.matrixWorld)){
+        const matrix=s.group.matrixWorld.clone();
+        cached={matrix,inverse:matrix.clone().invert(),bounds:new THREE.Box3(
+          new THREE.Vector3(-s.width/2,s.bottom,0),new THREE.Vector3(s.width/2,s.top,s.length)).applyMatrix4(matrix)};
+        this.stairTransforms.set(s.group,cached);
+      }
+      if(cached.matrix.elements[4]===0&&cached.matrix.elements[6]===0&&(x<cached.bounds.min.x||x>cached.bounds.max.x||z<cached.bounds.min.z||z>cached.bounds.max.z))continue;
+      const local=this.stairPoint.set(x,s.group.position.y,z).applyMatrix4(cached.inverse);
       const along=local.z,across=local.x;
       if(along>=0&&along<=s.length&&Math.abs(across)<=s.width/2){
         const step=Math.min(s.count-1,Math.floor(along/s.length*s.count));
-        return s.group.localToWorld(new THREE.Vector3(across,s.top-(s.top-s.bottom)*step/s.count+.06,along)).y;
+        return local.set(across,s.top-(s.top-s.bottom)*step/s.count+.06,along).applyMatrix4(cached.matrix).y;
       }
     }
     return null;
@@ -111,16 +170,8 @@ export class MedievalCityFloor {
   terrainHeightAt(x:number,z:number):number|null{
     const points=this.root.userData.floorPolygon as THREE.Vector2[]|undefined;
     if(!points)return null;
-    // Terrain triangles span several metres. Lower a skirt beyond the slab
-    // too, otherwise an outside vertex lifts a green triangle through it.
-    let covered=this.heightAt(x,z)!==null;
-    for(let i=0;!covered&&i<points.length;i++){
-      const a=points[i],b=points[(i+1)%points.length],dx=b.x-a.x,dz=b.y-a.y;
-      const lengthSq=dx*dx+dz*dz;
-      const t=lengthSq?THREE.MathUtils.clamp(((x-a.x)*dx+(z-a.y)*dz)/lengthSq,0,1):0;
-      const offsetX=x-a.x-dx*t,offsetZ=z-a.y-dz*t;
-      covered=offsetX*offsetX+offsetZ*offsetZ<324;
-    }
-    return covered?this.root.userData.floorHeight-4:null;
+    // The foundation itself now reaches the flat grass datum, so terrain under
+    // it stays at zero rather than climbing into a visible ramp at the wall.
+    return this.heightAt(x,z)!==null?0:null;
   }
 }

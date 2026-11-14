@@ -1,3 +1,4 @@
+import chestGeometry from './royal-chest-geometry.json';
 import * as T from 'three';
 import {CITY_WOOD_MATERIAL} from './CityWood';
 const ROYAL_CEILING_CENTER_X=40.3;
@@ -62,11 +63,12 @@ export function appendRoyalChandelier(floor:number,back:number,front:number,grou
  }
  return lights;
 }
-export function appendRoyalWoodCeiling(floor:number,back:number,front:number,add:Add){
+export function appendRoyalWoodCeiling(floor:number,back:number,front:number,add:Add,options:{left?:number;right?:number;top?:number}={}){
  const {box}=helpers(floor,add),center=(back+front)/2;
- box(ROYAL_CEILING_CENTER_X,7.25,center,24,.16,front-back,CITY_WOOD_MATERIAL);
- for(let x=28.5;x<52;x+=4)box(x,7.05,center,.28,.35,front-back,CITY_WOOD_MATERIAL);
- for(let z=back+.6;z<front;z+=4)box(ROYAL_CEILING_CENTER_X,6.98,z,24,.25,.28,CITY_WOOD_MATERIAL);
+ const left=options.left??28.5,right=options.right??52.5,top=options.top??7.25,cx=(left+right)/2;
+ box(cx,top,center,right-left,.16,front-back,CITY_WOOD_MATERIAL);
+ for(let x=options.left===undefined?28.5:left+.5;x<(options.right??52);x+=4)box(x,top-.2,center,.28,.35,front-back,CITY_WOOD_MATERIAL);
+ for(let z=back+.6;z<front;z+=4)box(cx,top-.27,z,right-left,.25,.28,CITY_WOOD_MATERIAL);
 }
 
 /** Matching royal cabinet with timber doors and separate gold fittings. */
@@ -80,4 +82,57 @@ export function appendRoyalWardrobe(floor:number,x:number,z:number,add:Add,solid
   const shape=new T.Shape();shape.moveTo(-.5,-.2);shape.lineTo(.5,-.2);shape.lineTo(.6,.35);shape.lineTo(.24,.12);shape.lineTo(0,.55);shape.lineTo(-.24,.12);shape.lineTo(-.6,.35);shape.closePath();
   const g=new T.ExtrudeGeometry(shape,{depth:.025,bevelEnabled:false});g.scale(.65,.65,.65);g.translate(x+dx,floor+2.6,z+1.08);add(g,gold);
  }
+}
+
+/** Imported chest, fitted to the established royal/inn chest footprint. */
+const chestTexture=typeof document!=='undefined'?new T.TextureLoader().load('/models/props/low-poly-chest/texture.png'):null;
+if(chestTexture){chestTexture.flipY=false;chestTexture.colorSpace=T.SRGBColorSpace;chestTexture.magFilter=T.NearestFilter;}
+const chestDetails=new T.MeshStandardMaterial({map:chestTexture,color:0xffffff,roughness:.65,side:T.DoubleSide});
+const importedChest=chestGeometry.map(data=>new T.BufferGeometryLoader().parse(data as unknown as Parameters<T.BufferGeometryLoader['parse']>[0]));
+export function appendRoyalChest(floor:number,x:number,z:number,add:Add,solid:(x:number,z:number,w:number,h:number,d:number)=>void){
+ for(const source of importedChest){
+  const position=source.getAttribute('position'),normal=source.getAttribute('normal'),uv=source.getAttribute('uv');
+  for(const materialIndex of [0,1]){
+   const vertices:number[]=[],normals:number[]=[],uvs:number[]=[];
+   for(const group of source.groups)if(group.materialIndex===materialIndex){
+    for(let i=group.start;i<group.start+group.count;i++){
+     vertices.push(position.getX(i)*.7+x,position.getY(i)*.7+floor,position.getZ(i)*.7+z);
+     normals.push(normal.getX(i),normal.getY(i),normal.getZ(i));uvs.push(uv.getX(i),uv.getY(i));
+    }
+   }
+   if(!vertices.length)continue;
+   const g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute(vertices,3));g.setAttribute('normal',new T.Float32BufferAttribute(normals,3));g.setAttribute('uv',new T.Float32BufferAttribute(uvs,2));
+   add(g,materialIndex===0?CITY_WOOD_MATERIAL:chestDetails);
+  }
+ }
+ solid(x,z,2.3*.7,1.5*.7,1.4*.7);
+}
+
+/** Keep the imported lid separate so every placed chest can open independently. */
+export function addInteractiveRoyalChest(parent:T.Group,floor:number,x:number,z:number,solid:(x:number,z:number,w:number,h:number,d:number)=>void,rotation=0){
+ const chest=new T.Group();chest.name='Baú interativo';chest.position.set(x,floor,z);chest.rotation.y=rotation;
+ chest.userData.cityObject=true;chest.userData.royalChest=true;chest.userData.open=false;
+ const lid=new T.Group();lid.name='RoyalChestLid';lid.position.set(0,.7,.49);chest.add(lid);
+ importedChest.forEach((source,index)=>{
+  const g=source.clone();g.scale(.7,.7,.7);
+  if(index===0)g.translate(0,-lid.position.y,-lid.position.z);
+  const mesh=new T.Mesh(g,[CITY_WOOD_MATERIAL,chestDetails]);mesh.castShadow=mesh.receiveShadow=true;
+  (index===0?lid:chest).add(mesh);
+ });
+ parent.add(chest);solid(x,z,1.61,1.05,.98);return chest;
+}
+let interactiveChests:T.Object3D[]=[],chestScan=0,chestTick=0;
+export function nearestRoyalChest(scene:T.Scene,player:T.Vector3){
+ const now=performance.now(),dt=Math.min(.05,(now-chestTick)/1000);chestTick=now;
+ if(now-chestScan>500||!chestScan){interactiveChests=[];scene.traverse(o=>{if(o.userData.royalChest)interactiveChests.push(o);});chestScan=now;}
+ let nearest:T.Object3D|undefined,best=2.5**2;
+ const p=new T.Vector3();
+ for(const chest of interactiveChests){
+  if(!chest.parent)continue;
+  const lid=chest.getObjectByName('RoyalChestLid');
+  if(lid)lid.rotation.x=T.MathUtils.damp(lid.rotation.x,chest.userData.open?1.35:0,10,dt);
+  chest.getWorldPosition(p);const distance=p.distanceToSquared(player);
+  if(Math.abs(p.y-player.y)<2&&distance<best){best=distance;nearest=chest;}
+ }
+ return nearest;
 }

@@ -3,7 +3,7 @@ import {CITY_MERLON_MATERIAL} from './CityStone';
 
 /** Smooth gray matching the visible wall, without the masonry texture. */
 export const CITY_BALUSTRADE_MATERIAL=new T.MeshStandardMaterial({color:CITY_MERLON_MATERIAL.color.clone(),roughness:.97,metalness:0});
-type RailEnd={position:T.Vector3;foot:number;cap:number;directions:T.Vector3[]};
+type RailEnd={position:T.Vector3;foot:number;cap:number;stair:boolean;directions:T.Vector3[]};
 type RailContext={add:(geometry:T.BufferGeometry,material:T.Material)=>void;colliders:number[][];newels:Set<string>;ends?:Map<string,RailEnd>};
 export function appendStoneBalustrade(context:RailContext,start:T.Vector3,end:T.Vector3,steps=1){
  const delta=end.clone().sub(start),run=Math.hypot(delta.x,delta.z),rise=delta.y;
@@ -24,8 +24,8 @@ export function appendStoneBalustrade(context:RailContext,start:T.Vector3,end:T.
    const direction=(i===0?end:start).clone().sub(p);direction.y=0;direction.normalize();
    context.ends??=new Map();
    const existing=context.ends.get(key);
-   if(existing)existing.directions.push(direction);
-   else context.ends.set(key,{position:p.clone(),foot,cap,directions:[direction]});
+   if(existing){existing.directions.push(direction);existing.stair||=steps>1;}
+   else context.ends.set(key,{position:p.clone(),foot,cap,stair:steps>1,directions:[direction]});
   }else{
    box(p.x,foot+.23,p.z,.34,.1,.34);box(p.x,cap+.06,p.z,.34,.12,.34);
    const height=cap-foot-.28,g=new T.CylinderGeometry(.105,.14,height,10);
@@ -45,14 +45,14 @@ export function finishStoneBalustrades(context:RailContext){
  const posts:{position:number[];large:boolean}[]=[];
  for(const [key,end] of context.ends??[]){
   if(context.newels.has(key))continue;context.newels.add(key);
-  const {position:p,foot,cap,directions}=end;
+  const {position:p,foot,cap,stair,directions}=end;
   const corner=directions.length===1||directions.some(direction=>Math.abs(direction.dot(directions[0]))<.98);
   posts.push({position:p.toArray(),large:corner});
   const box=(y:number,w:number,h:number)=>{
    const g=new T.BoxGeometry(w,h,w);g.translate(p.x,y,p.z);context.add(g,CITY_BALUSTRADE_MATERIAL);
   };
   if(corner){
-   box(foot+.09,.62,.18);box((foot+.18+cap+.24)/2,.4,cap+.24-foot-.18);box(cap+.33,.66,.18);
+   box(foot+.09,stair?.48:.62,.18);box((foot+.18+cap+.24)/2,.4,cap+.24-foot-.18);box(cap+.33,stair?.54:.66,.18);
   }else{
    box(foot+.23,.34,.1);box(cap+.06,.34,.12);
    const height=cap-foot-.28,g=new T.CylinderGeometry(.105,.14,height,10);

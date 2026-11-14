@@ -39,7 +39,24 @@ export class DatabaseSaves {
       validateSnapshot(remote.payload);
       if (fingerprint(local.entries) !== fingerprint(remote.payload.entries)) {
         // Preserve local/offline work before loading the committed world on startup.
-        restoreSave(storage, remote.payload, origin);
+        try { restoreSave(storage, remote.payload, origin); }
+        catch (error) {
+          if (!(error instanceof DOMException) || error.name !== 'QuotaExceededError') throw error;
+          // Old browser snapshots must not prevent the committed map from loading.
+          // Archive exact strings to disk before releasing their browser quota.
+          const archives:Record<string,string>={};
+          for(let i=0;i<storage.length;i++){
+            const key=storage.key(i);
+            if(key?.startsWith('rpg3d.cloud.backup.'))archives[key]=storage.getItem(key)!;
+          }
+          if(!Object.keys(archives).length)throw error;
+          const response=await this.options.request('/api/game-save/archive-backups',{
+            method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(archives),
+          });
+          if(!response.ok)throw error;
+          for(const key of Object.keys(archives))storage.removeItem(key);
+          restoreSave(storage,remote.payload,origin);
+        }
       }
       this.committed = { ...remote.payload.entries };
       this.lastSaved = fingerprint(remote.payload.entries);
@@ -112,17 +129,29 @@ export async function initializeDatabaseSaves() {
 export function connectDatabaseSaveButton(beforeSave: () => void) {
   const button = document.querySelector<HTMLButtonElement>('[data-build-save]')!;
   const status = document.querySelector<HTMLOutputElement>('[data-build-save-status]')!;
+  let saveFailed=false;
   button.addEventListener('click', async () => {
     if (button.disabled) return;
     button.disabled = true;
-    status.textContent = 'Salvando…';
+    saveFailed=false;status.textContent = 'Salvando no banco…';
     try { beforeSave(); await database.save(true); status.textContent = 'Salvo no banco'; }
-    catch (error) { status.textContent = error instanceof Error ? error.message : 'Falha ao salvar. Cópia local preservada.'; }
+    catch (error) { saveFailed=true;status.textContent = error instanceof Error ? error.message : 'Falha ao salvar. Cópia local preservada.'; }
     finally { button.disabled = false; }
   });
+  let retryTimer: number | undefined;
+  let retryDelay = 5_000;
   const autoSave = () => {
-    if (!button.disabled && database.hasMapChanges()) status.textContent = 'Alterações não salvas';
-    void database.save().catch(error => console.error('[saves] Salvamento pendente; cópia local preservada.', error));
+    if (!button.disabled && !saveFailed && database.hasMapChanges()) status.textContent = 'Alterações não salvas';
+    void database.save().then(() => {
+      retryDelay = 5_000;
+      if (retryTimer !== undefined) { window.clearTimeout(retryTimer); retryTimer = undefined; }
+    }).catch(error => {
+      console.error('[saves] Salvamento pendente; cópia local preservada.', error);
+      if (retryTimer === undefined && !saveFailed) {
+        retryTimer = window.setTimeout(() => { retryTimer = undefined; autoSave(); }, retryDelay);
+        retryDelay = Math.min(retryDelay * 2, 60_000);
+      }
+    });
   };
   window.setInterval(autoSave, 5_000);
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') autoSave(); });

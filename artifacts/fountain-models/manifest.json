@@ -1,0 +1,25 @@
+{
+  "classic": {
+    "file": "fountain-classic.ts",
+    "sha256": "56ab5c6fdaeb025d626882d7207c2c05ea5965607e300b1914cbd1446dc37908",
+    "triangles": 296,
+    "displaySize": [
+      16,
+      5.95,
+      16
+    ]
+  },
+  "robust": {
+    "file": "fountain-robust.ts",
+    "displaySize": [
+      16,
+      11,
+      16
+    ],
+    "triangles": 455,
+    "geometryBytes": 18482,
+    "drawCalls": 1,
+    "basins": 3
+  },
+  "gameReplaced": true
+}

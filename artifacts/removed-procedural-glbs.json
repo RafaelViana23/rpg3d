@@ -1,0 +1,49 @@
+{
+  "removed": [
+    {
+      "file": "public/models/city/props/village-window.glb",
+      "bytes": 28820
+    },
+    {
+      "file": "public/models/city/props/church-door.glb",
+      "bytes": 189568
+    },
+    {
+      "file": "public/models/city/props/chair.glb",
+      "bytes": 39432
+    },
+    {
+      "file": "public/models/city/props/curtain.glb",
+      "bytes": 32492
+    },
+    {
+      "file": "public/models/city/props/street-lantern.glb",
+      "bytes": 1056900
+    },
+    {
+      "file": "public/models/city/props/wood-floor.glb",
+      "bytes": 12932
+    },
+    {
+      "file": "public/models/city/props/potted-plant.glb",
+      "bytes": 72320
+    },
+    {
+      "file": "public/models/city/props/fountain.glb",
+      "bytes": 29636
+    },
+    {
+      "file": "public/models/city/props/wheelbarrow.glb",
+      "bytes": 139244
+    },
+    {
+      "file": "public/models/city/props/wagon.glb",
+      "bytes": 170524
+    },
+    {
+      "file": "public/models/city/props/farm.glb",
+      "bytes": 286888
+    }
+  ],
+  "bytesRemoved": 2058756
+}

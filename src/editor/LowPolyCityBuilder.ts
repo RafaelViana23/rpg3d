@@ -1,3 +1,4 @@
+import {createCityPavedStreet} from './CityPavedStreet';
 import {cityStairGeometry} from './CityStairs';
 import { createRoyalAvenue } from './RoyalAvenue';
 import { batchStaticSiblings } from './StaticMeshBatch';
@@ -9,7 +10,7 @@ import { cityObjectSeed } from "./CityVariation";
 import * as THREE from "three";
 import { addCityStreetLanterns } from "./CityStreetLanterns";
 import { addCourtyardWells } from "./CityCourtyards";
-import { addCityProps, addRoyalPalaceDoor } from "./CityProps";
+import { addCityProps, addRoyalPalaceDoor, addCityWallGateDoor, addCityWallGateTorches } from "./CityProps";
 import { addCityAnimals } from "./CityAnimals";
 import { createMedievalBuilding } from "./MedievalBuildings";
 import type { CityAssetKind, SavedCityObject } from "./WorldEditorSupport";
@@ -19,7 +20,7 @@ export const CITY_CATALOG: { kind: CityAssetKind; label: string; category: CityC
   { kind: "house", label: "Casa", category: "buildings" }, { kind: "shop", label: "Loja", category: "buildings" },
   { kind: "tavern", label: "Taverna", category: "buildings" }, { kind: "church", label: "Igreja", category: "buildings" },
   { kind: "castle", label: "Castelo", category: "buildings" }, { kind: "wall", label: "Muralha", category: "defense" },
-  { kind: "tower", label: "Torre", category: "defense" }, { kind: "gate", label: "Portão", category: "defense" },
+  { kind: "tower", label: "Torre", category: "defense" }, { kind: "gate", label: "Portal da cidade", category: "defense" },
   { kind: "road", label: "Estrada", category: "connections" }, { kind: "path", label: "Caminho", category: "connections" },
   { kind: "bridge", label: "Ponte", category: "connections" }, { kind: "stairs", label: "Escadas", category: "connections" },
 ];
@@ -28,7 +29,7 @@ const mats = {
   plaster: new THREE.MeshLambertMaterial({ color: "#d3bd8c", flatShading: true }), wood: CITY_WOOD_MATERIAL,
   roof: new THREE.MeshLambertMaterial({ color: "#8c4937", flatShading: true }), stone: CITY_STONE_MATERIAL,
   stoneLight: CITY_STONE_LIGHT_MATERIAL, stoneDark: CITY_STONE_DARK_MATERIAL,
-  iron: new THREE.MeshLambertMaterial({ color: "#282d30", flatShading: true }), dark: new THREE.MeshLambertMaterial({ color: "#302b27", flatShading: true }), road: new THREE.MeshLambertMaterial({ color: "#8e704a", flatShading: true }),
+  iron: new THREE.MeshLambertMaterial({ color: "#282d30", flatShading: true }), dark: new THREE.MeshLambertMaterial({ color: "#302b27", flatShading: true }), road: new THREE.MeshLambertMaterial({ color: "#8e704a", flatShading: true }), dirt: new THREE.MeshLambertMaterial({ color: "#795634", flatShading: true }),
 };
 
 function mesh(geometry: THREE.BufferGeometry, material: THREE.Material, y = 0) { const value = new THREE.Mesh(geometry, material); value.position.y = y; value.castShadow = value.receiveShadow = true; return value; }
@@ -80,6 +81,7 @@ export function createCityAsset(kind: CityAssetKind) {
     root.userData.localColliders=colliders;
     root.userData.localFlightColliders=[[-6,5.875,-1.325,6,6.225,1.325]];
   }
+  if(kind==='gate')root.userData.localColliders=[[-7,0,-1.6,-3.1,10,1.6],[3.1,0,-1.6,7,10,1.6],[-3.1,7.7,-1.6,3.1,10,1.6]];
   if(kind==='stairs')root.userData.walkSurfaces=Array.from({length:7},(_,i)=>[-2.5,i*.72-.36,2.5,i*.72+.36,i*.45+.25]);
   if(kind==='bridge')root.userData.walkSurfaces=[[-5,-2,5,2,.7]];
   if(kind==='bridge'||kind==='stairs')root.userData.localColliders=[];
@@ -101,13 +103,17 @@ function createWall(points: THREE.Vector3[]) {
 function createRoute(points: THREE.Vector3[], width: number, kind: "road" | "path", getHeight: (x: number, z: number) => number) {
   const root = new THREE.Group(), curve = new THREE.CatmullRomCurve3(points), samples = Math.max(2, points.length * 8), vertices: number[] = [], indices: number[] = [];
   root.name = `Cidade:${kind}`; root.userData.cityObject = true;
-  for (let i = 0; i <= samples; i++) { const p = curve.getPoint(i / samples), tangent = curve.getTangent(i / samples), normal = new THREE.Vector3(-tangent.z, 0, tangent.x).normalize().multiplyScalar(width * .5); const leftY = getHeight(p.x + normal.x, p.z + normal.z), rightY = getHeight(p.x - normal.x, p.z - normal.z); vertices.push(p.x + normal.x, leftY + .06, p.z + normal.z, p.x - normal.x, rightY + .06, p.z - normal.z); if (i < samples) { const n = i * 2; indices.push(n, n + 1, n + 2, n + 1, n + 3, n + 2); } }
-  const geometry = new THREE.BufferGeometry(); geometry.setAttribute("position", new THREE.Float32BufferAttribute(vertices, 3)); geometry.setIndex(indices); geometry.computeVertexNormals(); root.add(mesh(geometry, mats.road)); return root;
+  // The minimap must use the same saved center line and width as the world
+  // route, rather than inferring a street from nearby building footprints.
+  root.userData.minimapRoute={points:points.map(point=>[point.x,point.z]),width,kind};
+  for (let i = 0; i <= samples; i++) { const p = curve.getPoint(i / samples), tangent = curve.getTangent(i / samples), normal = new THREE.Vector3(-tangent.z, 0, tangent.x).normalize().multiplyScalar(width * .5); const leftY = getHeight(p.x + normal.x, p.z + normal.z), rightY = getHeight(p.x - normal.x, p.z - normal.z); vertices.push(p.x + normal.x, leftY + .14, p.z + normal.z, p.x - normal.x, rightY + .14, p.z - normal.z); if (i < samples) { const n = i * 2; indices.push(n, n + 1, n + 2, n + 1, n + 3, n + 2); } }
+  const geometry = new THREE.BufferGeometry(); geometry.setAttribute("position", new THREE.Float32BufferAttribute(vertices, 3)); geometry.setIndex(indices); geometry.computeVertexNormals();
+  const route=mesh(geometry,kind === "path" ? mats.dirt : mats.road);route.renderOrder=2;root.add(route);return root;
 }
 
 type CityWalkGroup={inverse:THREE.Matrix4;matrix:THREE.Matrix4;surfaces:number[][];polygons?:number[][][];stepUp:number};
-type CityCollider={inverse:THREE.Matrix4;matrix:THREE.Matrix4;box:THREE.Box3;scale:number;top:number;flightOnly?:boolean};
-type CachedCollisionEntry={signature:string;shapes:CityCollider[];collision:[string,CityCollider][];weather:[string,{inverse:THREE.Matrix4;matrix:THREE.Matrix4;box:THREE.Box3}][];walk:[string,CityWalkGroup][]};
+type CityCollider={inverse:THREE.Matrix4;matrix:THREE.Matrix4;box:THREE.Box3;scale:number;top:number;bounds:THREE.Box3;paddingScale:number;flightOnly?:boolean};
+type CachedCollisionEntry={signature:string;shapes:CityCollider[];collision:[string,CityCollider][];weather:[string,{inverse:THREE.Matrix4;matrix:THREE.Matrix4;box:THREE.Box3;heightAt?:(x:number,z:number)=>number}][];walk:[string,CityWalkGroup][]};
 export class LowPolyCityBuilder {
   private readonly collisionEntries=new WeakMap<THREE.Object3D,CachedCollisionEntry>();
   private walkGrid=new Map<string,CityWalkGroup[]>();
@@ -117,25 +123,37 @@ export class LowPolyCityBuilder {
   private collisionSignature="";
   private collisionCheckAt=-Infinity;
   private collisionShapes:CityCollider[]=[];
-  private weatherGrid=new Map<string,{inverse:THREE.Matrix4;matrix:THREE.Matrix4;box:THREE.Box3}[]>();
+  private weatherGrid=new Map<string,{inverse:THREE.Matrix4;matrix:THREE.Matrix4;box:THREE.Box3;heightAt?:(x:number,z:number)=>number}[]>();
   prepareWeatherCover(){this.refreshCollisions();}
   roofHeightAt(x:number,z:number){
     let height=-Infinity;
     for(const roof of this.weatherGrid.get(`${Math.floor(x/16)}:${Math.floor(z/16)}`)??[]){
       const p=this.collisionPoint.set(x,0,z).applyMatrix4(roof.inverse);
       if(p.x<roof.box.min.x||p.x>roof.box.max.x||p.z<roof.box.min.z||p.z>roof.box.max.z)continue;
-      p.y=roof.box.max.y;height=Math.max(height,p.applyMatrix4(roof.matrix).y);
+      p.y=roof.heightAt?.(p.x,p.z)??roof.box.max.y;height=Math.max(height,p.applyMatrix4(roof.matrix).y);
     }
     return height;
   }
   private collisionGrid=new Map<string,CityCollider[]>();
   private readonly collisionPoint=new THREE.Vector3();
-  private nearbyColliders(x:number,z:number,radius:number){
-    const result=new Set<CityCollider>();
-    for(let gx=Math.floor((x-radius)/16);gx<=Math.floor((x+radius)/16);gx++)for(let gz=Math.floor((z-radius)/16);gz<=Math.floor((z+radius)/16);gz++){
-      for(const shape of this.collisionGrid.get(`${gx}:${gz}`)??[])result.add(shape);
+  private readonly collisionCandidates=new Map<string,CityCollider[]>();
+  private nearbyColliders(x:number,z:number,radius:number,walkingOnly=false){
+    const minX=Math.floor((x-radius)/16),maxX=Math.floor((x+radius)/16);
+    const minZ=Math.floor((z-radius)/16),maxZ=Math.floor((z+radius)/16);
+    const key=`${minX}:${maxX}:${minZ}:${maxZ}:${Number(walkingOnly)}`;
+    const cached=this.collisionCandidates.get(key);if(cached)return cached;
+    const unique=new Set<CityCollider>();
+    for(let gx=minX;gx<=maxX;gx++)for(let gz=minZ;gz<=maxZ;gz++){
+      for(const shape of this.collisionGrid.get(`${gx}:${gz}`)??[]){
+        if(!walkingOnly||!shape.flightOnly)unique.add(shape);
+      }
     }
-    return result;
+    const candidates=[...unique];
+    // Retain insertion order: sequential depenetration must stay identical.
+    // Bound the cache during long flights and variable-radius editor queries.
+    if(this.collisionCandidates.size>=2048)this.collisionCandidates.clear();
+    this.collisionCandidates.set(key,candidates);
+    return candidates;
   }
   private refreshCollisions(){
     const now=performance.now();
@@ -145,7 +163,7 @@ export class LowPolyCityBuilder {
     const structures:THREE.Object3D[]=[...this.objects.values()];
     if(castle&&!structures.includes(castle))structures.push(castle);
     const signature=structures.map(o=>`${o.id}:${o.userData.colliderRevision??0}:${o.position.toArray()}:${o.rotation.toArray()}:${o.scale.toArray()}`).join(";");
-    if(signature===this.collisionSignature)return;this.collisionSignature=signature;this.collisionShapes=[];this.collisionGrid.clear();this.weatherGrid.clear();this.walkGrid.clear();
+    if(signature===this.collisionSignature)return;this.collisionSignature=signature;this.collisionShapes=[];this.collisionGrid.clear();this.collisionCandidates.clear();this.weatherGrid.clear();this.walkGrid.clear();
     for(const object of structures){
       if(/Cidade:(road|path)$/.test(object.name))continue;
       object.updateWorldMatrix(true,false);
@@ -166,7 +184,9 @@ export class LowPolyCityBuilder {
       const covers:number[][]=object.userData.palaceComplex?object.userData.weatherRoofs??[]:building?[[-building.width/2-.7,building.height,-building.depth/2-.7,building.width/2+.7,building.height,building.depth/2+.7]]:object.userData.weatherRoofs??[];
       for(const cover of covers){
         const box=new THREE.Box3(new THREE.Vector3(cover[0],cover[1],cover[2]),new THREE.Vector3(cover[3],cover[4],cover[5]));
-        const roof={inverse,matrix,box},world=box.clone().applyMatrix4(matrix);
+        const pitch=object.userData.weatherPitch as {axis:'x'|'z';halfWidth:number;eaves:number;rise:number}|undefined;
+        const heightAt=pitch?(x:number,z:number)=>pitch.eaves+pitch.rise*Math.max(0,1-Math.abs(pitch.axis==='x'?x:z)/pitch.halfWidth)+.2:undefined;
+        const roof={inverse,matrix,box,heightAt},world=box.clone().applyMatrix4(matrix);
         for(let gx=Math.floor(world.min.x/16);gx<=Math.floor(world.max.x/16);gx++)for(let gz=Math.floor(world.min.z/16);gz<=Math.floor(world.max.z/16);gz++){
           const key=`${gx}:${gz}`,bucket=this.weatherGrid.get(key)??[];bucket.push(roof);this.weatherGrid.set(key,bucket);entry.weather.push([key,roof]);
         }
@@ -175,12 +195,21 @@ export class LowPolyCityBuilder {
         const group:CityWalkGroup={matrix,inverse,surfaces:object.userData.walkSurfaces,polygons:object.userData.walkSurfacePolygons,
           // Treads scale with the building; include the player's small foot offset.
           stepUp:Math.max(.4,Math.abs(matrix.elements[5])*(object.userData.walkStepHeight??(object.userData.stairPlacement?.height??0)/20)+.08)};
-        const cells=new Set<string>();
-        for(const [x0,z0,x1,z1,y] of group.surfaces){
+        // Index the actual surfaces in each cell, rather than making every
+        // palace query scan every stair tread and floor in the entire building.
+        const cells=new Map<string,CityWalkGroup>();
+        for(const [index,surface] of group.surfaces.entries()){
+          const [x0,z0,x1,z1,y]=surface;
           const world=new THREE.Box3(new THREE.Vector3(x0,y,z0),new THREE.Vector3(x1,y,z1)).applyMatrix4(matrix);
-          for(let gx=Math.floor(world.min.x/16);gx<=Math.floor(world.max.x/16);gx++)for(let gz=Math.floor(world.min.z/16);gz<=Math.floor(world.max.z/16);gz++)cells.add(`${gx}:${gz}`);
+          for(let gx=Math.floor(world.min.x/16);gx<=Math.floor(world.max.x/16);gx++)for(let gz=Math.floor(world.min.z/16);gz<=Math.floor(world.max.z/16);gz++){
+            const key=`${gx}:${gz}`;
+            let cell=cells.get(key);
+            if(!cell){cell={...group,surfaces:[],polygons:group.polygons?[]:undefined};cells.set(key,cell);}
+            cell.surfaces.push(surface);
+            if(cell.polygons)cell.polygons.push(group.polygons![index]);
+          }
         }
-        for(const key of cells){const bucket=this.walkGrid.get(key)??[];bucket.push(group);this.walkGrid.set(key,bucket);entry.walk.push([key,group]);}
+        for(const [key,cell] of cells){const bucket=this.walkGrid.get(key)??[];bucket.push(cell);this.walkGrid.set(key,bucket);entry.walk.push([key,cell]);}
       }
       const bounds=new THREE.Box3();
       if(!Array.isArray(object.userData.localColliders)){
@@ -211,7 +240,7 @@ export class LowPolyCityBuilder {
       }
       for(const [index,box] of boxes.entries()){
         const world=box.clone().applyMatrix4(matrix);
-        const shape={inverse,matrix,box,scale:Math.min(Math.abs(object.scale.x),Math.abs(object.scale.z)),top:world.max.y,flightOnly:index>=walkingBoxes};
+        const shape={inverse,matrix,box,scale:Math.min(Math.abs(object.scale.x),Math.abs(object.scale.z)),top:world.max.y,bounds:world,paddingScale:Math.SQRT2*matrix.getMaxScaleOnAxis()/Math.max(.01,Math.min(Math.abs(object.scale.x),Math.abs(object.scale.z))),flightOnly:index>=walkingBoxes};
         this.collisionShapes.push(shape);entry.shapes.push(shape);
         for(let gx=Math.floor(world.min.x/16);gx<=Math.floor(world.max.x/16);gx++)for(let gz=Math.floor(world.min.z/16);gz<=Math.floor(world.max.z/16);gz++){
           const key=`${gx}:${gz}`,bucket=this.collisionGrid.get(key)??[];bucket.push(shape);this.collisionGrid.set(key,bucket);entry.collision.push([key,shape]);
@@ -239,6 +268,7 @@ export class LowPolyCityBuilder {
   updatePropVisibility(viewer:THREE.Vector3,showAll=false){
     // Cull small props by building footprint; facades and roofs remain visible.
     for(const building of this.objects.values()){
+      for(const child of building.children)if(child.userData.alwaysVisibleCityGate){child.visible=true;delete child.userData.cityDistanceHidden;}
       const info=building.userData.building;
       if(!info){
         if(building.name==='Cidade:tower')for(const child of building.children)if(child.userData.towerTorch)child.visible=showAll||child.getWorldPosition(this.walkPoint).distanceToSquared(viewer)<65*65;
@@ -247,6 +277,8 @@ export class LowPolyCityBuilder {
       const extent=Math.hypot(info.width*building.scale.x,info.depth*building.scale.z)/2;
       const near=showAll||Math.hypot(building.position.x-viewer.x,building.position.z-viewer.z)<80+extent;
       for(const child of building.children){
+        if(child.userData.cityInteriorProp)continue;
+        if(child.userData.palaceExteriorTorch||child.userData.alwaysVisibleCityGate){child.visible=true;delete child.userData.cityDistanceHidden;continue;}
         if(child instanceof THREE.Mesh||(!child.userData.cityObject&&child.name!=='Objetos estáticos agrupados'))continue;
         if(!near&&child.visible){child.visible=false;child.userData.cityDistanceHidden=true;}
         else if(near&&child.userData.cityDistanceHidden){child.visible=true;delete child.userData.cityDistanceHidden;}
@@ -311,8 +343,12 @@ export class LowPolyCityBuilder {
   }
   resolveCollisions(position:THREE.Vector3,radius:number,flightY?:number){
     this.refreshCollisions();
-    for(const s of this.nearbyColliders(position.x,position.z,radius+1)){
+    for(const s of this.nearbyColliders(position.x,position.z,radius+1,true)){
       if(s.flightOnly)continue;
+      // The grid's 16 m cells can contain many narrow props. Reject their
+      // conservative world bounds before transforming each query to local space.
+      const pad=radius*s.paddingScale,bounds=s.bounds;
+      if(s.matrix.elements[4]===0&&s.matrix.elements[6]===0&&(position.x<bounds.min.x-pad||position.x>bounds.max.x+pad||position.z<bounds.min.z-pad||position.z>bounds.max.z+pad))continue;
       if(flightY!==undefined&&flightY>s.top+.5)continue;
       const p=this.collisionPoint.copy(position).applyMatrix4(s.inverse),r=radius/Math.max(.01,s.scale);
       const verticalScale=Math.abs(s.matrix.elements[5]);
@@ -327,17 +363,53 @@ export class LowPolyCityBuilder {
   readonly root = new THREE.Group(); readonly objects = new Map<string, THREE.Group>();
   constructor(private scene: THREE.Scene, private getHeight: (x: number, z: number) => number) { this.root.name = "Construções da cidade"; this.root.userData.buildEditable = false; scene.add(this.root); }
   rebuild(saved: Record<string, SavedCityObject>) { this.root.clear(); this.objects.clear(); for (const value of Object.values(saved)) this.add(value); }
+  /** Reuse live buildings on undo/redo, preserving loaded props, lights and animations. */
+  reconcile(saved: Record<string, SavedCityObject>) {
+    let changed=false;
+    for(const [id,object] of this.objects)if(!saved[id]){
+      object.removeFromParent();this.objects.delete(id);changed=true;
+    }
+    for(const value of Object.values(saved)){
+      const object=this.objects.get(value.id);
+      const {position,rotation,scale,...shape}=value;
+      const signature=JSON.stringify(shape);
+      if(!object||object.userData.cityBuildShape!==signature){
+        object?.removeFromParent();this.objects.delete(value.id);this.add(value);changed=true;continue;
+      }
+      if(!object.position.equals(new THREE.Vector3().fromArray(position))||
+         object.rotation.x!==rotation[0]||object.rotation.y!==rotation[1]||object.rotation.z!==rotation[2]||
+         !object.scale.equals(new THREE.Vector3().fromArray(scale))){
+        object.position.fromArray(position);object.rotation.set(rotation[0],rotation[1],rotation[2]);object.scale.fromArray(scale);
+        object.updateMatrixWorld(true);changed=true;
+      }
+    }
+    return changed;
+  }
   add(saved: SavedCityObject) {
+    const {position: _position,rotation: _rotation,scale: _scale,...shape}=saved;
     const points = saved.points?.map((p) => new THREE.Vector3(p[0], p[1], p[2]));
     const existingCastle = saved.kind === "castle" ? this.scene.getObjectByName("Castelo medieval") : null;
-    const object = saved.id==='city-royal-avenue-v1'?createRoyalAvenue(saved):existingCastle && !this.root.getObjectById(existingCastle.id) ? existingCastle.clone(true) as THREE.Group : saved.kind === "wall" && points ? createWall(points) : (saved.kind === "road" || saved.kind === "path") && points ? createRoute(points, saved.width ?? 4, saved.kind, this.getHeight) : createCityAsset(saved.kind);
+    const object = saved.pavedStreet?createCityPavedStreet(saved):saved.id==='city-royal-avenue-v1'?createRoyalAvenue(saved):existingCastle && !this.root.getObjectById(existingCastle.id) ? existingCastle.clone(true) as THREE.Group : saved.kind === "wall" && points ? createWall(points) : (saved.kind === "road" || saved.kind === "path") && points ? createRoute(points, saved.width ?? 4, saved.kind, this.getHeight) : createCityAsset(saved.kind);
     if(!object.userData.perimeterFootprint&&!object.userData.palaceComplex)addCityProps(object,cityObjectSeed(saved.id));
     if(!object.userData.palaceComplex)addCityAnimals(object,cityObjectSeed(saved.id));
+    // Every city model uses its real lowest vertex as the local ground plane.
+    // This keeps the object origin meaningful: when its saved Y is zero, its
+    // model base is exactly on the ground, regardless of procedural offsets.
+    object.updateWorldMatrix(true,true);
+    const modelBounds=new THREE.Box3().setFromObject(object);
+    if(!modelBounds.isEmpty()&&Math.abs(modelBounds.min.y)>1e-6){
+      const baseOffset=modelBounds.min.y;
+      for(const child of object.children)child.position.y-=baseOffset;
+      const walkSurfaces=object.userData.walkSurfaces as number[][]|undefined;
+      if(walkSurfaces)for(const surface of walkSurfaces)surface[4]-=baseOffset;
+    }
+    object.userData.cityBuildShape=JSON.stringify(shape);
     object.userData.cityId = saved.id; object.userData.cityLayer = saved.layer; object.position.fromArray(saved.position); object.rotation.set(saved.rotation[0], saved.rotation[1], saved.rotation[2]); object.scale.fromArray(saved.scale); this.root.add(object); this.objects.set(saved.id, object);
     if(object.userData.palaceComplex)addRoyalPalaceDoor(object);
+    if(saved.kind==='gate'){addCityWallGateDoor(object);addCityWallGateTorches(object);}
     if(!this.courtyardUpdatePending){
       this.courtyardUpdatePending=true;
-      queueMicrotask(()=>{this.courtyardUpdatePending=false;addCourtyardWells(this.objects.values());addCityStreetLanterns(this.objects.values());});
+      queueMicrotask(()=>{this.courtyardUpdatePending=false;addCourtyardWells(this.objects.values(),this.root);addCityStreetLanterns(this.objects.values());});
     }
     return object;
   }

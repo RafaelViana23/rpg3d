@@ -1,4 +1,5 @@
-import {appendRoyalBookcase,appendRoyalWardrobe,appendRoyalPainting,appendRoyalChandelier,appendRoyalWoodCeiling} from './RoyalRoomDetails';
+import {appendCityCurtain} from './CityCurtain';
+import {appendRoyalBookcase,appendRoyalWardrobe,appendRoyalPainting,appendRoyalChandelier,appendRoyalWoodCeiling,addInteractiveRoyalChest} from './RoyalRoomDetails';
 import { princessDisplayOutfit } from './PrincessDisplayOutfit';
 import * as T from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
@@ -90,11 +91,7 @@ export function createAliceBedroomDecor(floor:number,bedZ:number,back:number,fro
   .multiply(new T.Matrix4().makeTranslation(-shelfX,0,-shelfZ));
  transformSince(shelfStart,matrix);
  }
- const chestStart=snapshot();
- box(33.4,.65,bedZ+8,2.2,1.3,1.25,CITY_WOOD_MATERIAL);box(33.4,1.34,bedZ+8,2.3,.15,1.35,CITY_WOOD_MATERIAL);
- for(const x of [32.65,34.15])box(x,.75,bedZ+8.65,.12,1.1,.08,gold);
- box(33.4,1.04,bedZ+8.7,.3,.35,.08,gold);solid(33.4,bedZ+8,2.3,1.5,1.4);
- transformSince(chestStart,relocate(33.4,bedZ+8,33.4,back+.85,0));
+ addInteractiveRoyalChest(root,floor,33.4,back+.85,solid);
  // Thin heraldic rug, with no collision or extra floor plane at the door.
  box(42,.022,bedZ+7.5,10.6,.018,6.8,wine);box(42,.035,bedZ+7.5,10.2,.008,6.4,gold);box(42,.043,bedZ+7.5,10,.008,6.2,pink);
  crown(42,.054,bedZ+7.5,2.4,true);
@@ -104,14 +101,8 @@ export function createAliceBedroomDecor(floor:number,bedZ:number,back:number,fro
   for(const xx of [x-.82,x+.82])box(xx,4.1,back+.31,.05,2.9,.05,gold);
   box(x,5.55,back+.25,1.9,.1,.13,CITY_WOOD_MATERIAL);crown(x,4.1,back+.32,.8);
  }
- // Wine curtains frame the two real exterior windows; no light is added at the glass.
- for(const center of windowCenters){
-  box(52.15,6.45,center,.12,.12,halfWindow*2+1.1,CITY_WOOD_MATERIAL);
-  for(const side of [-1,1]){
-   for(let i=0;i<4;i++)box(52.12+Math.sin(i*2)*.04,3.85,center+side*(halfWindow+.3)+(i-1.5)*.13,.10,5,.16,wine);
-   box(52.08,2.7,center+side*(halfWindow+.3),.14,.17,.65,gold);
-  }
- }
+ // The same red curtain used by city windows, without yellow ties.
+ for(const center of windowCenters)appendCityCurtain(52.12,floor+1.35,center,halfWindow*2+1.1,5.16,.18,-Math.PI/2,add);
  // Framed low-poly paintings, mounted in the exact empty wall bays.
  const paintingPlacements=[
   {x:52.22,y:4.55,z:(windowCenters[0]+windowCenters[1])/2,angle:-Math.PI/2,theme:0},

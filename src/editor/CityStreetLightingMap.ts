@@ -17,8 +17,10 @@ function applyMaterial(material:T.Material){
     shader.fragmentShader=shader.fragmentShader.replace('#include <opaque_fragment>',`
       vec2 streetUV=(cityStreetWorld.xz-cityStreetBounds.xy)/cityStreetBounds.zw;
       float insideStreet=step(0.0,streetUV.x)*step(streetUV.x,1.0)*step(0.0,streetUV.y)*step(streetUV.y,1.0);
-      float streetHeight=clamp(1.0-max(0.0,cityStreetWorld.y-cityStreetGround)/8.0,0.0,1.0);
-      outgoingLight+=diffuseColor.rgb*texture2D(cityStreetMap,streetUV).rgb*cityStreetNight*insideStreet*streetHeight;
+      vec4 fixedLighting=texture2D(cityStreetMap,streetUV);
+      float sourceHeight=fixedLighting.a*512.0-128.0;
+      float streetHeight=clamp(1.0-max(0.0,abs(cityStreetWorld.y-sourceHeight)-3.0)/20.0,0.0,1.0);
+      outgoingLight+=diffuseColor.rgb*fixedLighting.rgb*cityStreetNight*insideStreet*streetHeight;
       #include <opaque_fragment>`);
   };
   material.customProgramCacheKey=()=>`${previousKey}:city-street-lightmap-v1`;material.needsUpdate=true;
@@ -26,24 +28,24 @@ function applyMaterial(material:T.Material){
 /** Bake the static lamps into one shared texture instead of adding dozens of live lights. */
 export function updateStreetLightingMap(delta:number,sources:StreetSource[],night:number){
   uniforms.cityStreetNight.value=night;elapsed+=delta;if(elapsed<1||!sources.length)return;elapsed=0;
-  const points=sources.map(s=>({ground:s.root.getWorldPosition(new T.Vector3()).y,point:s.light.getWorldPosition(new T.Vector3())}));
-  const next=points.map(p=>p.point.toArray().map(v=>v.toFixed(2)).join(',')).join(';');
+  const points=sources.map(s=>({ground:s.root.getWorldPosition(new T.Vector3()).y,point:s.light.getWorldPosition(new T.Vector3()),radius:(s.root.userData.palaceExteriorTorch||s.root.userData.fixedExteriorTorch)?Math.max(13,s.light.distance):13}));
+  const next=points.map(p=>[...p.point.toArray(),p.radius].map(v=>v.toFixed(2)).join(',')).join(';');
   if(next!==signature){
     signature=next;
     const minX=Math.min(...points.map(p=>p.point.x))-34,minZ=Math.min(...points.map(p=>p.point.z))-34;
     const width=Math.max(...points.map(p=>p.point.x))+34-minX,depth=Math.max(...points.map(p=>p.point.z))+34-minZ;
     uniforms.cityStreetBounds.value.set(minX,minZ,width,depth);
     uniforms.cityStreetGround.value=points.reduce((sum,p)=>sum+p.ground,0)/points.length;
-    const energy=new Float32Array(size*size);const radius=30;
-    for(const {point} of points){
+    const energy=new Float32Array(size*size),heights=new Float32Array(size*size);
+    for(const {point,radius} of points){
       const x0=Math.max(0,Math.floor((point.x-radius-minX)/width*size)),x1=Math.min(size-1,Math.ceil((point.x+radius-minX)/width*size));
       const z0=Math.max(0,Math.floor((point.z-radius-minZ)/depth*size)),z1=Math.min(size-1,Math.ceil((point.z+radius-minZ)/depth*size));
       for(let z=z0;z<=z1;z++)for(let x=x0;x<=x1;x++){
         const dx=minX+(x+.5)/size*width-point.x,dz=minZ+(z+.5)/size*depth-point.z,d=Math.hypot(dx,dz)/radius;
-        if(d<1)energy[z*size+x]+=.65*(1-d)*(1-d);
+        if(d<1){const weight=1.4*(1-d)*(1-d),index=z*size+x;energy[index]+=weight;heights[index]+=point.y*weight;}
       }
     }
-    for(let i=0;i<energy.length;i++){const v=Math.min(.75,energy[i]);pixels[i*4]=Math.round(v*255);pixels[i*4+1]=Math.round(v*190);pixels[i*4+2]=Math.round(v*111);pixels[i*4+3]=255;}
+    for(let i=0;i<energy.length;i++){const v=Math.min(1,energy[i]);pixels[i*4]=Math.round(v*255);pixels[i*4+1]=Math.round(v*190);pixels[i*4+2]=Math.round(v*111);pixels[i*4+3]=Math.round(T.MathUtils.clamp(((energy[i]?heights[i]/energy[i]:0)+128)/512,0,1)*255);}
     texture.needsUpdate=true;
   }
   let scene:T.Object3D=sources[0].root;while(scene.parent)scene=scene.parent;

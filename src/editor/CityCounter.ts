@@ -1,3 +1,4 @@
+import {registerCityInteriorProp} from './CityInteriorStreaming';
 import * as T from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { CITY_WOOD_MATERIAL } from './CityWood';
@@ -5,9 +6,9 @@ import { CITY_WOOD_MATERIAL } from './CityWood';
 const materials=[CITY_WOOD_MATERIAL,CITY_WOOD_MATERIAL,CITY_WOOD_MATERIAL];
 
 /** Finished joinery on both faces, with solid returns at either end. */
-export function addCityCounter(building:T.Group,width:number,depth:number,z:number){
+export function addCityCounter(building:T.Group,width:number,depth:number,z:number,x=0,rotation=0){
   const root=new T.Group();root.name='Balcão de madeira completo em U';
-  root.position.set(0,.08,z);root.userData.cityObject=true;root.userData.sharedCityGeometry=true;
+  root.position.set(x,.08,z);root.rotation.y=rotation;root.userData.cityObject=true;root.userData.sharedCityGeometry=true;
   const batches:T.BufferGeometry[][]=[[],[],[]];
   const box=(x:number,y:number,z:number,w:number,h:number,d:number,material:number)=>{
     const geometry=new T.BoxGeometry(w,h,d).toNonIndexed();geometry.translate(x,y,z);batches[material].push(geometry);
@@ -28,7 +29,8 @@ export function addCityCounter(building:T.Group,width:number,depth:number,z:numb
     for(let i=0;i<3;i++)part(0,height-top/2,(i-1)*(counterDepth+.12)/3,length,top,(counterDepth+.12)/3-.006,2);
     for(const end of [-1,1])part(end*(length/2-.045),panelHeight/2,0,.09,panelHeight,counterDepth+.06,1);
     const w=side?counterDepth+.12:length,d=side?length:counterDepth+.12;
-    building.userData.localColliders.push([x-w/2,.08,z+root.position.z-d/2,x+w/2,height+.08,z+root.position.z+d/2]);
+    const bounds=new T.Box3().setFromPoints([-1,1].flatMap(sx=>[-1,1].map(sz=>new T.Vector3(x+sx*w/2,0,z+sz*d/2).applyAxisAngle(new T.Vector3(0,1,0),rotation).add(root.position))));
+    building.userData.localColliders.push([bounds.min.x,.08,bounds.min.z,bounds.max.x,height+.08,bounds.max.z]);
   };
   segment(0,0,width,false);
   // The returns meet the front without overlapping coplanar top faces.
@@ -38,6 +40,7 @@ export function addCityCounter(building:T.Group,width:number,depth:number,z:numb
     if(!geometry)return;
     const mesh=new T.Mesh(geometry,materials[i]);mesh.castShadow=mesh.receiveShadow=true;root.add(mesh);
   });
-  building.userData.npcCounter={x:0,y:.08,z:z-1.1};
-  building.add(root);building.userData.colliderRevision=(building.userData.colliderRevision??0)+1;
+  const staff=new T.Vector3(0,0,-1.1).applyAxisAngle(new T.Vector3(0,1,0),rotation).add(root.position);
+  building.userData.npcCounter={x:staff.x,y:.08,z:staff.z,rotation};
+  building.add(root);registerCityInteriorProp(building,root);building.userData.colliderRevision=(building.userData.colliderRevision??0)+1;
 }

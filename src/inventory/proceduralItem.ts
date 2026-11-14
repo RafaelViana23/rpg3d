@@ -1,5 +1,8 @@
+import {createTBone,createApple,createGrapes} from './foodModels';
+import {clone as cloneSkeleton} from 'three/addons/utils/SkeletonUtils.js';
+import {createRoyalBread} from './royalBread';
 import { CITY_WOOD_COLOR, CITY_WOOD_MATERIAL } from '../editor/CityWood';
-import { STEEL_ARMOR_COLOR, IRON_ARMOR_COLOR, IRON_METALNESS, IRON_ROUGHNESS, METAL_ENVIRONMENT } from './armorMaterials';
+import { STEEL_ARMOR_COLOR, IRON_ARMOR_COLOR, IRON_METALNESS, IRON_ROUGHNESS } from './armorMaterials';
 import { clothShirtColor, clothPantsColor } from './clothColors';
 import { createSmoothClothMaterial } from './clothMaterial';
 import { armorColor } from './armorMaterials';
@@ -9,7 +12,6 @@ import type { InventoryItem } from "./types";
 const mat = (color: string, metalness = 0, roughness = 0.65) =>
   new THREE.MeshStandardMaterial({
     color,
-    envMap: metalness > 0 || color === IRON_ARMOR_COLOR ? METAL_ENVIRONMENT : null,
     metalness: color === IRON_ARMOR_COLOR ? IRON_METALNESS : metalness,
     roughness: color === IRON_ARMOR_COLOR ? IRON_ROUGHNESS : roughness,
     flatShading: true,
@@ -171,7 +173,21 @@ const weapon = (visual: string) => {
   return group;
 };
 
+const inventoryBottleTemplates=new Map<string,THREE.Group>();
+export function setInventoryBottleTemplate(id:string,template:THREE.Group){inventoryBottleTemplates.set(id,template);}
+let inventoryFishTemplate:THREE.Group|undefined;
+export function setInventoryFishTemplate(template:THREE.Group){inventoryFishTemplate=template;}
 export function createProceduralItem(item: InventoryItem) {
+  const bottle=inventoryBottleTemplates.get(item.id);if(bottle)return cloneSkeleton(bottle) as THREE.Group;
+  if(item.visual==='fish'){
+    if(inventoryFishTemplate)return cloneSkeleton(inventoryFishTemplate) as THREE.Group;
+    const fish=new THREE.Group(),body=new THREE.IcosahedronGeometry(.18,0);body.scale(1.9,.72,.58);
+    fish.add(mesh(body,mat('#70a9b5')));return fish;
+  }
+  if(item.visual==="bread")return createRoyalBread();
+  if(item.visual.includes("meat"))return createTBone();
+  if(item.visual==="apple")return createApple();
+  if(item.visual==="grapes")return createGrapes();
   if (item.visual === "nimbus-2000") {
     const broom = new THREE.Group(), wood = mat("#7b3f19", .05, .48), gold = mat("#d8a83f", .72, .22), straw = mat("#a96b24", 0, .82);
     const shaft = mesh(new THREE.CylinderGeometry(.032, .042, 1.55, 10), wood, .58, 0, 0);
@@ -182,15 +198,20 @@ export function createProceduralItem(item: InventoryItem) {
     return broom;
   }
   if (item.visual === "shield") {
-    const group = new THREE.Group(),
-      steel = mat(IRON_ARMOR_COLOR, IRON_METALNESS, IRON_ROUGHNESS);
-    const face = mesh(new THREE.CylinderGeometry(0.62, 0.68, 0.16, 8), steel);
+    const group = new THREE.Group();
+    const wooden = item.id === "wooden-shield";
+    const faceMaterial = wooden ? CITY_WOOD_MATERIAL
+      : item.id === "steel-shield" ? mat(STEEL_ARMOR_COLOR, 0.8, 0.19)
+      : mat(IRON_ARMOR_COLOR, IRON_METALNESS, IRON_ROUGHNESS);
+    const bossMaterial = wooden ? mat(IRON_ARMOR_COLOR, IRON_METALNESS, IRON_ROUGHNESS)
+      : mat("#c5a04e", 0.55, 0.3);
+    const face = mesh(new THREE.CylinderGeometry(0.62, 0.68, 0.16, 8), faceMaterial);
     face.rotation.x = Math.PI / 2;
     group.add(
       face,
       mesh(
         new THREE.SphereGeometry(0.16, 7, 5),
-        mat("#c5a04e", 0.55, 0.3),
+        bossMaterial,
         0,
         0,
         0.1,
@@ -321,31 +342,6 @@ export function createProceduralItem(item: InventoryItem) {
   } else if (item.category === "consumable") {
     if (item.visual.includes("crystal"))
       group.add(mesh(new THREE.OctahedronGeometry(0.48, 0), glow));
-    else if (item.visual.includes("meat")) {
-      const meatMat = mat(
-          item.visual === "venison-meat" ? "#8f2d28" : "#c46b62",
-          0.05,
-          0.7,
-        ),
-        fat = mat("#e8c6a0");
-      group.add(
-        mesh(new THREE.BoxGeometry(0.72, 0.28, 0.48), meatMat, 0, 0, 0),
-        mesh(new THREE.BoxGeometry(0.18, 0.3, 0.5), fat, -0.28, 0.01, 0),
-      );
-      group.rotation.z = -0.18;
-    } else if (
-      item.visual === "bread" ||
-      item.visual === "food" ||
-      item.visual === "apple"
-    )
-      group.add(
-        mesh(
-          item.visual === "apple"
-            ? new THREE.SphereGeometry(0.42, 8, 6)
-            : new THREE.CapsuleGeometry(0.28, 0.55, 3, 7),
-          mat(item.visual === "apple" ? "#bb3932" : "#bc864c"),
-        ),
-      );
     else
       group.add(
         mesh(new THREE.SphereGeometry(0.4, 8, 6), glow, 0, -0.1, 0),

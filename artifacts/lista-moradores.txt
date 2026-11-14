@@ -1,0 +1,305 @@
+MORADORES POR CASA / DISTRITO
+Fonte: save atual do banco, revisão 2105
+Origem: http://localhost:5173
+Distribuição calculada com as regras atuais do jogo.
+
+
+BAIRRO RESIDENCIAL
+medieval-streets-v2-house-36 [house]
+  Rina (Empregada real)
+medieval-streets-v2-house-37 [house]
+  Brina (Empregada real)
+medieval-streets-v2-house-38 [house]
+  Ulric (Plebeu)
+medieval-streets-v2-house-39 [house]
+  Vael (Plebeu)
+medieval-streets-v2-house-40 [house]
+  Wulfric (Plebeu)
+medieval-streets-v2-house-41 [house]
+  Xaren (Plebeu)
+medieval-streets-v2-house-42 [house]
+  Yoren (Plebeu)
+medieval-streets-v2-house-43 [house]
+  Zephan (Plebeu)
+medieval-streets-v2-house-45 [house]
+  Brann (Plebeu)
+medieval-streets-v2-house-47 [house]
+  Dain (Plebeu)
+medieval-streets-v2-house-48 [house]
+  Eirik (Plebeu)
+medieval-streets-v2-house-49 [house]
+  Faris (Plebeu)
+medieval-streets-v2-house-50 [house]
+  Gavren (Plebeu)
+medieval-streets-v2-house-51 [house]
+  Halric (Plebeu)
+medieval-streets-v2-house-52 [house]
+  Ivar (Plebeu)
+medieval-streets-v2-house-53 [house]
+  Jorin (Plebeu)
+medieval-streets-v2-house-57 [house]
+  Nael (Plebeu)
+medieval-streets-v2-house-58 [house]
+  Orin (Plebeu)
+medieval-streets-v2-house-59 [house]
+  Rurik (Plebeu)
+medieval-streets-v2-house-60 [house]
+  Serin (Plebeu)
+medieval-streets-v2-house-61 [house]
+  Thalen (Plebeu)
+medieval-streets-v2-house-62 [house]
+  Veyron (Plebeu)
+medieval-streets-v2-house-63 [house]
+  Eleonor (Plebeu)
+medieval-streets-v2-house-64 [house]
+  Elara (Plebeu)
+medieval-streets-v2-house-66 [house]
+  Freya (Plebeu)
+medieval-streets-v2-house-67 [house]
+  Cerys (Plebeu)
+medieval-streets-v2-house-68 [house]
+  Dahlia (Plebeu)
+medieval-streets-v2-house-69 [house]
+  Eira (Plebeu)
+medieval-streets-v2-house-70 [house]
+  Faye (Plebeu)
+medieval-streets-v2-house-71 [house]
+  Gwyne (Plebeu)
+medieval-streets-v2-house-72 [house]
+  Hilda (Plebeu)
+medieval-streets-v2-house-76 [house]
+  Liora (Plebeu)
+medieval-streets-v2-house-77 [house]
+  Mirel (Plebeu)
+medieval-streets-v2-house-78 [house]
+  Nessa (Plebeu)
+medieval-streets-v2-house-79 [house]
+  Orielle (Plebeu)
+medieval-streets-v2-house-80 [house]
+  Petra (Plebeu)
+medieval-streets-v2-house-81 [house]
+  Quilla (Plebeu)
+medieval-streets-v2-house-83 [house]
+  Seraphina (Plebeu)
+medieval-streets-v2-house-84 [house]
+  Thalia (Plebeu)
+medieval-streets-v2-house-85 [house]
+  Undine (Plebeu)
+medieval-streets-v2-house-86 [house]
+  Vanya (Plebeu)
+medieval-streets-v2-house-87 [house]
+  Wren (Plebeu)
+medieval-streets-v2-house-88 [house]
+  Xena (Plebeu)
+medieval-streets-v2-house-89 [house]
+  Ylva (Plebeu)
+medieval-streets-v2-house-91 [house]
+  Alys (Plebeu)
+medieval-streets-v2-house-92 [house]
+  Brynn (Plebeu)
+medieval-streets-v2-house-93 [house]
+  Celia (Plebeu)
+medieval-streets-v2-house-94 [house]
+  Delya (Plebeu)
+medieval-streets-v2-house-95 [house]
+  Elys (Plebeu)
+medieval-streets-v2-house-96 [house]
+  Yuna (Freira)
+medieval-streets-v2-house-97 [house]
+  Aria (Freira)
+medieval-streets-v2-house-98 [house]
+  Haron (Cozinheiro real)
+medieval-streets-v2-house-100 [house]
+  Jareth (Cozinheiro real)
+medieval-streets-v2-house-101 [house]
+  Sylvie (Freira)
+medieval-streets-v2-house-102 [house]
+  Neria (Freira)
+medieval-streets-v2-house-103 [house]
+  Basel (Padre)
+medieval-streets-v2-house-133 [house]
+  Althea (Empregada real)
+medieval-streets-v2-house-141 [house]
+  Melia (Plebeu)
+medieval-streets-v2-house-143 [house]
+  Ophelia (Plebeu)
+medieval-streets-v2-house-144 [house]
+  Prisca (Plebeu)
+medieval-streets-v2-house-146 [house]
+  Isen (Cozinheiro real)
+medieval-streets-v2-inn-3 [inn]
+  Selena (Estalajadeira)
+
+DISTRITO COMERCIAL
+medieval-streets-v2-house-7 [house]
+  Galdric (Cavalariço); Maeron (Plebeu)
+medieval-streets-v2-house-8 [house]
+  Noren (Plebeu)
+medieval-streets-v2-house-10 [house]
+  Odran (Plebeu)
+medieval-streets-v2-house-13 [house]
+  Perrin (Plebeu)
+medieval-streets-v2-house-17 [house]
+  Quirin (Plebeu)
+medieval-streets-v2-house-18 [house]
+  Rael (Plebeu)
+medieval-streets-v2-house-19 [house]
+  Soren (Plebeu)
+medieval-streets-v2-house-20 [house]
+  Taren (Plebeu)
+medieval-streets-v2-house-44 [house]
+  Aster (Plebeu)
+medieval-streets-v2-house-46 [house]
+  Caelan (Plebeu)
+medieval-streets-v2-house-54 [house]
+  Keldan (Plebeu)
+medieval-streets-v2-house-55 [house]
+  Lior (Plebeu)
+medieval-streets-v2-house-56 [house]
+  Morven (Plebeu)
+medieval-streets-v2-house-65 [house]
+  Emma (Plebeu)
+medieval-streets-v2-house-73 [house]
+  Iris (Plebeu)
+medieval-streets-v2-house-74 [house]
+  Juna (Plebeu)
+medieval-streets-v2-house-75 [house]
+  Kyra (Plebeu)
+medieval-streets-v2-house-82 [house]
+  Rhea (Plebeu)
+medieval-streets-v2-house-90 [house]
+  Zaira (Plebeu)
+medieval-streets-v2-house-99 [house]
+  Fiora (Plebeu)
+medieval-streets-v2-house-112 [house]
+  Cedric (IIVigia da torre); Gisela (Plebeu)
+medieval-streets-v2-house-114 [house]
+  Riven (IArqueiro da muralha); Hestia (Plebeu)
+medieval-streets-v2-house-123 [house]
+  Kael (IIVigia da torre); Ilia (Plebeu)
+medieval-streets-v2-house-124 [house]
+  Osric (IIVigia da torre); Jessamine (Plebeu)
+medieval-streets-v2-house-130 [house]
+  Fenris (Guarda real); Keira (Plebeu)
+medieval-streets-v2-house-134 [house]
+  Lyria (Plebeu)
+medieval-streets-v2-house-142 [house]
+  Nyra (Plebeu)
+medieval-streets-v2-house-147 [house]
+  Roswyn (Plebeu)
+medieval-streets-v2-potions-6 [potions]
+  Theron (Alquimista)
+medieval-streets-v2-tavern-4 [tavern]
+  Lyra (Taverneira)
+medieval-streets-v2-weapons-5 [weapons]
+  Aldren (Armeiro)
+
+DISTRITO MILITAR
+medieval-streets-v2-house-104 [house]
+  Leoric (IIVigia da torre)
+medieval-streets-v2-house-105 [house]
+  Galen (IArqueiro da muralha)
+medieval-streets-v2-house-106 [house]
+  Renald (IArqueiro da muralha)
+medieval-streets-v2-house-107 [house]
+  Roland (IIVigia da torre)
+medieval-streets-v2-house-108 [house]
+  Torin (Guarda de patrulha)
+medieval-streets-v2-house-109 [house]
+  Varyn (Guarda de patrulha)
+medieval-streets-v2-house-110 [house]
+  Aeron (Guarda de patrulha)
+medieval-streets-v2-house-111 [house]
+  Bastian (Guarda de patrulha)
+medieval-streets-v2-house-113 [house]
+  Lucan (Guarda real)
+medieval-streets-v2-house-115 [house]
+  Azren (IArqueiro da muralha)
+medieval-streets-v2-house-116 [house]
+  Draven (Guarda do portão)
+medieval-streets-v2-house-117 [house]
+  Valen (Guarda real)
+medieval-streets-v2-house-118 [house]
+  Kiran (Guarda do portão)
+medieval-streets-v2-house-119 [house]
+  Darion (IArqueiro da muralha)
+medieval-streets-v2-house-120 [house]
+  Corvin (Guarda do portão)
+medieval-streets-v2-house-121 [house]
+  Faelan (Guarda do portão)
+medieval-streets-v2-house-122 [house]
+  Lorcan (Guarda do portão)
+medieval-streets-v2-house-125 [house]
+  Dorian (Guarda real)
+medieval-streets-v2-house-126 [house]
+  Arven (IArqueiro da muralha)
+medieval-streets-v2-house-127 [house]
+  Hadrian (Guarda real)
+medieval-streets-v2-house-128 [house]
+  Tristan (Guarda real)
+medieval-streets-v2-house-129 [house]
+  Eron (IArqueiro da muralha)
+medieval-streets-v2-house-131 [house]
+  Alaric (IIVigia da torre)
+medieval-streets-v2-house-132 [house]
+  Eldric (IIVigia da torre)
+medieval-streets-v2-house-136 [house]
+  Elric (Guarda do portão)
+medieval-streets-v2-house-138 [house]
+  Sylas (IArqueiro da muralha)
+medieval-streets-v2-house-140 [house]
+  Gareth (IIVigia da torre)
+
+DISTRITO NOBRE
+medieval-streets-v2-house-9 [house]
+  Augusto (Nobre); Amelia (Nobre)
+medieval-streets-v2-house-11 [house]
+  Adelaide (Nobre); Afonso (Nobre)
+medieval-streets-v2-house-12 [house]
+  Artur (Nobre); Benedita (Nobre)
+medieval-streets-v2-house-14 [house]
+  Beatriz (Nobre); Bernardo (Nobre)
+medieval-streets-v2-house-15 [house]
+  Baltasar (Nobre); Catarina (Nobre)
+medieval-streets-v2-house-16 [house]
+  Carlota (Nobre); Cristovao (Nobre)
+medieval-streets-v2-house-21 [house]
+  Clemente (Nobre); Debora (Nobre)
+medieval-streets-v2-house-22 [house]
+  Constanca (Nobre); Diogo (Nobre)
+medieval-streets-v2-house-23 [house]
+  Duarte (Nobre); Eugenia (Nobre)
+medieval-streets-v2-house-24 [house]
+  Delfina (Nobre); Eduardo (Nobre)
+medieval-streets-v2-house-25 [house]
+  Estevao (Nobre); Filipa (Nobre)
+medieval-streets-v2-house-26 [house]
+  Estela (Nobre); Francisco (Nobre)
+medieval-streets-v2-house-27 [house]
+  Ferdinand (Nobre); Guiomar (Nobre)
+medieval-streets-v2-house-28 [house]
+  Florentina (Nobre); Goncalo (Nobre)
+medieval-streets-v2-house-29 [house]
+  Gaspar (Nobre); Hortensia (Nobre)
+medieval-streets-v2-house-30 [house]
+  Gabriela (Nobre); Hugo (Nobre)
+medieval-streets-v2-house-31 [house]
+  Henrique (Nobre); Ines (Nobre)
+medieval-streets-v2-house-32 [house]
+  Helena (Nobre); Jaime (Nobre)
+medieval-streets-v2-house-33 [house]
+  Inacio (Nobre); Josefina (Nobre)
+medieval-streets-v2-house-34 [house]
+  Leonor (Nobre); Leonardo (Nobre)
+medieval-streets-v2-house-35 [house]
+  Joaquim (Nobre); Luisa (Nobre)
+medieval-streets-v2-house-135 [house]
+  Aelina (Chefe da guilda · Nobre); Madalena (Nobre); Martim (Nobre)
+medieval-streets-v2-house-137 [house]
+  Lourenco (Nobre); Mariana (Nobre)
+medieval-streets-v2-house-139 [house]
+  Valentina (Nobre); Nicolau (Nobre)
+medieval-streets-v2-house-145 [house]
+  Maximilian (Nobre); Natalia (Nobre)
+medieval-streets-v2-palace-0 [palace]
+  Rito (Rei); Lifa (Rainha); Alice (Princesa)

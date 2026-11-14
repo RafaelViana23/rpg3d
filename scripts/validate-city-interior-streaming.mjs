@@ -1,0 +1,52 @@
+import assert from 'node:assert/strict';
+import {createServer} from 'vite';
+const server=await createServer({server:{middlewareMode:true,hmr:false},appType:'custom'});
+try{
+ const T=await server.ssrLoadModule('three');
+ const {registerCityInteriorProp,updateCityInteriorStreaming,cityInteriorDemand}=await server.ssrLoadModule('/src/editor/CityInteriorStreaming.ts');
+ const {loadCityInteriorProp,updateCityPropLoading}=await server.ssrLoadModule('/src/editor/CityPropLoading.ts');
+ const {registerChurchDoor,toggleChurchDoor,updateChurchDoors}=await server.ssrLoadModule('/src/editor/ChurchDoors.ts');
+ const {batchCityProps}=await server.ssrLoadModule('/src/editor/CityPropBatching.ts');
+ const {cloneBuildPreviewModel}=await server.ssrLoadModule('/src/editor/BuildPreviewModel.ts');
+ const scene=new T.Scene(),building=new T.Group();scene.add(building);
+ building.userData.building={enterable:true,width:12,depth:12,height:9,doorWidth:2,doorHeight:3};building.userData.localColliders=[];
+ const door=new T.Group();door.animations=[new T.AnimationClip('open',1,[new T.NumberKeyframeTrack('.rotation[y]',[0,1],[0,-1.5])])];building.add(door);registerChurchDoor(building,door);
+ const geom=new T.BoxGeometry(1,1,1),material=new T.MeshStandardMaterial({color:'#7b603f'});
+ const furnishing=new T.Group();furnishing.add(new T.Mesh(geom,material));furnishing.userData.batchableCityProp=true;building.add(furnishing);registerCityInteriorProp(building,furnishing);
+ const exterior=new T.Group();exterior.position.z=8;exterior.add(new T.Mesh(geom,material));exterior.userData.batchableCityProp=true;building.add(exterior);assert(!registerCityInteriorProp(building,exterior));
+ const roof=new T.Mesh(new T.BoxGeometry(12,.2,12),material);roof.position.y=9;roof.castShadow=true;building.add(roof);
+ let downloads=0,instances=0,downloaded=false;
+ loadCityInteriorProp(building,new T.Vector3(1,0,1),async()=>{downloads++;downloaded=true;return new T.Group();}).then(prop=>{instances++;prop.position.set(1,0,1);building.add(prop);registerCityInteriorProp(building,prop);});
+ const buildings=[building],outside=new T.Vector3(0,0,7),inside=new T.Vector3(0,0,0);
+ const step=async(viewer,build=false)=>{
+  scene.updateMatrixWorld(true);updateChurchDoors(.3,viewer);updateCityInteriorStreaming(buildings,viewer,build);updateCityPropLoading(viewer,build);
+  for(let i=0;i<6;i++)await Promise.resolve();
+ };
+ await step(new T.Vector3(200,0,200));assert.equal(downloads,0);assert(!furnishing.visible);assert(exterior.visible&&roof.visible&&roof.castShadow&&door.visible);
+ await step(outside);assert(downloaded);assert.equal(instances,0,'Approach fetches templates without activating the room');
+ assert(cityInteriorDemand(building).prepare);assert(!cityInteriorDemand(building).active);
+ assert(toggleChurchDoor(outside));await step(outside);await step(outside);assert.equal(instances,1);assert(furnishing.visible);
+ assert(toggleChurchDoor(outside));for(let i=0;i<5;i++)await step(inside);assert(furnishing.visible,'Occupied interior stays visible after closing its door');
+ for(let i=0;i<5;i++)await step(outside);assert(!furnishing.visible);assert(exterior.visible&&roof.visible&&door.visible);assert.equal(downloads,1);
+ const count=building.children.length;assert(toggleChurchDoor(outside));await step(outside);assert(furnishing.visible);assert.equal(downloads,1);assert.equal(building.children.length,count,'Reopening uses live cached instances');
+ assert(toggleChurchDoor(outside));for(let i=0;i<5;i++)await step(outside);
+ const second=new T.Group();second.add(new T.Mesh(geom,material));second.position.x=2;second.userData.batchableCityProp=true;building.add(second);registerCityInteriorProp(building,second);
+ const secondExterior=exterior.clone(true);secondExterior.position.x=2;building.add(secondExterior);
+ batchCityProps(building);
+ const batches=building.children.filter(child=>child.name==='Objetos estáticos agrupados');assert.equal(batches.length,2);
+ const indoors=batches.find(child=>child.userData.cityInteriorProp),outdoors=batches.find(child=>!child.userData.cityInteriorProp);
+ assert(indoors&&!indoors.visible);assert(outdoors?.visible,'Exterior and interior never share a visibility batch');
+ const preview=cloneBuildPreviewModel(building);assert(preview.children.find(child=>child.userData.cityInteriorProp).visible,'Build thumbnails show the real furnished model');
+ await step(outside,true);assert(indoors.visible);await step(outside,false);assert(!indoors.visible);assert(outdoors.visible);
+ // Exact saved transforms and structural collision data remain independent of visibility.
+ const before=building.position.toArray();building.position.set(50,4,30);building.rotation.y=.7;building.scale.set(1.2,1.1,.9);
+ const transformedInside=building.localToWorld(new T.Vector3(0,1,0));await step(transformedInside);assert(indoors.visible);
+ assert.deepEqual(building.position.toArray(),[50,4,30]);assert.deepEqual(building.userData.localColliders.filter(c=>c!==undefined).length>0,true);assert.deepEqual(before,[0,0,0]);
+ assert(roof.visible&&roof.castShadow);assert.equal(downloads,1);
+ const other=new T.Group();other.position.x=100;other.userData.building={...building.userData.building};scene.add(other);
+ const otherProp=new T.Group();other.add(otherProp);registerCityInteriorProp(other,otherProp);
+ scene.updateMatrixWorld(true);updateCityInteriorStreaming([building,other],new T.Vector3(100,1,0));
+ assert(otherProp.visible&&!indoors.visible,'Only the occupied interior remains active');
+ assert(outdoors.visible&&roof.visible&&door.visible);
+ console.log('Interior streaming: distant download deferred; approach prepares; opening activates; occupied room stays; exit hides; reopen cached; patio/roof/doors/collisions preserved; separate batches and Build thumbnails OK.');
+}finally{await server.close();}

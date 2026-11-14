@@ -1,3 +1,4 @@
+import {createSelenaInn} from './SelenaInn';
 import {cityStairGeometry} from './CityStairs';
 import { createRoyalPalace } from './RoyalPalace';
 import { PERIMETER_CATALOG } from './CityPerimeter';
@@ -36,6 +37,7 @@ export function createMedievalBuilding(kind:string):T.Group|null {
   if(kind==='palace')return createRoyalPalace();
   if(!MEDIEVAL_CATALOG.some(e=>e.kind===kind)&&kind!=='shop')return null;
   const cached=cache.get(kind); if(cached)return cached.clone(true);
+  if(kind==='inn'){const inn=createSelenaInn();cache.set(kind,inn);return inn.clone(true);}
   const root=new T.Group();root.name=`Cidade:${kind}`;
   const batches=new Map<Mat,T.BufferGeometry[]>();
   const collisions:number[][]=[];
@@ -97,7 +99,7 @@ export function createMedievalBuilding(kind:string):T.Group|null {
     const door=church?h*.5*(2.39/3.14):kind==='warehouse'?5.2:1.7,dh=church?h*.5:kind==='warehouse'?3.8:h*.27+.95;
     root.userData.building={width:w,depth:d,height:h,doorWidth:door,doorHeight:dh,enterable,storeys:twoStoreys?2:1,frontWindows:church?0:4,frontAxis:"+Z"};
     if(enterable){
-      const woodFloor=['tavern','inn','shop','weapons','potions'].includes(kind);
+      const woodFloor=['house','tavern','inn','shop','weapons','potions'].includes(kind);
       if(!woodFloor)box(0,-.04,0,w,.24,d,'stone',false);
       if(woodFloor)woodFloorSurfaces.push([-w/2,-d/2,w/2,d/2,.08]);
       walkSurfaces.push([-w/2,-d/2,w/2,d/2,.08]);
@@ -145,13 +147,20 @@ export function createMedievalBuilding(kind:string):T.Group|null {
         for(const y of (kind==='tavern'?[.125,h-.12]:[.125,h*.52,h-.12])){
           if(y>dh)box(0,y,d/2+offset,width,.25,.16,'wood');
           else for(const sign of [-1,1])box(sign*(width+door)/4,y,d/2+offset,(width-door)/2,.25,.16,'wood');
-          box(0,y,-d/2-offset,width,.25,.16,'wood');
+          if(inside&&enterable&&twoStoreys&&y<h-.5){
+            // Rear wall trim projects into the last tread: stop before the flight.
+            const left=-width/2,right=w/2-2.9-.18;
+            box((left+right)/2,y,-d/2-offset,right-left,.25,.16,'wood');
+          }else box(0,y,-d/2-offset,width,.25,.16,'wood');
           for(const sign of [-1,1])box(sign*(w/2+offset),y,0,.16,.25,depth,'wood');
         }
         // Uprights divide each side into panels, with window clearance handled by box().
         for(const sign of [-1,1])box(sign*(w/2+offset),h/2,0,.16,h,.22,'wood');
         if(inside)for(const x of [-w/2+.6,-door/2-.2,door/2+.2,w/2-.6])box(x,h/2,d/2-.28,.22,h,.16,'wood');
-        if(inside)for(const x of [-w/2+.6,0,w/2-.6])box(x,h/2,-d/2+.28,.22,h,.16,'wood');
+        if(inside)for(const x of [-w/2+.6,0,w/2-.6]){
+          if(enterable&&twoStoreys&&x+.11>w/2-2.9-.18)continue;
+          box(x,h/2,-d/2+.28,.22,h,.16,'wood');
+        }
       }
     }
     // A continuous ceiling closes roof seams and blocks direct sunlight above rooms.
@@ -161,6 +170,7 @@ export function createMedievalBuilding(kind:string):T.Group|null {
       for(const x of [-w*.25,w*.25])box(x,h-.7,0,.28,.3,d-.5,'wood');
     }
     const rw=inn?d:w,rd=inn?w:d,rise=rw*.4,slope=Math.atan2(rise,rw/2),length=Math.hypot(rw/2,rise)+.8;
+    root.userData.weatherPitch={axis:inn?'z':'x',halfWidth:rw/2,eaves:h,rise};
     for(const sign of [-1,1]){
       const g=new T.BoxGeometry(length,.3,rd+1.5);g.rotateZ(-sign*slope);g.translate(sign*rw/4,h+rise/2,0);if(inn)g.rotateY(Math.PI/2);geo(g,'roof',0,0,0);
     }
@@ -172,28 +182,61 @@ export function createMedievalBuilding(kind:string):T.Group|null {
     for(const sign of [-1,1])box(sign*(door/2+.6),2.15,d/2+.5,.23,.4,.23,'gold');
     if(enterable&&!church)box(0,dh+.45,d/2+.4,door+.6,.5,.15,'wood');
     if(enterable&&twoStoreys){
-      const level=h/2,stairX=w/2-1.7,start=d/2-2,end=-d/2+2,run=start-end,steps=20;
+      const landingDepth=2-.225;
+      const level=h/2,start=d/2-2,end=-d/2+.225+landingDepth,run=start-end,steps=20;
+      const originalStairX=w/2-1.7,originalStairWidth=2.4;
+      const edge=originalStairX-originalStairWidth/2,originalOuter=originalStairX+originalStairWidth/2;
+      const outer=w/2-.225,stairWidth=outer-edge,stairX=(edge+outer)/2;
       const addFloor=(x:number,z:number,fw:number,fd:number)=>{const surface=[x-fw/2,z-fd/2,x+fw/2,z+fd/2,level];walkSurfaces.push(surface);woodFloorSurfaces.push(surface);};
-      const edge=stairX-1.2;
-      addFloor((-w/2+.3+edge)/2,0,w-3.2,d-.6);
-      addFloor(stairX,(-d/2+end)/2,2.4,end+d/2);
+      const roomFloorLeft=-w/2+.195;
+      addFloor((roomFloorLeft+edge)/2,0,edge-roomFloorLeft,d-.39);
+      addFloor((edge+w/2+.03)/2,(-d/2+end)/2,w/2+.03-edge,end+d/2);
       // Close the floor around the stair opening all the way to the facade.
-      const outer=stairX+1.2,insideWall=w/2-.225;
-      addFloor((outer+insideWall)/2,0,insideWall-outer,d-.6);
-      addFloor((edge+outer)/2,(start+d/2-.3)/2,outer-edge,d/2-.3-start);
+      // The outer stair edge now meets the inside wall, closing the side gap.
+      addFloor((edge+w/2+.03)/2,(start+d/2-.195)/2,w/2+.03-edge,d/2-.195-start);
       // Geometry and support use identical treads, ascending toward the rear landing.
-      geo(cityStairGeometry(start,end,2.4,0,level,steps,0),'wood',stairX,0,0);
+      // Preserve the original flight; fill only the narrow strip on its wall side.
+      geo(cityStairGeometry(start,end,originalStairWidth,0,level,steps,0),'wood',originalStairX,0,0);
+      const filledOuter=w/2+.03; // Extend into masonry, so no seam can expose the lower floor.
+      geo(cityStairGeometry(start,end,filledOuter-originalOuter,0,level,steps,0),'wood',(originalOuter+filledOuter)/2,0,0);
+      // Continue the final tread to the rear wall without moving the flight.
+      // This is solid stair geometry, independent of asynchronously loaded floor tiles.
+      const lastTreadBack=-d/2-.03,lastTreadFront=end,extensionTop=level-.10;
+      box((edge+filledOuter)/2,extensionTop/2,(lastTreadBack+lastTreadFront)/2,
+        filledOuter-edge,extensionTop,lastTreadFront-lastTreadBack,'wood',false);
+      root.userData.lastTreadExtension={left:edge,right:filledOuter,back:lastTreadBack,front:end,top:extensionTop};
       for(let i=0;i<steps;i++){
         const top=(i+1)*level/steps,z=start-(i+.5)*run/steps;
-        walkSurfaces.push([edge,z-run/steps/2,stairX+1.2,z+run/steps/2,top]);
+        walkSurfaces.push([edge,z-run/steps/2,outer,z+run/steps/2,top]);
       }
-      // Guard the upper-floor opening on three sides; the rear landing stays open.
+      // Palace-style rails sit inside the stair edges, supported by the treads.
+      const stairHandrails:number[][]=[];
+      const landingBay=run/steps,railJoin=end+landingBay;
+      for(const side of [-1,1]){
+        const x=side<0?edge+.10:outer-.10;
+        const a=new T.Vector3(x,1.2,start-.08),b=new T.Vector3(x,level+1.05,railJoin);
+        const beam=new T.BoxGeometry(.14,a.distanceTo(b),.14);
+        beam.applyQuaternion(new T.Quaternion().setFromUnitVectors(new T.Vector3(0,1,0),b.clone().sub(a).normalize()));
+        beam.translate(...a.clone().add(b).multiplyScalar(.5).toArray());geo(beam,'wood',0,0,0);
+        // Posts are seated on the real tread heights, and stop at the handrail.
+        for(const i of [...Array.from({length:steps/2},(_,i)=>i*2),steps-1]){
+          const z=start-run*(i+.5)/steps,base=level*(i+1)/steps;
+          if(z<railJoin)continue;
+          const top=a.y+(b.y-a.y)*(a.z-z)/(a.z-b.z),height=top-base+.02;
+          box(x,base+.015+height/2,z,.14,height,.14,'wood',false);
+        }
+        // Side barriers end at the landing; entry and exit remain completely open.
+        collisions.push([x-.07,0,railJoin,x+.07,level+1.3,start]);
+        stairHandrails.push([x,start,railJoin,0,level,1.05,.14]);
+      }
+      root.userData.stairHandrails=stairHandrails;
+      // Guard only the sides of the upper-floor opening; both stair accesses stay open.
       const railing=(x0:number,z0:number,x1:number,z1:number)=>{
         const length=Math.hypot(x1-x0,z1-z0),alongX=Math.abs(x1-x0)>.001;
         const post=.14,height=1.1,segments=Math.ceil(length/1.15);
         for(let i=0;i<=segments;i++){
           const t=i/segments;
-          box(x0+(x1-x0)*t,level+height/2,z0+(z1-z0)*t,post,height,post,'wood',false);
+          box(x0+(x1-x0)*t,level+.015+height/2,z0+(z1-z0)*t,post,height,post,'wood',false);
         }
         for(const offset of [.5,1.05])box((x0+x1)/2,level+offset,(z0+z1)/2,alongX?length+post:post,.12,alongX?post:length+post,'wood',false);
         // One continuous collider per side keeps the player inside the railing.
@@ -201,20 +244,23 @@ export function createMedievalBuilding(kind:string):T.Group|null {
       };
       const railLeft=edge-.09,railRight=outer+.09,railFront=start+.09;
       // Omit the final bay beside the upper landing, including its collider.
-      const landingBay=2.6;
       railing(railLeft,end+landingBay,railLeft,railFront);
-      railing(railRight,end,railRight,railFront);
-      // Side posts already support the return, so do not duplicate its end posts.
-      box((railLeft+railRight)/2,level+1.05,railFront,railRight-railLeft,.12,.14,'wood',false);
-      box((railLeft+railRight)/2,level+.5,railFront,railRight-railLeft,.12,.14,'wood',false);
-      const returnSegments=Math.ceil((railRight-railLeft)/1.15);
-      for(let i=1;i<returnSegments;i++)box(railLeft+(railRight-railLeft)*i/returnSegments,level+.55,railFront,.14,1.1,.14,'wood',false);
-      collisions.push([railLeft-.07,level,railFront-.07,railRight+.07,level+1.1,railFront+.07]);
+      railing(railRight,railJoin,railRight,railFront);
+      // Close the upper-floor drop at the foot of the flight, beside the window.
+      railing(railLeft,railFront,railRight,railFront);
+      // Short top connections meet the stair rails without moving the guards over the void.
+      for(const [a,b] of [[railLeft,edge+.10],[outer-.10,railRight]])
+        box((a+b)/2,level+1.05,railJoin,b-a,.12,.14,'wood',false);
+      root.userData.stairParapet={left:railLeft,right:railRight,base:level+.015};
+      root.userData.stairRailJoin={z:railJoin,left:railLeft,right:railRight,top:level+1.05};
+      // The upper landing stays open; the return guards only the upper-floor drop.
       // The whole upper storey is one bedroom, open to the stair landing.
       // Keep furniture on the continuous floor, clear of the stair opening.
       const roomLeft=-w/2+.3,roomRight=edge;
       root.userData.upperBedroom={x:(roomLeft+roomRight)/2,z:0,width:roomRight-roomLeft,depth:d-.6,y:level};
-      root.userData.stairPlacement={x:stairX,z:(start+end)/2,width:2.4,height:level,depth:run};
+      root.userData.stairPlacement={x:stairX,z:(start+end)/2,width:stairWidth,height:level,depth:run};
+      root.userData.stairOriginalFlight={x:originalStairX,width:originalStairWidth,start,end,extension:filledOuter-originalOuter};
+      root.userData.stairLanding={left:edge,right:outer,back:-d/2+.225,front:end,y:level};
       root.userData.upperFloor=level;
     }
     if(kind==='potions'||kind==='weapons'||kind==='shop'||guild){

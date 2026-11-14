@@ -1,0 +1,29 @@
+{
+  "gameReplaced": true,
+  "results": [
+    {
+      "variant": "Stand_Vegetables",
+      "originalTriangles": 137570,
+      "triangles": 1368,
+      "meshes": 2,
+      "geometryBytes": 180576,
+      "reductionPercent": 99.00559715054155
+    },
+    {
+      "variant": "Stand_Tools",
+      "originalTriangles": 4198,
+      "triangles": 702,
+      "meshes": 3,
+      "geometryBytes": 92664,
+      "reductionPercent": 83.27775131014769
+    },
+    {
+      "variant": "Stand_Meat",
+      "originalTriangles": 4272,
+      "triangles": 448,
+      "meshes": 3,
+      "geometryBytes": 59136,
+      "reductionPercent": 89.51310861423221
+    }
+  ]
+}

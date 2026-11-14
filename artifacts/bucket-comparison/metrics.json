@@ -1,0 +1,19 @@
+{
+  "original": {
+    "triangles": 406,
+    "vertices": 590,
+    "geometryBytes": 23752,
+    "drawCalls": 2
+  },
+  "prototype": {
+    "triangles": 172,
+    "vertices": 498,
+    "geometryBytes": 15996,
+    "drawCalls": 2
+  },
+  "triangleReductionPercent": 57.63546798029557,
+  "geometryMemoryReductionPercent": 32.65409228696531,
+  "containsWater": true,
+  "woodenHandle": true,
+  "gameReplaced": true
+}

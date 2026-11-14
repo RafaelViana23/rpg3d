@@ -42,6 +42,15 @@ export class GameAudio{
   private noise(duration:number,volume:number,frequency:number){const context=this.context,destination=this.effectDestination();if(!context||!destination)return;const length=Math.ceil(context.sampleRate*duration),buffer=context.createBuffer(1,length,context.sampleRate),data=buffer.getChannelData(0);for(let i=0;i<length;i++)data[i]=(Math.random()*2-1)*(1-i/length);const source=context.createBufferSource(),filter=context.createBiquadFilter(),gain=context.createGain();source.buffer=buffer;filter.type='lowpass';filter.frequency.value=frequency;gain.gain.setValueAtTime(volume,context.currentTime);gain.gain.exponentialRampToValueAtTime(.001,context.currentTime+duration);source.connect(filter).connect(gain).connect(destination);source.start();}
   private tone(frequency:number,duration:number,volume:number,type:OscillatorType='sine'){const context=this.context,destination=this.effectDestination();if(!context||!destination)return;const oscillator=context.createOscillator(),gain=context.createGain();oscillator.type=type;oscillator.frequency.setValueAtTime(frequency,context.currentTime);oscillator.frequency.exponentialRampToValueAtTime(Math.max(30,frequency*.45),context.currentTime+duration);gain.gain.setValueAtTime(volume,context.currentTime);gain.gain.exponentialRampToValueAtTime(.001,context.currentTime+duration);oscillator.connect(gain).connect(destination);oscillator.start();oscillator.stop(context.currentTime+duration);}
   attack(armed:boolean){this.ensureStarted();if(armed){this.noise(.24,.07,2800);this.tone(620,.18,.035,'triangle');}else{this.noise(.11,.045,850);this.tone(105,.09,.025,'sine');}}
+  questAccepted(){
+    this.ensureStarted();const context=this.context!,destination=this.effectDestination()!;
+    for(const [i,frequency] of [523.25,659.25,783.99].entries()){
+      const note=context.createOscillator(),gain=context.createGain(),start=context.currentTime+i*.11;
+      note.type='sine';note.frequency.value=frequency;gain.gain.setValueAtTime(0,start);gain.gain.linearRampToValueAtTime(.065,start+.015);gain.gain.exponentialRampToValueAtTime(.001,start+.4);
+      note.connect(gain).connect(destination);note.start(start);note.stop(start+.42);
+      note.onended=()=>{note.disconnect();gain.disconnect();};
+    }
+  }
   hit(){this.ensureStarted();this.noise(.16,.13,620);this.tone(72,.14,.08,'sine');}
   private playAnimalFile(kind:keyof GameAudio['animalFiles'],volume=1){this.ensureStarted();const audio=new Audio(this.animalFiles[kind]);audio.volume=Math.min(1,this.settings.master*this.settings.effects*volume);void audio.play().catch(()=>{/* A próxima interação libera o áudio. */});}
   animalAttack(kind:'bear'|'puma'|'wolf'){this.playAnimalFile(kind,kind==='wolf'?.16:.2);}

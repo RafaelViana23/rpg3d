@@ -1,7 +1,7 @@
 import {appendStoneBalustrade,finishStoneBalustrades,CITY_BALUSTRADE_MATERIAL} from './StoneBalustrade';
 import { createPrincessPalaceLayout } from './PrincessPalaceRoutine';
 import {createRoyalPalaceInterior} from './RoyalPalaceInterior';
-import {cityStairGeometry} from './CityStairs';
+import {cityStairGeometry,cityStoneStairCount} from './CityStairs';
 import palaceLayout from './royal-palace-layout.json';
 import type { SavedCityObject } from './WorldEditorSupport';
 import type { LowPolyCityBuilder } from './LowPolyCityBuilder';
@@ -49,7 +49,7 @@ export function createRoyalPalace(elevation=ROYAL_PALACE_ELEVATION){
   const cap=new T.CylinderGeometry(radius-.2,radius-.2,.25,16);cap.translate(x,top+.12,z);add(cap,slate);
  };
  const stairs=(front:number,back:number,width:number,from:number,to:number)=>{
-  const count=Math.max(24,Math.ceil((to-from)/.25)),run=(front-back)/count;
+  const count=cityStoneStairCount(from,to),run=(front-back)/count;
   // Cut the final stone tread off at the landing; the paved floor owns this bay.
   const rise=(to-from)/count;
   add(cityStairGeometry(front,back+run,width,from,to-rise,count-1),CITY_PLAIN_STONE_MATERIAL);
@@ -141,8 +141,23 @@ export function createRoyalPalace(elevation=ROYAL_PALACE_ELEVATION){
  const palaceFront=new T.Shape();palaceFront.moveTo(-27,0);palaceFront.lineTo(27,0);palaceFront.lineTo(27,24);palaceFront.lineTo(-27,24);palaceFront.closePath();
  const doorHeight=ROYAL_PRECINCT.portalHeight,spring=doorHeight*.66,rise=doorHeight*.34;
  const opening=new T.Path();opening.moveTo(-6,0);opening.lineTo(-6,spring);opening.absellipse(0,spring,6,rise,Math.PI,0,true,0);opening.lineTo(6,0);opening.closePath();palaceFront.holes.push(opening);
+ const frontWindows=[-18,18].map(x=>({x,width:4,bottom:17,top:25}));
+ for(const window of frontWindows){
+  const left=window.x-window.width/2,right=window.x+window.width/2;
+  const hole=new T.Path();hole.moveTo(left,window.bottom-6);hole.lineTo(right,window.bottom-6);hole.lineTo(right,window.top-6);hole.lineTo(left,window.top-6);hole.closePath();palaceFront.holes.push(hole);
+ }
  const facade=new T.ExtrudeGeometry(palaceFront,{depth:1.6,bevelEnabled:false,curveSegments:32});facade.translate(0,6,9.2);add(facade,stone);
- colliders.push([-27,6,9.2,-6,30,10.8],[6,6,9.2,27,30,10.8]);
+ for(const window of frontWindows){
+  const left=window.x-window.width/2,right=window.x+window.width/2;
+  const outerLeft=window.x<0?-27:6,outerRight=window.x<0?-6:27;
+  colliders.push([outerLeft,6,9.2,left,30,10.8],[right,6,9.2,outerRight,30,10.8],[left,6,9.2,right,window.bottom,10.8],[left,window.top,9.2,right,30,10.8]);
+  box(window.x,(window.bottom+window.top)/2,10,window.width,window.top-window.bottom,.025,windowGlass,true);
+  for(const x of [left,right])box(x,(window.bottom+window.top)/2,10.88,.22,window.top-window.bottom+.22,.22,trim,false);
+  for(const y of [window.bottom,window.top])box(window.x,y,10.88,window.width+.22,.22,.22,trim,false);
+  box(window.x,(window.bottom+window.top)/2,10.9,.12,window.top-window.bottom,.12,gold,false);
+  box(window.x,(window.bottom+window.top)/2,10.9,window.width,.12,.12,gold,false);
+ }
+
  for(let i=0;i<24;i++){const x0=-6+i*.5,x1=x0+.5,y=6+spring+rise*Math.sqrt(Math.max(0,1-Math.max(x0*x0,x1*x1)/36));colliders.push([x0,y,9.2,x1,30,10.8]);}
  for(const sign of [-1,1]){
   // Hollow rooms, continuous floors and roofs; no solid decorative blocks.
@@ -198,13 +213,10 @@ export function createRoyalPalace(elevation=ROYAL_PALACE_ELEVATION){
  // Its textured bottom must never coincide with the smooth ceiling at y=30.
  box(0,37.5,-12,24,13,20);box(0,44,-12,27,1,23,slate);
  for(const z of [-23,-1])crenels(0,z,27,45);for(const x of [-13,13])crenels(x,-12,23,45,false);
- for(const sign of [-1,1])for(const x of [10,20])for(const y of [13,23]){
-  box(sign*x,y,10.9,3.1,6,.35,trim,false);box(sign*x,y,11.12,2.1,4.8,.16,glass,false);
- }
  for(const sign of [-1,1])for(const z of [-20,-8,4]){
   box(sign*54.1,16,z,.3,5.6,2.8,trim,false);box(sign*54.3,16,z,.12,4.5,1.8,glass,false);
  }
- for(const x of [-15,15]){box(x,23,11.1,3,9,.15,red,false);box(x,27.8,11.2,3.6,.3,.4,gold,false);}
+ for(const x of [-8.5,8.5]){box(x,23,11.1,3,9,.15,red,false);box(x,27.8,11.2,3.6,.3,.4,gold,false);}
  // Apply the same extension to visible surfaces and all physical/support bounds.
  for(const [material,parts]of batches)for(const part of parts.slice(keepBatchStart.get(material)??0))part.applyMatrix4(keepTransform).translate(0,elevation,0);
  for(const bounds of colliders.slice(keepColliderStart)){bounds[2]=keepZ(bounds[2]);bounds[5]=keepZ(bounds[5]);bounds[1]+=elevation;bounds[4]+=elevation;}
@@ -231,7 +243,7 @@ export function createRoyalPalace(elevation=ROYAL_PALACE_ELEVATION){
   const concrete=CITY_BALUSTRADE_MATERIAL;
   const cityRailContext={add,colliders,newels:new Set<string>()};
   for(const side of [-1,1]){
-   const x=side*(ROYAL_PRECINCT.portalWidth/2-.35);
+   const x=side*(ROYAL_PRECINCT.portalWidth/2-.24);
    cityStairBalustrades.push(appendStoneBalustrade(cityRailContext,new T.Vector3(x,0,77),new T.Vector3(x,plazaFloor,58),Math.max(24,Math.ceil(plazaFloor/.25))));
    cityStairBalustrades.push(appendStoneBalustrade(cityRailContext,new T.Vector3(x,plazaFloor,58),new T.Vector3(x,plazaFloor,57)));
   }
@@ -258,7 +270,7 @@ export function createRoyalPalace(elevation=ROYAL_PALACE_ELEVATION){
    terraceBalustrades.push({axis,fixed,from,to,bottom:y,height,columns:count-1});
   };
   // Leave the full twelve-metre stair opening plus clearance for its end posts.
-  const railFront=accessLandingFront-.36,railSide=54-.36,stairClearance=5.65;
+  const railFront=accessLandingFront-.36,railSide=54-.36,stairClearance=5.76;
   balustrade('x',railFront,-railSide,-stairClearance);
   balustrade('x',railFront,stairClearance,railSide);
   for(const side of [-1,1])balustrade('z',side*railSide,keepFront+.36,railFront);
@@ -276,9 +288,9 @@ export function createRoyalPalace(elevation=ROYAL_PALACE_ELEVATION){
     const t=i/count,z=front-run*t,foot=supportAt(t),cap=yAt(t)+1.16;
     if(i===0||i===count){const key=`${x},${z}`;if(railNewels.has(key))continue;railNewels.add(key);}
     if((i===0&&startPost)||(i===count&&endPost)){
-     box(x,foot+.09,z,.62,.18,.62,concrete,false);
+     box(x,foot+.09,z,.48,.18,.48,concrete,false);
      box(x,(foot+.18+cap+.24)/2,z,.4,cap+.24-foot-.18,.4,concrete,false);
-     box(x,cap+.33,z,.66,.18,.66,concrete,false);
+     box(x,cap+.33,z,.54,.18,.54,concrete,false);
     }else{
      box(x,foot+.23,z,.34,.1,.34,concrete,false);
      box(x,cap+.06,z,.34,.12,.34,concrete,false);
@@ -296,7 +308,7 @@ export function createRoyalPalace(elevation=ROYAL_PALACE_ELEVATION){
   };
   for(const side of [-1,1]){
    // Seat the plinths on the treads, with the outer caps aligned to the stair edge.
-   const x=side*5.65;
+   const x=side*5.76;
    stairRail(x,47,accessLandingFront,plazaFloor,intermediatePlazaFloor,true,false);
    stairRail(x,accessLandingFront,railFront,intermediatePlazaFloor,intermediatePlazaFloor,false,true);
    stairRail(x,accessLandingBack,keepFront,intermediatePlazaFloor,raisedFloor);
@@ -316,6 +328,45 @@ export function createRoyalPalace(elevation=ROYAL_PALACE_ELEVATION){
  interior.filledHall.bottom+=elevation;interior.filledHall.top+=elevation;
  interior.throne+=elevation;interior.upper+=elevation;
  root.add(interior.root);colliders.push(...interior.colliders);flight.push(...interior.flight);surfaces.push(...interior.surfaces);
+ // Long cypress borders against the palace facade, on the raised terrace.
+ const gardenGrass=new T.MeshLambertMaterial({color:'#42683c'}),gardenSoil=new T.MeshLambertMaterial({color:'#514232'});
+ const foliage=[new T.MeshLambertMaterial({color:'#294c28'}),new T.MeshLambertMaterial({color:'#365b2d'}),new T.MeshLambertMaterial({color:'#416634'})];
+ const bark=new T.MeshLambertMaterial({color:'#62503c'});
+ const gardenTrees:{x:number;y:number;z:number;height:number;radius:number}[]=[];
+ for(const side of [-1,1]){
+  const x=side*30,z=keepFront+2.1,width=42,depth=3.4,y=elevation>0?intermediatePlazaFloor:plazaFloor;
+  root.userData[side<0?'royalGardenLeft':'royalGardenRight']={x,z,width,depth,y:y+.18};
+  box(x,y+.07,z,width,.14,depth,gardenSoil,false);
+  box(x,y+.15,z,width-.5,.06,depth-.5,gardenGrass,false);
+  for(const edge of [-1,1]){
+   box(x,y+.14,z+edge*(depth/2-.12),width,.28,.24,trim,false);
+   box(x+edge*(width/2-.12),y+.14,z,.24,.28,depth-.48,trim,false);
+  }
+  colliders.push([x-width/2,y,z-depth/2,x+width/2,y+.28,z+depth/2]);
+  for(const distance of [14,23,32,41,48]){
+   const tx=side*distance,base=y+.18,height=25+(distance%3),radius=1.1;
+   const trunk=new T.CylinderGeometry(.16,.28,3,9);trunk.translate(tx,base+1.5,z);add(trunk,bark);
+   // One closed crown avoids overlapping shells and split sphere seams.
+   const profile:T.Vector2[]=[];
+   for(let i=0;i<=36;i++){
+    const t=i/36,r=i===36?0:radius*(.3+.7*Math.pow(Math.sin(Math.PI*t),.42))*(1-.62*t);
+    profile.push(new T.Vector2(r,.55+t*(height-.55)));
+   }
+   profile.unshift(new T.Vector2(0,.55));
+   const crown=new T.LatheGeometry(profile,20),position=crown.getAttribute('position');
+   for(let i=0;i<position.count;i++){
+    const px=position.getX(i),py=position.getY(i),pz=position.getZ(i),angle=Math.atan2(pz,px);
+    // Coordinate-based relief keeps duplicated seam vertices coincident.
+    const noise=1+.045*Math.sin(angle*7+py*2.3)+.025*Math.cos(angle*11-py*3.7);
+    position.setXYZ(i,px*noise,py,pz*noise);
+   }
+   crown.computeVertexNormals();crown.translate(tx,base,z);add(crown,foliage[distance%3]);
+   colliders.push([tx-.29,base,z-.29,tx+.29,base+3,z+.29]);
+   gardenTrees.push({x:tx,y:base,z,height,radius});
+  }
+
+ }
+ root.userData.royalGardenTrees=gardenTrees;
  for(const [material,parts]of batches){
   const geometry=mergeGeometries(parts);parts.forEach(g=>g.dispose());if(!geometry)throw Error('Royal masonry merge failed');
   if(material===paving)alignCityPavingUV(geometry);
@@ -325,10 +376,12 @@ export function createRoyalPalace(elevation=ROYAL_PALACE_ELEVATION){
   mesh.userData.cityObject=true;mesh.userData.palaceComplexMesh=true;if(material===paving)mesh.userData.cityPaving=true;root.add(mesh);
  }
  root.userData.cityObject=true;root.userData.palaceComplex=true;root.userData.building={width:132,depth:116,height:52+elevation,doorWidth:20,doorHeight:ROYAL_PRECINCT.portalHeight,enterable:true,storeys:2};
+ root.userData.royalFrontWindows=frontWindows.map(w=>({...w,z:keepZ(10),bottom:w.bottom+elevation,top:w.top+elevation}));
  root.userData.royalGate={y:6+elevation,z:keepZ(10.92),width:12,height:ROYAL_PRECINCT.portalHeight,label:'portão do palácio'};
  root.userData.localColliders=colliders;root.userData.localFlightColliders=flight;root.userData.walkSurfaces=surfaces;root.userData.walkStepHeight=.3;
  root.userData.weatherRoofs=roofs;root.userData.npcRoyalPositions=interior.royalPositions;root.userData.npcRoyalSeats=interior.royalSeats;root.userData.npcRoyalDaughterPosition=[2.3,interior.royalPositions[1][1],interior.royalPositions[1][2]+.5];root.userData.royalArcades=interior.arcades;root.userData.closedGalleryRear=interior.closedGalleryRear;
- root.userData.npcGuardPosts=[[-13,plazaFloor,53],[13,plazaFloor,53],[-18,plazaFloor,46],[18,plazaFloor,46],[-12,elevation>0?intermediatePlazaFloor:plazaFloor,keepFront+3.2],[12,elevation>0?intermediatePlazaFloor:plazaFloor,keepFront+3.2]];
+ root.userData.npcGuardPosts=[[-5.76,plazaFloor,48.1],[5.76,plazaFloor,48.1],[-(ROYAL_PRECINCT.portalWidth/2-.24),0,78.1],[ROYAL_PRECINCT.portalWidth/2-.24,0,78.1],[-5.76,elevation>0?intermediatePlazaFloor:plazaFloor,elevation>0?accessLandingBack+1.1:keepFront+3.2],[5.76,elevation>0?intermediatePlazaFloor:plazaFloor,elevation>0?accessLandingBack+1.1:keepFront+3.2]];
+ root.userData.npcPlazaPatrolRoutes=[-1,1].map(side=>[[side*8,plazaFloor+.02,48.1],[side*40,plazaFloor+.02,48.1],[side*52,plazaFloor+.02,48.1],[side*52,plazaFloor+.02,accessLandingFront+2],[side*40,plazaFloor+.02,accessLandingFront+2],[side*8,plazaFloor+.02,48.1]]);
  root.userData.wingConnections=[{side:-1,x:-27,z:keepZ(-18),width:roomDoorWidth,height:4.42,floor:interior.upper},{side:1,x:27,z:keepZ(-18),width:roomDoorWidth,height:4.42,floor:interior.upper}];
  root.userData.royalSittingRoom={...interior.root.userData.royalSittingRoom,y:interior.upper};
  root.userData.royalLibrary={...interior.root.userData.royalLibrary,y:6.08+elevation};
@@ -342,6 +395,13 @@ export function createRoyalPalace(elevation=ROYAL_PALACE_ELEVATION){
  root.userData.princessPalace=createPrincessPalaceLayout(keepZ,interior.upper,interior.throne,interior.flights,root.userData.npcRoyalDaughterPosition,plazaFloor);
  root.userData.palacePropPlacements=interior.propPlacements.map(p=>({...p,y:p.y+elevation}));
  root.userData.palaceLightPlacements=interior.lightPlacements.map(p=>({...p,y:p.y+elevation}));
+ for(const side of [-1,1]){
+  // City-facing plaza gate: one torch on each solid pier, clear of the arch and banners.
+  root.userData.palaceLightPlacements.push({pack:'wall-torch',x:side*12,y:10+plazaLift,z:57.35,height:1.25,rotation:0,intensity:95,distance:20,persistent:true});
+  for(const x of [8,24,44])root.userData.palaceLightPlacements.push({pack:'wall-torch',x:side*x,y:6.08+elevation+3.2,z:keepFront+.35,height:1.25,rotation:0,intensity:95,distance:20,persistent:true});
+  for(const z of [keepFront-9,keepFront-30])root.userData.palaceLightPlacements.push({pack:'wall-torch',x:side*54.4,y:6.08+elevation+3.2,z,height:1.25,rotation:side*Math.PI/2,intensity:95,distance:20,persistent:true});
+ }
+ root.userData.royalExteriorGardens=true;
  root.userData.princessBedroom=root.userData.princessPalace.room;
  root.userData.princessExteriorWindows=[-23,-15].map(z=>({x:53.2,z:keepZ(z),bottom:17.35+elevation,top:22.3+elevation,width:2.6*keepScale,facing:'east'}));
  root.userData.princessBed=root.userData.princessPalace.bed;

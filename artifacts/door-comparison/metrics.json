@@ -1,0 +1,28 @@
+{
+  "original": {
+    "triangles": 1464,
+    "vertices": 2892,
+    "geometryBytes": 179520,
+    "drawCalls": 1,
+    "bones": 4,
+    "textures": 1
+  },
+  "housePrototype": {
+    "triangles": 292,
+    "drawCalls": 9,
+    "bones": 0,
+    "textures": 0
+  },
+  "churchReference": {
+    "triangles": 280,
+    "vertices": 840,
+    "geometryBytes": 57120,
+    "drawCalls": 1,
+    "bones": 2,
+    "textures": 0
+  },
+  "triangleReductionPercent": 80.05464480874316,
+  "geometryMemoryReductionPercent": null,
+  "gameReplaced": false,
+  "houseDoorOpeningAndCollisionVerified": true
+}

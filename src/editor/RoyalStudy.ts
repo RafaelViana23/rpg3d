@@ -1,3 +1,4 @@
+import {appendCityCurtain} from './CityCurtain';
 import {appendRoyalSeat} from './RoyalSeat';
 import {DEFAULT_CONFIG,ProceduralCharacter} from '../character';
 import {GUARD_ARMOR,armorColor} from '../inventory/armorMaterials';
@@ -5,7 +6,7 @@ import {ITEM_BY_ID} from '../inventory/catalog';
 import * as T from 'three';
 import {mergeGeometries} from 'three/addons/utils/BufferGeometryUtils.js';
 import {CITY_WOOD_MATERIAL as wood} from './CityWood';
-import {appendRoyalPainting,appendRoyalBookcase,appendRoyalChandelier,appendRoyalWoodCeiling} from './RoyalRoomDetails';
+import {addInteractiveRoyalChest,appendRoyalPainting,appendRoyalBookcase,appendRoyalChandelier,appendRoyalWoodCeiling} from './RoyalRoomDetails';
 
 /** West front suite: private study, with the gallery approach kept open. */
 export function createRoyalStudy(floor:number,back:number,front:number){
@@ -82,9 +83,7 @@ export function createRoyalStudy(floor:number,back:number,front:number){
  mannequin.group.position.set(ax,floor+.2,az);mannequin.group.rotation.y=-Math.PI/2;root.add(mannequin.group);
  // Chest backs onto the window wall; its latch faces the room (180 degrees).
  const chestZ=front-.6;
- box(49,.6,chestZ,2.8,1.2,1.5,wood);box(49,1.27,chestZ,2.8,.18,1.5,wood);solid(49,chestZ,2.8,1.4,1.5);
- for(const dx of [-1,1])box(49+dx,.72,chestZ-.77,.15,1.4,.06,gold);
- box(49,.95,chestZ-.81,.22,.3,.08,gold);
+ addInteractiveRoyalChest(root,floor,49,chestZ,solid);
  // Framed royal landscapes share the sitting room's materials and scale.
  for(const painting of [
   {x:52.2,y:4.5,z:center-6,angle:-Math.PI/2,theme:0},
@@ -98,9 +97,8 @@ export function createRoyalStudy(floor:number,back:number,front:number){
  box(sofaX,.72,coffeeZ,3.6,.16,1.8,wood);solid(sofaX,coffeeZ,3.6,.8,1.8);
  for(const dx of [-1.5,1.5])for(const dz of [-.6,.6])box(sofaX+dx,.32,coffeeZ+dz,.15,.64,.15,wood);
  appendRoyalPainting(floor,{x:sofaX,y:4.4,z:front+.02,angle:Math.PI,theme:0},add);
- // Curtains flank the actual front facade opening.
- for(const x of [37.6,43.4]){box(x,3.85,front-.3,.8,5,.12,wine);box(x,2.7,front-.4,.85,.17,.14,gold);}
- box(40.5,6.45,front-.3,7,.12,.12,wood);
+ // Same red curtains as the city and royal bedrooms.
+ appendCityCurtain(40.5,floor+1.35,front-.3,7,5.16,.18,Math.PI,add);
  appendRoyalWoodCeiling(floor,back,front,add);
  const lights=appendRoyalChandelier(floor,back,front,'royal-study-chandelier',(g)=>add(g,iron));
  // The shared chandelier helper supplies metal only; use wrought iron throughout.

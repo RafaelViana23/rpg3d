@@ -1,0 +1,22 @@
+{
+  "original": {
+    "triangles": 838,
+    "vertices": 1077,
+    "geometryBytes": 44520,
+    "drawCalls": 2
+  },
+  "prototype": {
+    "triangles": 324,
+    "vertices": 344,
+    "geometryBytes": 17080,
+    "drawCalls": 2
+  },
+  "triangleReductionPercent": 61.336515513126486,
+  "geometryMemoryReductionPercent": 61.63522012578616,
+  "gameReplaced": true,
+  "iron": {
+    "color": "#59646b",
+    "metalness": 0.8,
+    "roughness": 0.19
+  }
+}

@@ -8,12 +8,17 @@
       .file-warning { min-height: 100vh; display: none; place-items: center; padding: 24px; background: #0d0f10; color: #f4f4f2; font-family: Inter, system-ui, sans-serif; }
       .file-warning div { max-width: 560px; padding: 32px; border: 1px solid #34383a; border-radius: 18px; background: #151719; box-shadow: 0 24px 70px #0008; }
       .file-warning small { color: #a5aaad; font-weight: 700; letter-spacing: .16em; }
+      #startup-loading { position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center; background: #101416; color: #e7e1cf; font: 600 14px system-ui, sans-serif; }
+      #startup-loading span { display: grid; gap: 12px; justify-items: center; }
+      #startup-loading i { width: 18px; height: 18px; border: 2px solid #ffffff30; border-top-color: #d8bd67; border-radius: 50%; animation: startup-spin .8s linear infinite; }
+      @keyframes startup-spin { to { transform: rotate(360deg); } }
       .file-warning h1 { margin: 10px 0; font: 600 32px Georgia, serif; }
       .file-warning p { color: #b8bdbf; line-height: 1.6; }
       .file-warning code { color: #fff; }
     </style>
   </head>
   <body>
+    <div id="startup-loading"><span><i></i><b>Carregando a Cidade…</b><small>O save local continua preservado se o banco estiver indisponível.</small></span></div>
     <div id="app"></div>
     <div class="file-warning" id="file-warning">
       <div>

@@ -14,6 +14,7 @@ export const CITIZEN_REPLIES:Record<string,[string,string]>={
  guilda:['Como devo escolher uma missão?','Você já conheceu muitos aventureiros?'],
  cavalarico:['Você tem montarias para vender?','Como devo cuidar de um cavalo?'],
  taverneira:['O que recomenda para quem vem da estrada?','Ouviu algum rumor dos viajantes?'],
+ 'atendente-pousada':['Você cuida da recepção?','Onde encontro a dona da pousada?'],
  estalajadeira:['Como é a cidade antes do amanhecer?','O que devo cuidar durante a viagem?'],
  alquimista:['Devo cuidar do vigor tanto quanto da saúde?','De onde vêm os ingredientes das poções?'],
  guard:['O que devo fazer se vir algo suspeito?','Mesmo de dia é preciso tomar cuidado?'],

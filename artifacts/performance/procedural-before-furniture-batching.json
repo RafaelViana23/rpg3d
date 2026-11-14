@@ -1,0 +1,161 @@
+{
+  "method": "Static geometry from active GLB scene versus current procedural factories. CPU timings use Node SSR and exclude network, shader compilation and GPU rendering. Mesh counts are before batching and culling; geometry-byte methods differ and are listed separately.",
+  "results": [
+    {
+      "label": "Janela",
+      "pack": "village-window",
+      "module": "CityWindow",
+      "factory": "createCityWindow",
+      "old": {
+        "fileBytes": 28820,
+        "meshes": 1,
+        "triangles": 312,
+        "geometryBufferViewBytes": 24096,
+        "materials": 1,
+        "textures": 2,
+        "joints": 0
+      },
+      "current": {
+        "meshes": 1,
+        "triangles": 84,
+        "geometryTypedArrayBytes": 8064,
+        "materials": 1,
+        "textures": 0,
+        "joints": 0
+      },
+      "triangleReductionPercent": 73.07692307692308,
+      "factoryMedianMs": 0.12783300000000963,
+      "factoryP95Ms": 0.21095800000000509
+    },
+    {
+      "label": "Porta arqueada",
+      "pack": "church-door",
+      "module": "CityChurchDoor",
+      "factory": "createCityChurchDoor",
+      "old": {
+        "fileBytes": 189568,
+        "meshes": 1,
+        "triangles": 1464,
+        "geometryBufferViewBytes": 179520,
+        "materials": 1,
+        "textures": 2,
+        "joints": 4
+      },
+      "current": {
+        "meshes": 1,
+        "triangles": 280,
+        "geometryTypedArrayBytes": 57120,
+        "materials": 1,
+        "textures": 0,
+        "joints": 2
+      },
+      "triangleReductionPercent": 80.87431693989072,
+      "factoryMedianMs": 0.6702089999999998,
+      "factoryP95Ms": 1.2530829999999469
+    },
+    {
+      "label": "Cadeira",
+      "pack": "chair",
+      "module": "CityChair",
+      "factory": "createCityChair",
+      "old": {
+        "fileBytes": 39432,
+        "meshes": 1,
+        "triangles": 428,
+        "geometryBufferViewBytes": 34704,
+        "materials": 1,
+        "textures": 2,
+        "joints": 0
+      },
+      "current": {
+        "meshes": 1,
+        "triangles": 120,
+        "geometryTypedArrayBytes": 8400,
+        "materials": 1,
+        "textures": 0,
+        "joints": 0
+      },
+      "triangleReductionPercent": 71.96261682242991,
+      "factoryMedianMs": 0.10504200000002584,
+      "factoryP95Ms": 0.16279200000008132
+    },
+    {
+      "label": "Cortina",
+      "pack": "curtain",
+      "module": "CityCurtain",
+      "factory": "createCityCurtain",
+      "old": {
+        "fileBytes": 32492,
+        "meshes": 1,
+        "triangles": 372,
+        "geometryBufferViewBytes": 27760,
+        "materials": 1,
+        "textures": 2,
+        "joints": 0
+      },
+      "current": {
+        "meshes": 1,
+        "triangles": 96,
+        "geometryTypedArrayBytes": 6296,
+        "materials": 1,
+        "textures": 0,
+        "joints": 0
+      },
+      "triangleReductionPercent": 74.19354838709677,
+      "factoryMedianMs": 0.1387089999999489,
+      "factoryP95Ms": 0.5932080000000042
+    },
+    {
+      "label": "Mesa do quarto",
+      "pack": "tavern-table",
+      "module": "RoyalTimberTable",
+      "factory": "createRoyalTimberTable",
+      "old": {
+        "fileBytes": 420440,
+        "meshes": 26,
+        "triangles": 6260,
+        "geometryBufferViewBytes": 392856,
+        "materials": 22,
+        "textures": 0,
+        "joints": 0
+      },
+      "current": {
+        "meshes": 5,
+        "triangles": 60,
+        "geometryTypedArrayBytes": 4200,
+        "materials": 1,
+        "textures": 0,
+        "joints": 0
+      },
+      "triangleReductionPercent": 99.04153354632588,
+      "factoryMedianMs": 0.058917000000064945,
+      "factoryP95Ms": 0.14691700000003038
+    },
+    {
+      "label": "Cama (já procedural antes)",
+      "pack": "bed",
+      "module": "RoyalStyleBed",
+      "factory": "createRoyalStyleBed",
+      "old": {
+        "fileBytes": 88564,
+        "meshes": 1,
+        "triangles": 1056,
+        "geometryBufferViewBytes": 83840,
+        "materials": 1,
+        "textures": 2,
+        "joints": 0
+      },
+      "current": {
+        "meshes": 6,
+        "triangles": 72,
+        "geometryTypedArrayBytes": 5040,
+        "materials": 3,
+        "textures": 0,
+        "joints": 0
+      },
+      "triangleReductionPercent": 93.18181818181819,
+      "factoryMedianMs": 0.061542000000031294,
+      "factoryP95Ms": 0.11883399999999256
+    }
+  ]
+}

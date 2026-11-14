@@ -11,6 +11,16 @@ function haloTexture() {
   context.fillStyle=gradient; context.fillRect(0,0,128,128); return new THREE.CanvasTexture(canvas);
 }
 
+export function updateDirectionalShadowBias(light:THREE.DirectionalLight,radius:number){
+  const shadow=light.shadow;
+  const texelSize=radius*2/Math.min(shadow.mapSize.x,shadow.mapSize.y);
+  // A fixed tiny offset leaves PCF samples shadowing the receiving wall itself
+  // at low resolution. Scale with the footprint, capped for thin roofs/walls.
+  shadow.normalBias=THREE.MathUtils.clamp(texelSize*2,.08,.4);
+  // Keep the depth offset in world units as the Build camera widens the map.
+  shadow.bias=-.16/(shadow.camera.far-shadow.camera.near);
+}
+
 export class DayNightSky {
   readonly group=new THREE.Group(); readonly moonLight=new THREE.DirectionalLight("#94b9ff",0); readonly sunDirection=new THREE.Vector3();
   private readonly stars:THREE.Points; private readonly sunDisc:THREE.Mesh; private readonly sunHalo:THREE.Sprite; private readonly moonDisc:THREE.Mesh;
@@ -48,8 +58,7 @@ export class DayNightSky {
       light.target.position.copy(shadowCenter);
       const camera=light.shadow.camera;
       if(camera.right!==radius){camera.left=camera.bottom=-radius;camera.right=camera.top=radius;camera.near=.5;camera.far=distance+radius*2+320;camera.updateProjectionMatrix();}
-      light.shadow.normalBias=.035;
-      light.shadow.bias=-.00008;
+      updateDirectionalShadowBias(light,radius);
       light.castShadow=direction.y>-.08;
     }
     this.sunLight.intensity=daylight*(2.7+Math.max(0,elevation)*2.2)*(1-this.storm*.42); this.sunLight.color.set(twilight>.32?"#ffd09a":"#fff3da");

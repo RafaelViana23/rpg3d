@@ -11,7 +11,8 @@ const coping=cityMasonryMaterial(CITY_STONE_COLOR);
 const treadStone=CITY_PLAIN_STONE_MATERIAL;
 const floorStone=CITY_MERLON_MATERIAL;
 
-export const TOWER_GROUND=.825,TOWER_WALL_LANDING=6.225*3.75/5+.02,TOWER_TOP=10.825;
+// The tower root, base, interior floor and main entrance all use Y=0.
+export const TOWER_GROUND=0,TOWER_WALL_LANDING=6.225*3.75/5+.02,TOWER_TOP=10.825;
 const TAU=Math.PI*2;
 const angleDelta=(a:number,b:number)=>Math.atan2(Math.sin(a-b),Math.cos(a-b));
 let template:T.Group|undefined;
@@ -40,7 +41,7 @@ export function createCityTower(){
   };
   const portalAngles=[Math.PI,5*Math.PI/8,-5*Math.PI/8];
   const halfWidth=.38,halfAngle=Math.asin(halfWidth/3.5);
-  const portals=portalAngles.map((angle,i)=>({angle,bottom:i===0?.8:TOWER_WALL_LANDING,ground:i===0,halfWidth}));
+  const portals=portalAngles.map((angle,i)=>({angle,bottom:i===0?TOWER_GROUND:TOWER_WALL_LANDING,ground:i===0,halfWidth}));
   // Only actual shell faces: no radial partitions or averaged corner normals.
   // Analytic radial normals make adjacent panels read as one smooth cylinder.
   const shell=(a:number,b:number,lowA:number,lowB:number,highA=10.55,highB=10.55)=>{

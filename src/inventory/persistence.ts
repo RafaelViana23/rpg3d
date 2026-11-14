@@ -3,12 +3,19 @@ import defaultInventory from './default-inventory.json';
 import type {PersistedInventory} from './types';
 
 export const INVENTORY_STORAGE_KEY='rpg3d.inventory.v1';
-const initial=():PersistedInventory=>({version:1,swordMaterialsRevision:1,level:1,xp:0,gold:0,hp:100,stamina:50,hunger:100,thirst:100,worldTime:8/24,worldDay:1,weather:'clear',weatherIntensity:.8,quantities:{...Object.fromEntries(INVENTORY_CATALOG.map(item=>[item.id,item.quantity])),...defaultInventory.quantities},equipped:{...defaultInventory.equipped},quickSlots:[...defaultInventory.quickSlots]});
+const initial=():PersistedInventory=>({version:1,animalFoodsRevision:1,swordMaterialsRevision:1,level:1,xp:0,gold:0,hp:100,stamina:50,hunger:100,thirst:100,worldTime:8/24,worldDay:1,weather:'clear',weatherIntensity:.8,quantities:{...Object.fromEntries(INVENTORY_CATALOG.map(item=>[item.id,item.quantity])),...defaultInventory.quantities},equipped:{...defaultInventory.equipped},quickSlots:[...defaultInventory.quickSlots]});
 export function loadInventory():PersistedInventory {
   try {
     const raw=localStorage.getItem(INVENTORY_STORAGE_KEY);
     const saved=JSON.parse(raw||'null') as PersistedInventory|null;
     if(saved?.version===1){
+      if(saved.animalFoodsRevision!==1){
+        saved.quantities['rabbit-meat']=(saved.quantities['rabbit-meat']??0)+(saved.quantities.ragout??0);
+        delete saved.quantities.ragout;
+        if(saved.quickSlots)saved.quickSlots=saved.quickSlots.map(id=>id==='ragout'?'rabbit-meat':id);
+        saved.quantities.fish=(saved.quantities.fish??0)+1;
+        saved.animalFoodsRevision=1;saveInventory(saved);
+      }
       if(saved.swordMaterialsRevision!==1){
         // The old bronze sword was identified by the user as the wooden sword.
         // Keep ownership and equipped hands, and supply the two new metal variants once.
@@ -28,4 +35,22 @@ export function loadInventory():PersistedInventory {
   } catch {/* use defaults */}
   return initial();
 }
-export function saveInventory(state:PersistedInventory){localStorage.setItem(INVENTORY_STORAGE_KEY,JSON.stringify(state));}
+export function saveInventory(state:PersistedInventory){
+  try { localStorage.setItem(INVENTORY_STORAGE_KEY,JSON.stringify(state)); }
+  catch (error) { console.warn('[saves] Não foi possível persistir o inventário local.', error); }
+}
+
+/** Supply the requested kitchen loaf once, preserving existing stock and equipment. */
+export function grantRoyalKitchenBread(state:PersistedInventory){
+ if(state.royalKitchenBreadGranted)return false;
+ state.quantities.bread=(state.quantities.bread??0)+1;
+ state.royalKitchenBreadGranted=true;return true;
+}
+
+/** Give one sample of every hunting meat once, without replacing existing stock. */
+export function grantAnimalMeatSamples(state:PersistedInventory){
+ if(state.animalMeatSamplesGranted)return false;
+ for(const id of ['rabbit-meat','mountain-lion-meat','bear-meat','deer-meat','wolf-meat','chicken-meat'])
+  state.quantities[id]=(state.quantities[id]??0)+1;
+ state.animalMeatSamplesGranted=true;return true;
+}

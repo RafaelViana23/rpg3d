@@ -1,0 +1,128 @@
+{
+  "moves": [
+    {
+      "id": "medieval-perimeter-v1-guardhouse-leste",
+      "kind": "guardhouse",
+      "perimeterLayoutRevision": 2,
+      "layer": "Cidade Principal",
+      "position": [
+        -31.34362190175809,
+        18,
+        -179.08881217429055
+      ],
+      "rotation": [
+        0,
+        -1.2472452343336433,
+        0
+      ],
+      "scale": [
+        1.0000004944546366,
+        1.0000004944546366,
+        1.0000004944546366
+      ]
+    },
+    {
+      "id": "medieval-perimeter-v1-guardhouse-oeste",
+      "kind": "guardhouse",
+      "perimeterLayoutRevision": 2,
+      "layer": "Cidade Principal",
+      "position": [
+        31.1618385695347,
+        18,
+        208.60693883474215
+      ],
+      "rotation": [
+        0,
+        1.8943474192561502,
+        0
+      ],
+      "scale": [
+        1.0000004944546366,
+        1.0000004944546366,
+        1.0000004944546366
+      ]
+    },
+    {
+      "id": "military-guardhouse-capital-octagon-gate-7-2",
+      "kind": "guardhouse",
+      "perimeterLayoutRevision": 2,
+      "layer": "Cidade Principal",
+      "position": [
+        -173.5909020257878,
+        18,
+        106.69098591421668
+      ],
+      "rotation": [
+        0,
+        -2.8180415611285428,
+        0
+      ],
+      "scale": [
+        1.0000004944546366,
+        1.0000004944546366,
+        1.0000004944546366
+      ]
+    },
+    {
+      "id": "medieval-perimeter-v1-training-yard-norte",
+      "kind": "training-yard",
+      "layer": "Cidade Principal",
+      "position": [
+        144.66467205272065,
+        18,
+        147.63053044202925
+      ],
+      "rotation": [
+        0,
+        3.4651437460510457,
+        0
+      ],
+      "scale": [
+        1.0000004944546366,
+        1.0000004944546366,
+        1.0000004944546366
+      ]
+    },
+    {
+      "id": "medieval-perimeter-v1-stable-sul",
+      "kind": "stable",
+      "layer": "Cidade Principal",
+      "position": [
+        187.47685061889325,
+        18,
+        39.40337411600291
+      ],
+      "rotation": [
+        0,
+        3.4651437460510457,
+        0
+      ],
+      "scale": [
+        1.0000004944546366,
+        1.0000004944546366,
+        1.0000004944546366
+      ]
+    },
+    {
+      "id": "medieval-perimeter-v1-military-store-nordeste",
+      "kind": "military-store",
+      "perimeterLayoutRevision": 3,
+      "layer": "Cidade Principal",
+      "position": [
+        97.53143803769255,
+        18,
+        139.17723219314442
+      ],
+      "rotation": [
+        0,
+        1.8943474192561491,
+        0
+      ],
+      "scale": [
+        1.0000004944546366,
+        1.0000004944546366,
+        1.0000004944546366
+      ]
+    }
+  ]
+}

@@ -63,10 +63,17 @@ export function courtyardWellSites(objects:Iterable<T.Group>){
   return selected;
 }
 
-export function addCourtyardWells(objects:Iterable<T.Group>){
+/**
+ * Wells are deliberately mounted in the city root, never under the house that
+ * suggested their courtyard position.  This keeps them independent Build
+ * objects: moving/deleting a house must not move/delete its well.
+ */
+export function addCourtyardWells(objects:Iterable<T.Group>, cityRoot?:T.Object3D){
   const all=[...objects];
   addCourtyardClutter(all);
-  if(all.some(o=>o.getObjectByName('Poço do pátio')))return;
+  const root=cityRoot??all[0]?.parent;
+  if(!root)return;
+  if(all.some(o=>o.getObjectByName('Poço do pátio'))||root.children.some(o=>o.name==='Poço do pátio'))return;
   for(const {owner,point} of courtyardWellSites(all)){
     void loadCityPropTemplate('well-cover').then(template=>{
       if(!owner.parent)return;
@@ -74,12 +81,18 @@ export function addCourtyardWells(objects:Iterable<T.Group>){
       owner.updateWorldMatrix(true,false);
       const scale=owner.getWorldScale(new T.Vector3()),factor=4.2/Math.max(height,.001);
       well.scale.set(factor/Math.abs(scale.x),factor/Math.abs(scale.y),factor/Math.abs(scale.z));
-      well.position.copy(owner.worldToLocal(point.clone()));well.name='Poço do pátio';
+      // Convert the candidate world point into the city-root coordinate space;
+      // do not parent the well to `owner` (the house).
+      root.updateWorldMatrix(true,false);
+      well.position.copy(root.worldToLocal(point.clone()));well.name='Poço do pátio';
       well.userData.cityObject=true;well.userData.sharedCityGeometry=true;
       well.userData.assetSource='/models/city/props/well-cover.glb';
-      well.updateMatrixWorld(true);const bounds=new T.Box3().setFromObject(well);
-      owner.userData.localColliders.push([...bounds.min.toArray(),...bounds.max.toArray()]);
-      owner.add(well);owner.userData.colliderRevision=(owner.userData.colliderRevision??0)+1;
+      well.userData.buildEditable=true;
+      well.userData.generatedWell=true;
+      well.userData.ownerCityId=owner.userData.cityId;
+      well.userData.cityId=`${owner.userData.cityId ?? owner.userData.buildId ?? 'city'}:well:${Math.round(point.x*10)}:${Math.round(point.z*10)}`;
+      well.updateMatrixWorld(true);
+      root.add(well);
     }).catch(error=>console.error('Não foi possível carregar poço do pátio',error));
   }
 }

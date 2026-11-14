@@ -1,17 +1,13 @@
 // Biomes own their catalog and editor folder. New packs can add entries here.
 export const FOREST_ASSETS = {
   folder: "Floresta",
-  trees: "/models/biomes/Floresta/arvores.glb",
   grass: "/models/biomes/Floresta/grama.glb",
   rocks: { source: "/models/environment/medieval-castle/model.glb", nodePattern: /^Rock(?:_\d+)?$/ },
 } as const;
 
 export const SNOW_ASSETS = {
   folder: "Neve",
-  sources: [
-    { url: "/models/biomes/Neve/fir_tree_set_with_snow.glb", nodes: ["FirTreeSnowC"], label: "Pinheiro com neve", zone: "transition" },
-    { url: "/models/biomes/Neve/treesnow_low_poly.glb", nodes: [""], label: "Pinheiro cheio de neve", zone: "interior" },
-  ],
+
 } as const;
 
 export const DESERT_ASSETS = {

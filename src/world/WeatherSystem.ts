@@ -57,7 +57,8 @@ export class WeatherSystem{
           roofAt?.(center.x+this.rainPositions[offset+3],center.z+this.rainPositions[offset+5])??-Infinity,
         );
         if(center.y+this.rainPositions[offset+4]<=roof){
-          const lift=roof-center.y+1.1-this.rainPositions[offset+4];
+          // Recycle across the rain column instead of stacking impacts in a roof-level band.
+          const lift=roof-center.y+1.1+Math.random()*this.rainHeight-this.rainPositions[offset+4];
           this.rainPositions[offset+1]+=lift;this.rainPositions[offset+4]+=lift;
         }
       }
@@ -71,7 +72,8 @@ export class WeatherSystem{
         this.snowPositions[offset+2]-=dz;
         if(Math.abs(this.snowPositions[offset])>12||Math.abs(this.snowPositions[offset+2])>12||this.snowPositions[offset+1]<0)this.resetSnow(index);
         const roof=roofAt?.(center.x+this.snowPositions[offset],center.z+this.snowPositions[offset+2])??-Infinity;
-        this.snowPositions[offset+1]=Math.max(this.snowPositions[offset+1],roof-center.y+1);
+        if(center.y+this.snowPositions[offset+1]<=roof)
+          this.snowPositions[offset+1]=roof-center.y+1+Math.random()*12;
       }
       this.snow.geometry.attributes.position.needsUpdate=true;
     }

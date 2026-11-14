@@ -1,4 +1,4 @@
-import { STEEL_ARMOR_COLOR, IRON_ARMOR_COLOR, IRON_METALNESS, IRON_ROUGHNESS, METAL_ENVIRONMENT } from './inventory/armorMaterials';
+import { STEEL_ARMOR_COLOR, IRON_ARMOR_COLOR, IRON_METALNESS, IRON_ROUGHNESS } from './inventory/armorMaterials';
 import * as THREE from "three";
 import {
   AnimationController,
@@ -26,6 +26,12 @@ export type CharacterConfig = {
   height: number;
 };
 
+// Sides follow the character rig; inventory leftHand is attached to rig right.
+export const DEFAULT_SHIELD_TRANSFORMS = {
+  right: { position: [0.02, 0.22, -0.16], rotation: [12, -215, 0], scale: 0.6 },
+  left: { position: [-0.01, 0.22, -0.16], rotation: [0, 198, 0], scale: 0.6 },
+};
+
 export type HeldItem = "espada" | "escudo" | "pocao" | "magico" | "nenhum";
 
 export const DEFAULT_CONFIG: CharacterConfig = {
@@ -46,7 +52,6 @@ const SHOULDER_HEIGHT_OFFSET = .06;
 const mat = (hex: string, metalness = 0, roughness = metalness ? 0.34 : 0.78) =>
   new THREE.MeshStandardMaterial({
     color: hex,
-    envMap: metalness > 0 || hex === IRON_ARMOR_COLOR ? METAL_ENVIRONMENT : null,
     roughness: hex === IRON_ARMOR_COLOR ? IRON_ROUGHNESS : roughness,
     metalness: hex === IRON_ARMOR_COLOR ? IRON_METALNESS : metalness,
     flatShading: true,
@@ -389,7 +394,7 @@ export class ProceduralCharacter {
       for (const material of [this.wardrobe.coat, this.wardrobe.sleeves]) {
         material.metalness = equipped && item === 'ironShirt' ? IRON_METALNESS : 0;
         material.roughness = equipped && item === 'ironShirt' ? IRON_ROUGHNESS : .78;
-        material.envMap = equipped && item === 'ironShirt' ? METAL_ENVIRONMENT : null;
+        material.envMap = null;
         material.needsUpdate = true;
       }
       this.wardrobe.nipples.forEach((nipple) => (nipple.visible = !equipped));
@@ -492,6 +497,16 @@ export class ProceduralCharacter {
       this.equipLeftHand(equipped ? "escudo" : "nenhum");
     else if (item === "skirt" && this.wardrobe.skirt)
       this.wardrobe.skirt.visible = equipped;
+    // Cloth trousers continue to the ankles when no boot shaft covers the calf.
+    const longPants=(this.equippedState.get("pants")||this.equippedState.get("armorPants"))
+      &&!this.equippedState.get("boots")&&!this.equippedState.get("armorBoots");
+    for(const side of ["L","R"]){
+      const leg=this.group.getObjectByName(`bodySkin.leg.${side}`);
+      if(leg instanceof THREE.Mesh&&Array.isArray(leg.material)){
+        leg.material=[...leg.material];
+        leg.material[1]=longPants?this.wardrobe.trousers:this.wardrobe.boots;
+      }
+    }
   }
   private restoreRestOutfit?:()=>void;
   /** Temporary visual change; inventory and saved equipment are untouched. */
@@ -558,7 +573,7 @@ export class ProceduralCharacter {
       const iron=color.toLowerCase()===IRON_ARMOR_COLOR;
       material.metalness=leather?0:steel?.82:iron?IRON_METALNESS:.7;
       material.roughness=leather?.78:steel?.16:iron?IRON_ROUGHNESS:.3;
-      material.envMap=leather?null:METAL_ENVIRONMENT;
+      material.envMap=null;
       material.needsUpdate=true;
     };
     const recolor = (object: THREE.Object3D) =>
@@ -714,6 +729,45 @@ export class ProceduralCharacter {
       !this.swordsSheathed && this.rightItem === "espada",
     );
   }
+  getShieldTransform(side: "left" | "right") {
+    const grip = side === "right" ? this.rightGrip : this.leftGrip;
+    const shield = grip.getObjectByName("equipment.procedural-shield");
+    if (!shield) return null;
+    return {
+      position: shield.position.toArray(),
+      rotation: [shield.rotation.x, shield.rotation.y, shield.rotation.z].map(THREE.MathUtils.radToDeg),
+      scale: shield.scale.x,
+    };
+  }
+  getSavedShieldTransform(side: "left" | "right") {
+    const sign = side === "right" ? 1 : -1;
+    const fallback = structuredClone(DEFAULT_SHIELD_TRANSFORMS[side]);
+    try {
+      const own = JSON.parse(localStorage.getItem(`rpg3d.shieldTransform.${side}`) ?? "null");
+      const shared = JSON.parse(localStorage.getItem("rpg3d.shieldTransform") ?? "null");
+      const saved = own ?? shared;
+      if (saved && Array.isArray(saved.position) && saved.position.length === 3
+        && Array.isArray(saved.rotation) && saved.rotation.length === 3
+        && [...saved.position, ...saved.rotation, saved.scale].every((v: unknown) => typeof v === "number" && Number.isFinite(v))) {
+        return own ? saved : {
+          position: [shared.position[0] * sign, shared.position[1], shared.position[2]],
+          rotation: [shared.rotation[0], shared.rotation[1] * sign, shared.rotation[2] * sign],
+          scale: shared.scale,
+        };
+      }
+    } catch { /* Preserve the default when tuning is invalid. */ }
+    return fallback;
+  }
+  setShieldTransform(position: number[], rotation: number[], scale: number, side: "left" | "right") {
+    if (position.length !== 3 || rotation.length !== 3
+      || ![...position, ...rotation, scale].every(Number.isFinite)) return;
+    const grip = side === "right" ? this.rightGrip : this.leftGrip;
+    const shield = grip.getObjectByName("equipment.procedural-shield");
+    if (!shield) return;
+    shield.position.fromArray(position);
+    shield.rotation.set(...rotation.map(THREE.MathUtils.degToRad) as [number, number, number]);
+    shield.scale.setScalar(Math.max(0.1, scale));
+  }
   getScabbardTransform() {
     const side = this.scabbards.right
       ? "right"
@@ -818,6 +872,26 @@ export class ProceduralCharacter {
       this.rightItem === "espada",
     );
     this.clearObject(grip);
+    const forearm = side === "right" ? this.rightForearm : this.leftForearm;
+    const oldStrap = forearm.getObjectByName("equipment.shieldStrap");
+    if (oldStrap) {
+      this.clearObject(oldStrap);
+      oldStrap.removeFromParent();
+    }
+    if (model && kind === "shield") {
+      const sideSign = side === "right" ? 1 : -1;
+      const strap = new THREE.Group();
+      strap.name = "equipment.shieldStrap";
+      strap.position.set(sideSign * 0.025, -0.22, 0.015);
+      const leather = mat("#4a2818", 0, 0.85);
+      leather.side = THREE.DoubleSide;
+      const band = shadow(new THREE.Mesh(
+        new THREE.CylinderGeometry(0.104, 0.097, 0.07, 16, 1, true), leather,
+      ));
+      strap.add(band);
+      box(strap, 0.045, 0.052, 0.016, 0, 0, 0.106, mat("#8b7959", 0.65, 0.4));
+      forearm.add(strap);
+    }
     // Keep the grip at the exact scale calibrated in Hand Lab. Scaling the
     // whole weapon here also shrank and displaced the handle relative to the
     // saved finger pose, even though the shared socket itself was correct.
@@ -833,7 +907,17 @@ export class ProceduralCharacter {
       // authored for one side. Magical riding items keep their authored
       // direction so a broom does not point backwards in the opposite hand.
       if (side === "left" && kind === "weapon") held.scale.x *= -1;
+      if (kind === "shield") {
+        const fit = DEFAULT_SHIELD_TRANSFORMS[side];
+        held.scale.setScalar(fit.scale);
+        held.rotation.set(...fit.rotation.map(THREE.MathUtils.degToRad) as [number, number, number]);
+        held.position.fromArray(fit.position);
+      }
       grip.add(held);
+      if (kind === "shield") {
+        const saved = this.getSavedShieldTransform(side);
+        this.setShieldTransform(saved.position, saved.rotation, saved.scale, side);
+      }
       if (kind === "weapon") {
         model.updateMatrixWorld(true);
         let bladeMesh: THREE.Mesh | undefined,
@@ -2125,6 +2209,29 @@ export class ProceduralCharacter {
         shade,
       );
     this.parts.scale.setScalar(config.height);
+    // Hair experiment: use the dress's continuous weighted SkinnedMesh technique.
+    // Keep the approved silhouette, colour and hood visibility on the same object.
+    if(feminine&&!config.helmetHair&&config.hairStyle==='longo'&&this.hoodCoveredHair instanceof THREE.Mesh){
+      const original=this.hoodCoveredHair,geometry=original.geometry;
+      const positions=geometry.getAttribute('position'),indices:number[]=[],weights:number[]=[];
+      for(let i=0;i<positions.count;i++){
+        const y=positions.getY(i);
+        const headWeight=THREE.MathUtils.smoothstep(y,1.65,2.35);
+        const chestWeight=(1-headWeight)*(1-THREE.MathUtils.smoothstep(y,1.3,1.95))*.65;
+        indices.push(0,1,2,0);weights.push(headWeight,1-headWeight-chestWeight,chestWeight,0);
+      }
+      geometry.setAttribute('skinIndex',new THREE.Uint16BufferAttribute(indices,4));
+      geometry.setAttribute('skinWeight',new THREE.Float32BufferAttribute(weights,4));
+      const articulated=new THREE.SkinnedMesh(geometry,original.material);
+      articulated.name=original.name;articulated.position.copy(original.position);
+      articulated.quaternion.copy(original.quaternion);articulated.scale.copy(original.scale);
+      articulated.castShadow=original.castShadow;articulated.receiveShadow=original.receiveShadow;
+      articulated.userData.hairMovementExperiment=true;articulated.frustumCulled=false;
+      original.parent!.add(articulated);original.removeFromParent();
+      this.group.updateMatrixWorld(true);
+      articulated.bind(new THREE.Skeleton([this.head,this.neck,this.chest]));
+      this.hoodCoveredHair=articulated;
+    }
     this.equipRightHand("espada");
     this.equipLeftHand(config.className === "Guardião" ? "escudo" : "nenhum");
     if (this.leftHandAnimator && this.rightHandAnimator) {

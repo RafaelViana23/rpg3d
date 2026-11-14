@@ -78,7 +78,7 @@ export function createRoyalPalaceInterior(z:(value:number)=>number,front:number)
   }
   // Classical stone railings share the exterior style and rest on the outer treads.
   for(const side of [-1,1]){
-   const offset=new T.Vector3(side*(width/2-.35),0,0).applyAxisAngle(new T.Vector3(0,1,0),angle);
+   const offset=new T.Vector3(side*(width/2-.24),0,0).applyAxisAngle(new T.Vector3(0,1,0),angle);
    balustrades.push(appendStoneBalustrade(railContext,start.clone().add(offset),end.clone().add(offset),count));
   }
   return {start:start.toArray(),end:end.toArray(),width,count};
@@ -92,14 +92,14 @@ export function createRoyalPalaceInterior(z:(value:number)=>number,front:number)
  flight.push([-halfHall,ground,back,halfHall,throne,platformFront]);
  // The narrow step allowance keeps the last riser climbable while sealing the base.
  colliders.push([-halfHall,ground,back,halfHall,throne-.35,platformFront]);
- rail(-halfHall,platformFront,-4.65,platformFront,throne);
- rail(4.65,platformFront,halfHall,platformFront,throne);
+ rail(-halfHall,platformFront,-4.76,platformFront,throne);
+ rail(4.76,platformFront,halfHall,platformFront,throne);
  for(const side of [-1,1])flights.push(stair(new T.Vector3(side*7,throne,branchZ),new T.Vector3(side*22,upper,branchZ),branchWidth));
  // Open arcades support the lateral galleries.
  const sideFront=z(9.2);
  deck(-26.2,-22,back,sideFront,upper);deck(22,26.2,back,sideFront,upper);
  for(const side of [-1,1]){
-  rail(side*22,branchZ+branchWidth/2-.35,side*22,sideFront,upper);
+  rail(side*22,branchZ+branchWidth/2-.24,side*22,sideFront,upper);
   const lo=side<0?-52.4:27.8,hi=side<0?-27.8:52.4;
   deck(lo,hi,z(-27),front-1.3,upper);
   // Doorway paving stops exactly at the bedroom floor, without coplanar overlap.
@@ -180,7 +180,8 @@ export function createRoyalPalaceInterior(z:(value:number)=>number,front:number)
  const closureEnd=(pillarZ.find(zz=>zz>platformFront)??platformFront)+.4;
  for(const side of [-1,1])box(side*24.075,(ground+upper-.3)/2,(back+closureEnd)/2,4.25,upper-.3-ground,closureEnd-back,CITY_STONE_MATERIAL,true);
  for(const side of [-1,1]){
-  const x=side*22.35;
+  // Share the balustrade centreline: its .66 m caps stay inside the .8 m pillars.
+  const x=side*22;
   for(const zz of pillarZ)for(const [bottom,top]of [[ground,upper-.3],[upper,30]]){
    if(bottom===ground&&zz<=closureEnd)continue;
    box(x,(bottom+top)/2,zz,.8,top-bottom,.8,CITY_MERLON_MATERIAL,true);

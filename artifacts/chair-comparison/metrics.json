@@ -1,0 +1,18 @@
+{
+  "original": {
+    "triangles": 428,
+    "vertices": 924,
+    "geometryBytes": 34704,
+    "drawCalls": 1
+  },
+  "prototype": {
+    "triangles": 120,
+    "vertices": 240,
+    "geometryBytes": 8400,
+    "drawCalls": 1
+  },
+  "triangleReductionPercent": 71.96261682242991,
+  "geometryMemoryReductionPercent": 75.79529737206086,
+  "sameDimensions": true,
+  "gameReplaced": true
+}

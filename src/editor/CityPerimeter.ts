@@ -17,7 +17,6 @@ export const PERIMETER_CATALOG=[
   {kind:'training-yard',label:'Pátio de treino'}, {kind:'military-store',label:'Depósito militar'},
   {kind:'tollhouse',label:'Posto de cobrança'}, {kind:'repair-workshop',label:'Oficina de manutenção'},
   {kind:'smithy',label:'Ferraria'}, {kind:'wagon-shelter',label:'Abrigo de carroças'},
-  {kind:'wall-shrine',label:'Capela dos viajantes'},
 ] as const;
 const mats={wood:CITY_WOOD_MATERIAL,stone:new T.MeshLambertMaterial({color:'#aaa99c'}),
   roof:new T.MeshLambertMaterial({color:'#975b40'}),iron:new T.MeshLambertMaterial({color:'#454e56'}),
@@ -152,12 +151,9 @@ export function seedCityPerimeter(saved:Record<string,SavedCityObject>,builder:L
   const scale=Math.min(...towers.map(o=>Math.hypot(o.position.x-cx,o.position.z-cz)))/225.382;
   const apothem=Math.min(...towers.map(o=>Math.hypot(o.position.x-cx,o.position.z-cz)))*Math.cos(Math.PI/8);
   const plans:[CityAssetKind,string,number,number][]=[
-    ['guardhouse','leste',Math.PI/2,-35],['guardhouse','oeste',-Math.PI/2,-35],
     ['stable','sul',0,-48],['training-yard','norte',Math.PI,10],
-    ['military-store','nordeste',Math.PI*.75,35],['tollhouse','leste',Math.PI/2,25],
-    ['tollhouse','oeste',-Math.PI/2,25],['tollhouse','sul',0,25],
+    ['military-store','nordeste',Math.PI*.75,35],
     ['repair-workshop','noroeste',-Math.PI*.75,35],['smithy','sudeste',Math.PI*.25,35],
-    ['wall-shrine','sudoeste',-Math.PI*.25,0],
     
   ];
   const corners=(x:number,z:number,a:number,w:number,d:number)=>[-1,1].flatMap(i=>[-1,1].map(j=>new T.Vector2(x+i*w/2*Math.cos(a)+j*d/2*Math.sin(a),z-i*w/2*Math.sin(a)+j*d/2*Math.cos(a))));

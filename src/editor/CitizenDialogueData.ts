@@ -1,4 +1,5 @@
 export const CITIZEN_DIALOGUE_DATA:Record<string,{lines:string[];mission:string}>={
+  nobre:{lines:['Moro no Distrito Nobre. É um prazer receber sua visita.','Gosto de passear por estas ruas antes do anoitecer.','Uma boa reputação vale tanto quanto uma fortuna.'],mission:'Por enquanto, não preciso de nenhum favor. Aproveite sua visita ao distrito.'},
   "rei": {
     "lines": [
       "Seja bem-vindo ao meu castelo, viajante. O que o traz diante do trono?",

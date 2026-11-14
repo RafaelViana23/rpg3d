@@ -1,0 +1,10 @@
+{
+  "method": "Node CPU benchmark; static shells and exact transforms from repository default map; no live save, GLB props, GPU or FPS measurement.",
+  "buildings": 180,
+  "shapes": 39037,
+  "queries": 4096,
+  "coldMs": 73.56358300000011,
+  "medianMs": 43.52458300000035,
+  "p95Ms": 46.319666000000325,
+  "checksum": "774d5424508e9227ab7d82097bf09503ee950fb4fa4391ac6dcd7b874d57837b"
+}

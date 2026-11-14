@@ -25,7 +25,7 @@ try{
   json.buffers[0].uri=`data:application/octet-stream;base64,${data.subarray(20+length+8).toString('base64')}`;
   const gltf=await new GLTFLoader().parseAsync(JSON.stringify(json),'');return piece?gltf.scene.getObjectByName(piece):gltf.scene;
  }
- placeRoyalKitchenStorage(palace,await load('box-low-poly'),await load('farm','Barrel'),{table:await load('tavern-round-table'),bottles:await Promise.all(['green','brown','yellow'].map(c=>load(`tavern-bottle-${c}`)))});
+ placeRoyalKitchenStorage(palace,await load('box-low-poly'),await load('farm','Barrel'),{table:await load('royal-timber-table'),bottles:await Promise.all(['green','brown','yellow'].map(c=>load(`tavern-bottle-${c}`)))});
  const layout=palaceStaffLayout(palace);
  for(const citizen of staff){
   const pos=palace.localToWorld(new Vector3(...layout.nodes.cityEntry)),routine=new PalaceStaffRoutine();

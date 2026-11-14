@@ -82,3 +82,21 @@ assert.equal(remote.revision, 0, 'Empty browser must never seed a default automa
 remote = savedRemote;
 assert.ok(Object.keys(captureSave(storage,'test').entries).every(k=>!k.startsWith('rpg3d.cloud.')));
 console.log('Database saves: migration, hydration, manual Build commit, runtime autosave, offline retry, conflict and default protection passed.');
+// A full browser backup quota must not leave the game silently on an old map.
+const fullStorage=new MemoryStorage();
+fullStorage.setItem('rpg3d.worldBuilder.v1',map);
+fullStorage.setItem('rpg3d.cloud.backup.old','exact old snapshot');
+const normalSet=fullStorage.setItem.bind(fullStorage);
+fullStorage.setItem=(key,value)=>{
+  if(key.startsWith('rpg3d.cloud.backup.')&&fullStorage.getItem('rpg3d.cloud.backup.old'))throw new DOMException('Full','QuotaExceededError');
+  normalSet(key,value);
+};
+let archived;
+await new DatabaseSaves({...options,storage:fullStorage,request:async(url,init)=>{
+  if(url.endsWith('/archive-backups')){archived=JSON.parse(init.body);return Response.json({ok:true});}
+  return request(url,init);
+}}).initialize();
+assert.equal(archived['rpg3d.cloud.backup.old'],'exact old snapshot');
+assert.equal(fullStorage.getItem('rpg3d.cloud.backup.old'),null);
+assert.equal(fullStorage.getItem('rpg3d.worldBuilder.v1'),editedMap);
+console.log('Full browser quota: archives preserved and committed map loaded.');
