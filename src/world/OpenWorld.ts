@@ -4,8 +4,7 @@ import {createWorldPine} from './WorldPine';
 import { CITY_WOOD_COLOR } from '../editor/CityWood';
 import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
-import { createWorldAssetLoader } from "./WorldAssetLighting";
-import { FOREST_ASSETS, SNOW_ASSETS, DESERT_ASSETS, TERRAIN_BIOME_FOLDERS } from "./biomeAssets";
+import { FOREST_ASSETS, SNOW_ASSETS, SAND_ASSETS, TERRAIN_BIOME_FOLDERS } from "./biomeAssets";
 import { arenaTerrainFillAt } from "./ArenaTerrainLayout";
 import { mountainReliefAt } from "./MountainTerrain";
 import type { ForestErasure, SavedBuildAsset, SavedTerrainChunk, TerrainMaterial } from "../editor/WorldEditorSupport";
@@ -25,7 +24,7 @@ export type TerrainBrushMode = "raise" | "lower" | "flatten" | "plateau" | "hill
 export type ForestBrushKind = "mixed" | "trees" | "grass" | "rocks";
 export type TerrainBrush = { mode: TerrainBrushMode; radius: number; strength: number; shape: "circle" | "square"; material: TerrainMaterial };
 export const ARENA_REGIONS = [
-  ["Cidade Inicial",0,0,160],["Planícies Centrais",-350,350,280],["Floresta de Horunka",-450,-250,230],["Vila Horunka",-300,-100,65],["Alpes de Neve",-550,-700,280],["Bioma de Neve",650,-180,220],["Montanhas de Aincrad",350,-700,350],["Região dos Lagos",450,150,230],["Tolbana",250,550,110],["Deserto",-750,300,200],["Porto",750,550,90],
+  ["Cidade Inicial",0,0,160],["Planícies Centrais",-350,350,280],["Floresta de Horunka",-450,-250,230],["Vila Horunka",-300,-100,65],["Alpes de Neve",-550,-700,280],["Bioma de Neve",650,-180,220],["Montanhas de Aincrad",350,-700,350],["Região dos Lagos",450,150,230],["Tolbana",250,550,110],["Areia",-750,300,200],["Porto",750,550,90],
 ] as const;
 // Fine terrain grid: paint circles must be represented by the terrain itself,
 // not by large low-poly cells.
@@ -48,11 +47,13 @@ function normalizeTerrainEdits(edits: Record<string, SavedTerrainChunk>) {
     return [key, { heights, materials }];
   }));
 }
-// The island uses one continuous water datum for sea, river and lake.
 const WATER_LEVEL = -10;
+// The inland lake sits higher than the ocean; keeping its own datum avoids a
+// needlessly deep exposed cut around the city-side bank.
+const LAKE_WATER_LEVEL = -4;
 const INLAND_WATER_EDGE = 42;
 const MATERIAL_COLORS: Record<TerrainMaterial, THREE.Color> = {
-  grass: new THREE.Color("#79b85e"), dirt: new THREE.Color("#987a50"), sand: new THREE.Color("#d2ba72"),
+  grass: new THREE.Color("#416f38"), dirt: new THREE.Color("#987a50"), sand: new THREE.Color("#d2ba72"),
   stone: new THREE.Color("#7d8584"), snow: new THREE.Color("#e3e9e7"), road: new THREE.Color("#987a50"),
 };
 
@@ -118,7 +119,7 @@ export class OpenWorld {
   private readonly trunkMaterial = new THREE.MeshLambertMaterial({ color: "#4d3925", flatShading: true });
   private readonly crownMaterial = new THREE.MeshLambertMaterial({ color: "#176849", flatShading: true });
   private readonly rockMaterial = new THREE.MeshLambertMaterial({ color: "#768087", flatShading: true });
-  private readonly grassMaterial = new THREE.MeshLambertMaterial({ color: "#3f8d46", flatShading: true });
+  private readonly grassMaterial = new THREE.MeshLambertMaterial({ color: "#326f38", flatShading: true });
   private readonly ruinMaterial = new THREE.MeshLambertMaterial({ color: "#77756d", flatShading: true });
   private readonly woodMaterial = new THREE.MeshLambertMaterial({ color: CITY_WOOD_COLOR, flatShading: true });
   private readonly roofMaterial = new THREE.MeshLambertMaterial({ color: "#834739", flatShading: true });
@@ -154,12 +155,17 @@ export class OpenWorld {
       mountain: new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true, side: THREE.DoubleSide }),
     };
     scene.add(this.root);
+    // Legacy natural-scatter routines remain isolated for save compatibility,
+    // but are intentionally never invoked: biome objects come from Build.
+    void this.addProps;
+    void this.addArenaProps;
     this.root.traverse((object) => {
       if (object instanceof THREE.Mesh) object.castShadow = object.receiveShadow = true;
     });
+    // Trees are Build assets only. Their procedural templates remain available
+    // to the catalog, but they are never scattered into world chunks.
     this.loadTreeAssets();
     this.loadSnowAssets();
-    this.loadLandscapePack();
     this.loadDesertAssets();
   }
 
@@ -227,37 +233,32 @@ export class OpenWorld {
     this.onBiomeModelsChanged?.();
   }
 
-  registerForestRocks(source: THREE.Object3D) {
-    if (this.forestRockAssets.some(model=>/^Pedra · Rock/.test(model.name))) return;
-    source.traverse((object) => {
-      if (FOREST_ASSETS.rocks.nodePattern.test(object.name))
-        this.forestRockAssets.push(this.normalizeForestAsset(object, `Pedra · ${object.name}`));
-    });
-    this.rebuildForestChunks();
-  }
-
-  private loadLandscapePack() {
-    createWorldAssetLoader().load('/models/biomes/Floresta/low_poly_rocks_hills_trees.glb',({scene})=>{
-      scene.traverse(source=>{
-        // The forest uses only its dark conifer and stone variants.
-        if(!/^(small_rock|big_rock)_\d+_\d+$/.test(source.name))return;
-        const label=`Pedra · Paisagem · ${source.name}`;
-        const model=this.normalizeForestAsset(source,label);
-        model.userData.largeRock=source.name.startsWith('big_rock');
-        model.userData.mountainRock=true;
-        const material=new THREE.MeshStandardMaterial({color:'#414b50',roughness:1,metalness:0,flatShading:true});
-        model.traverse(object=>{if(object instanceof THREE.Mesh)object.material=material;});
-        for(const biome of [FOREST_ASSETS.folder,SNOW_ASSETS.folder]){
-          const variant=model.clone(true);
-          variant.name=`${label} · ${biome}`;variant.userData.biome=biome;
-          this.mapRockAssets.push(variant);
-        }
-      });
-      this.rebuildForestChunks();
-    },undefined,error=>console.warn('Não foi possível carregar o pack de paisagem',error));
+  private createBiomeRock(label: string, folder: string, color: string, snowCap = false) {
+    const group = new THREE.Group();
+    const geometry = new THREE.IcosahedronGeometry(1, 1);
+    geometry.scale(1, .72, .9);
+    geometry.translate(0, .72, 0);
+    const mesh = new THREE.Mesh(geometry, new THREE.MeshLambertMaterial({ color, flatShading: true }));
+    mesh.castShadow = mesh.receiveShadow = true;
+    group.add(mesh);
+    if (snowCap) {
+      const capGeometry = new THREE.IcosahedronGeometry(1, 1);
+      capGeometry.scale(.78, .16, .7);
+      capGeometry.translate(0, 1.42, 0);
+      const cap = new THREE.Mesh(capGeometry, new THREE.MeshLambertMaterial({ color: "#f4f7f8", flatShading: true }));
+      cap.castShadow = cap.receiveShadow = true;
+      group.add(cap);
+    }
+    group.name = label;
+    group.userData.biome = folder;
+    group.userData.biomeAssetKind = "rock";
+    group.userData.assetHeight = snowCap ? 1.58 : 1.44;
+    return group;
   }
 
   private loadSnowAssets() {
+    const snowRock = this.createBiomeRock("Pedra neve", SNOW_ASSETS.folder, "#68705c", true);
+    this.snowAssets.push(snowRock);
     const fullSnow=this.normalizeForestAsset(createWorldSnowPine(),"Pinheiro cheio de neve",SNOW_ASSETS.folder);
     fullSnow.userData.biomeAssetKind="tree";
     fullSnow.userData.snowZone="interior";
@@ -278,26 +279,13 @@ export class OpenWorld {
     asset.userData.biomeAssetKind="tree";
     this.optimizeBiomeTemplate(asset);
     this.treeAssets.push(asset);
+    this.forestRockAssets.push(this.createBiomeRock("Pedra floresta", FOREST_ASSETS.folder, "#68705c"));
     this.rebuildForestChunks();
   }
 
   private loadDesertAssets() {
-    for(const source of DESERT_ASSETS.sources)createWorldAssetLoader().load(source.url,({scene})=>{
-      const names:string[]=[...source.nodes];
-      if(source.kind==="rocks")scene.traverse(object=>{
-        if(/^rock(?:\.?\d+)?$/.test(object.name))names.push(object.name);
-      });
-      for(const name of names){
-        const found=name?scene.getObjectByName(name):scene;
-        if(!found)continue;
-        const label=names.length>1?`${source.label} · ${name}`:source.label;
-        const model=this.normalizeForestAsset(found,label,DESERT_ASSETS.folder);
-        model.userData.desertKind=source.kind;
-        model.userData.editorHeight=source.height;
-        this.desertAssets.push(model);
-      }
-      this.rebuildForestChunks();
-    },undefined,error=>console.warn(`Não foi possível carregar ${source.label}`,error));
+    this.desertAssets.push(this.createBiomeRock("Pedra de areia", SAND_ASSETS.folder, "#a88962"));
+    this.rebuildForestChunks();
   }
 
   setWorldPreset(preset: "arena-island-v1" | null) { if (this.worldPreset === preset) return; for(const chunk of [...this.chunks.values()])this.unloadChunk(chunk);this.root.clear();this.worldPreset = preset;this.dungeonColliders.length = 0;this.settledStreamingKey=""; }
@@ -393,7 +381,7 @@ export class OpenWorld {
   }
 
   groundBiomeRock(object:THREE.Object3D, terrain?:THREE.Mesh) {
-    if(!object.userData.biome || (object.userData.biome!==DESERT_ASSETS.folder && !/pedra|rock|stone|boulder/i.test(object.userData.forestModel ?? object.userData.assetVariant ?? object.name)))return;
+    if(!object.userData.biome || (object.userData.biome!==SAND_ASSETS.folder && object.userData.biome!=="Deserto" && !/pedra|rock|stone|boulder/i.test(object.userData.forestModel ?? object.userData.assetVariant ?? object.name)))return;
     const {cx,cz}=this.chunkCoordinates(object.position.x,object.position.z);
     terrain ??= this.chunks.get(`${cx}:${cz}`)?.terrain;
     let ground=this.getHeightAt(object.position.x,object.position.z);
@@ -404,13 +392,7 @@ export class OpenWorld {
     }
     object.updateWorldMatrix(true,true);
     const box=new THREE.Box3().setFromObject(object);
-    if(!box.isEmpty()){
-      const height=box.max.y-box.min.y;
-      const embed=object.userData.biome===DESERT_ASSETS.folder
-        ? Math.min(.18,height*.12)
-        : Math.min(.34,height*.2);
-      object.position.y+=ground-box.min.y-embed;
-    }
+    if(!box.isEmpty()) object.position.y = 0;
     object.updateMatrixWorld(true);
   }
 
@@ -439,7 +421,7 @@ export class OpenWorld {
 
   paintForestBrush(center:THREE.Vector3,radius:number,density:number,kind:ForestBrushKind) {
     const added:THREE.Group[]=[];
-    const kinds=kind==="mixed"?["trees","grass","rocks"] as const:[kind];
+    const kinds=kind==="mixed"?["grass","rocks"] as const:[kind];
     for(const category of kinds){
       const sources=category==="trees"?this.treeAssets:category==="grass"?this.grassAssets:[...this.forestRockAssets,...this.mapRockAssets.filter(model=>model.userData.biome===FOREST_ASSETS.folder)];
       if(!sources.length)continue;
@@ -470,10 +452,26 @@ export class OpenWorld {
     object.userData.buildId = id;
     object.userData.buildEditable = true;
     object.userData.biome ??= FOREST_ASSETS.folder;
+    object.userData.forestModel ??= object.userData.assetVariant ?? label.split(" · ")[0];
     if (this.removedForestAssets.has(id) || this.removedForestAssets.has(label)) return false;
-    const saved = this.savedForestAssets[id];
+    let savedId = id;
+    let saved = this.savedForestAssets[id];
+    // The world JSON uses canonical IDs (for example arvore-01), while the
+    // procedural generator still knows the deterministic chunk seed. Match a
+    // generated instance to its saved record by model and world position so
+    // reloads do not duplicate or resurrect assets.
+    if (!saved && object.userData.biomeAssetKind === "tree") {
+      const match = Object.entries(this.savedForestAssets).find(([candidateId, candidate]) =>
+        candidate.forestModel === object.userData.assetVariant &&
+        !this.removedForestAssets.has(candidateId) &&
+        Math.hypot(candidate.position[0] - object.position.x, candidate.position[2] - object.position.z) < 0.75,
+      );
+      if (match) { savedId = match[0]; saved = match[1]; object.userData.buildId = savedId; }
+    }
+    if (saved && this.removedForestAssets.has(savedId)) return false;
     if (saved) {
       object.position.fromArray(saved.position);
+      if (object.userData.biomeAssetKind === "tree") object.position.y = 0;
       object.rotation.set(saved.rotation[0], saved.rotation[1], saved.rotation[2]);
       object.scale.fromArray(saved.scale);
       object.userData.buildStateApplied = true;
@@ -550,10 +548,20 @@ export class OpenWorld {
     if(cityFloor!==null&&cityFloor!==undefined)return cityFloor-.06;
     // Editor strokes must not reintroduce bumps in the instrument's bed.
     if(this.worldPreset === "arena-island-v1" && this.arenaRiverDistance(x,z)<=-2)return WATER_LEVEL-1;
-    // Grass is currently an intentionally level construction surface. This
-    // bypasses both procedural relief and saved height strokes, while city
-    // foundations, water beds and every other terrain material stay intact.
-    if(this.isGrassTerrainAt(x,z))return 0;
+    // The beach is a real descending ramp. Its grass boundary stays flush at
+    // Y=0; only the sand bed drops below the shared water datum, deepening the
+    // sea without raising the shoreline.
+    if(this.worldPreset === "arena-island-v1" && this.isArenaBeachSandAt(x,z)){
+      const beachT=THREE.MathUtils.smoothstep(z,500,740);
+      return THREE.MathUtils.lerp(0,WATER_LEVEL-12,beachT);
+    }
+    // Arena biomes remain on their approved datum except where the mountain
+    // mask lifts this very same terrain surface.
+    if(this.worldPreset === "arena-island-v1")return this.isArenaMountainAt(x,z)?this.arenaHeightAt(x,z):0;
+    // Biome floors share the construction datum Y=0. This bypasses procedural
+    // relief and saved height strokes for grass, snow and desert, while city
+    // foundations, water beds and stone/mountain terrain stay intact.
+    if(this.isFlatBiomeTerrainAt(x,z))return 0;
     return this.proceduralHeightAt(x, z) + this.sampleHeightEdit(x, z);
   }
 
@@ -629,12 +637,13 @@ export class OpenWorld {
   }
 
   getWaterLevelAt(x: number, z: number) {
-    void x;void z;
+    if(this.worldPreset==="arena-island-v1"&&this.arenaRiverDistance(x,z)<=INLAND_WATER_EDGE)
+      return LAKE_WATER_LEVEL;
     return WATER_LEVEL;
   }
 
   isWaterAt(x: number, z: number) {
-    if (this.worldPreset === "arena-island-v1") return this.getHeightAt(x, z) <= WATER_LEVEL + .15 || this.arenaRiverWeight(x,z)>.01;
+    if (this.worldPreset === "arena-island-v1") return this.getHeightAt(x, z) <= WATER_LEVEL + .15 || this.arenaRiverDistance(x,z)<=INLAND_WATER_EDGE;
     return Math.abs(x - riverCenter(z)) < 7 || Math.hypot(x - 430, z + 350) < 59;
   }
 
@@ -703,6 +712,21 @@ export class OpenWorld {
     for (const collider of this.dungeonColliders) { const dx=position.x-collider.x,dz=position.z-collider.z,minimum=radius+collider.radius,distanceSq=dx*dx+dz*dz;if(distanceSq<minimum*minimum){const distance=Math.sqrt(distanceSq)||1;position.x=collider.x+dx/distance*minimum;position.z=collider.z+dz/distance*minimum;} }
   }
 
+  canWalkBetween(fromX:number,fromZ:number,toX:number,toZ:number,maxSlopeDegrees=43){
+    if(this.worldPreset!=="arena-island-v1")return true;
+    if(!this.isArenaMountainAt(fromX,fromZ)&&!this.isArenaMountainAt(toX,toZ))return true;
+    const distance=Math.hypot(toX-fromX,toZ-fromZ);
+    if(distance<1e-5)return true;
+    const rise=this.getHeightAt(toX,toZ)-this.getHeightAt(fromX,fromZ);
+    // Descents are handled by vertical motion; only prevent climbing faces
+    // that are too steep to walk. Sampling the midpoint catches thin ridges.
+    if(rise<=0)return true;
+    const midX=(fromX+toX)*.5,midZ=(fromZ+toZ)*.5;
+    const midRise=this.getHeightAt(midX,midZ)-this.getHeightAt(fromX,fromZ);
+    const limit=Math.tan(THREE.MathUtils.degToRad(maxSlopeDegrees));
+    return rise/distance<=limit&&midRise/(distance*.5)<=limit;
+  }
+
   private arenaRiverDistance(x:number,z:number){
     // Broad, natural lake silhouette. Overlapping basins avoid a geometric
     // circle while shoreline noise gives it the irregular edge of a real lake.
@@ -718,25 +742,21 @@ export class OpenWorld {
     const shoreline=(fbm(x*.017,z*.017,this.config.seed+317)-.5)*15;
     return basin+shoreline;
   }
-  private arenaRiverWeight(x:number,z:number){return 1-THREE.MathUtils.smoothstep(this.arenaRiverDistance(x,z),18,INLAND_WATER_EDGE);}
   private arenaHeightAt(x:number,z:number){
-    const island=Math.hypot(x/960,z/930),coast=1-THREE.MathUtils.smoothstep(island,.78,1.02);
-    const noise=(fbm(x*.003,z*.003,this.config.seed)-.45)*15+(fbm(x*.011,z*.011,this.config.seed+91)-.5)*6;
-    let h=16+noise;
-    if(Math.hypot(x+750,z-300)<230)h=Math.min(h,28)+(fbm(x*.018,z*.018,this.config.seed+8)-.5)*8;
-    const city=Math.hypot(x,z);if(city<180)h=THREE.MathUtils.lerp(14,h,THREE.MathUtils.smoothstep(city,135,180));
+    const city=Math.hypot(x,z);
     const riverDistance=this.arenaRiverDistance(x,z);
     const fill = arenaTerrainFillAt(x,z);
-    const mountainHeight = 16 + noise;
-    const fillHeight = fill.mountain * mountainHeight + fill.sand * (8 + noise * .35) + fill.grass * (16 + noise);
-    h = THREE.MathUtils.lerp(coast <= .01 ? -14 : THREE.MathUtils.lerp(-10,h,coast), fillHeight, fill.coverage);
-    // Relief crosses biome boundaries continuously, creating foothills instead of a perimeter wall.
-    h += mountainReliefAt(x,z);
+    const mountainBlend = THREE.MathUtils.smoothstep(fill.mountain, .02, .78);
+    // A zero-based relief is added to the approved ground datum.  The broad
+    // mask creates foothills; the connected ridge skeleton supplies peaks,
+    // valleys and passes without introducing a second mesh.
+    const relief=mountainReliefAt(x,z)*mountainBlend;
+    let h=relief;
     // Keep the capital walkable and the existing waterways open through the fill.
     if(city<180)h=THREE.MathUtils.lerp(14,h,THREE.MathUtils.smoothstep(city,135,180));
     // Every point covered by water uses the same flat bed. Only the dry bank
     // outside the shoreline blends back into the surrounding terrain.
-    if(riverDistance<32)h=THREE.MathUtils.lerp(WATER_LEVEL-1,h,THREE.MathUtils.smoothstep(riverDistance,22,32));
+    if(riverDistance<32)h=THREE.MathUtils.lerp(LAKE_WATER_LEVEL-1,h,THREE.MathUtils.smoothstep(riverDistance,22,32));
     return h;
   }
 
@@ -748,8 +768,8 @@ export class OpenWorld {
     if(this.worldPreset==="arena-island-v1"){
       // Preserve the prop draw distance, but avoid saturating all nine nearby
       // chunks with the editor's maximum vegetation density.
-      if(detail)this.addArenaProps(group,x,z,colliders,detail === 1 ? .68 : .24);
-    }else if(detail){this.addProps(group,x,z,colliders);this.addLandmark(group,x,z,colliders);}
+      // Biome assets are catalog/build assets; nothing is spawned naturally.
+    }else if(detail){this.addLandmark(group,x,z,colliders);}
     // Generated biome props are static. Batch both near and distant chunks;
     // colliders remain independent, while rendering drops from one draw per
     // cloned mesh to one instanced draw per geometry/material pair.
@@ -806,7 +826,10 @@ export class OpenWorld {
 
   private createTerrain(cx: number, cz: number, detail: number) {
     // Shared lattice at every detail level avoids cracks between neighboring chunks.
-    const size = this.config.chunkSize, halfWorld = this.config.worldSize * .5, segments = 12;
+    const size = this.config.chunkSize, halfWorld = this.config.worldSize * .5;
+    // 5.3 m samples across the arena keep mountain silhouettes and collision
+    // interpolation smooth while preserving an identical lattice at seams.
+    const segments=this.worldPreset==="arena-island-v1"?24:12;
     void detail;
     const geometry = new THREE.PlaneGeometry(size, size, segments, segments); geometry.rotateX(-Math.PI / 2);
     const originX = cx * size - halfWorld, originZ = cz * size - halfWorld;
@@ -814,13 +837,6 @@ export class OpenWorld {
     const biome = this.biomeAt(originX + size * .5, originZ + size * .5);
     for (let index = 0; index < positions.count; index++) {
       let worldX = originX + positions.getX(index) + size * .5, worldZ = originZ + positions.getZ(index) + size * .5;
-      if (this.worldPreset === "arena-island-v1" && mountainReliefAt(worldX,worldZ)>4 && Math.abs(worldX)<halfWorld-1 && Math.abs(worldZ)<halfWorld-1) {
-        const gx=cx*segments+index%(segments+1), gz=cz*segments+Math.floor(index/(segments+1));
-        const jitterX=(hash2(gx,gz,this.config.seed+61)-.5)*size/segments*.42;
-        const jitterZ=(hash2(gx,gz,this.config.seed+83)-.5)*size/segments*.42;
-        positions.setX(index,positions.getX(index)+jitterX);positions.setZ(index,positions.getZ(index)+jitterZ);
-        worldX+=jitterX;worldZ+=jitterZ;
-      }
       positions.setY(index, this.getHeightAt(worldX, worldZ));
       const color = this.terrainColorAt(worldX, worldZ);
       colors.push(color.r, color.g, color.b);
@@ -849,28 +865,84 @@ export class OpenWorld {
     if (this.worldPreset === "arena-island-v1") {
       const fill = arenaTerrainFillAt(x,z);
       if (fill.coverage >= .5) {
-        if (fill.mountain >= fill.sand && fill.mountain >= fill.grass) return "stone";
+        if (fill.snow >= fill.sand && fill.snow >= fill.grass && fill.snow >= fill.mountain) return "snow";
+        if(this.isArenaMountainAt(x,z)){
+          const height=this.getHeightAt(x,z);
+          if(fill.snowMountainCap>.18&&height>105)return "snow";
+          if(height>42)return "stone";
+        }
         return fill.sand >= fill.grass ? "sand" : "grass";
       }
-      return this.getHeightAt(x,z) > .15 ? "snow" : "sand";
+      // Outside explicit biome polygons, raised terrain is not implicitly
+      // snow. This keeps the marked foreground green; snow exists only where
+      // the dedicated cold mask says it does.
+      if(this.getHeightAt(x,z)<=WATER_LEVEL+.15)return "sand";
+      return this.isArenaMountainAt(x,z)?"stone":"grass";
     }
     if (this.roadWeight(x,z) > .5) return "road";
     return this.biomeAt(x,z) === "mountain" ? "stone" : "grass";
   }
 
-  private isGrassTerrainAt(x:number,z:number){
+  private isFlatBiomeTerrainAt(x:number,z:number){
     const painted=this.terrainMaterialAt(x,z);
-    if(painted)return painted==='grass';
+    if(painted)return !this.isArenaMountainAt(x,z)&&(painted==='grass'||painted==='snow'||painted==='sand');
     if(this.worldPreset==='arena-island-v1'){
       const fill=arenaTerrainFillAt(x,z);
-      return fill.coverage>=.5&&fill.grass>=fill.mountain&&fill.grass>=fill.sand;
+      // The new mountain mask must win over the flat snow region. Otherwise
+      // this early flat-terrain path prevents arenaHeightAt from lifting the
+      // marked area at all.
+      return fill.coverage>=.5&&!this.isArenaMountainAt(x,z)&&!this.isArenaBeachSandAt(x,z);
     }
     return this.roadWeight(x,z)<=.5&&this.biomeAt(x,z)!=='mountain';
   }
 
+  private isArenaMountainAt(x:number,z:number){
+    if(this.worldPreset!=="arena-island-v1")return false;
+    const fill=arenaTerrainFillAt(x,z);
+    return fill.mountain>.015&&mountainReliefAt(x,z)>.05;
+  }
+
+  private isArenaBeachSandAt(x:number,z:number){
+    if(this.worldPreset!=="arena-island-v1")return false;
+    const fill=arenaTerrainFillAt(x,z);
+    return fill.coverage>=.5&&fill.sand>=fill.grass&&fill.sand>=fill.snow&&fill.sand>=fill.mountain;
+  }
+
   private terrainColorAt(x: number, z: number) {
     // A biome assigns the same material ID used by the paint brush, never a second palette.
-    const material = this.terrainMaterialAt(x,z) ?? this.defaultTerrainMaterialAt(x,z);
+    // Only the submerged inner cut is earth. The flat top of the bank keeps
+    // its normal grass/snow material, eliminating a colored ring around it.
+    if(this.worldPreset === "arena-island-v1"&&this.arenaRiverDistance(x,z)<32&&this.getHeightAt(x,z)<-.2)
+      return MATERIAL_COLORS.dirt.clone();
+    const paintedMaterial=this.terrainMaterialAt(x,z);
+    // Explicit Build painting wins over automatic altitude/biome rules. This
+    // is what makes the Grama and Neve brushes deterministic on mountains.
+    if(paintedMaterial==="grass"||paintedMaterial==="snow")
+      return MATERIAL_COLORS[paintedMaterial].clone();
+    let material = paintedMaterial ?? this.defaultTerrainMaterialAt(x,z);
+    if(this.worldPreset==="arena-island-v1"&&material==="snow"){
+      const height=this.getHeightAt(x,z);
+      // The marked line is the biome boundary between the eastern peaks, not
+      // a snow stripe across both of them.
+      const secondPeakCap=x>300&&height>82;
+      const farRightBackground=x>300&&z<-390&&height<24;
+      if(!secondPeakCap&&!farRightBackground)
+        material=this.isArenaMountainAt(x,z)&&(height>32)?"stone":"grass";
+    }
+    if(this.worldPreset === "arena-island-v1"&&this.isArenaMountainAt(x,z)){
+      const height=this.getHeightAt(x,z),fill=arenaTerrainFillAt(x,z);
+      const step=4,slope=Math.hypot(this.getHeightAt(x+step,z)-this.getHeightAt(x-step,z),this.getHeightAt(x,z+step)-this.getHeightAt(x,z-step))/(step*2);
+      // A zero-valued snow weight must not win a tie outside the cold mask;
+      // that was putting white caps on the two western gray mountains.
+      const coldRegion=fill.snow>.05&&fill.snow>=fill.grass&&fill.snow>=fill.sand;
+      const secondPeakCap=x>300&&height>82;
+      const farRightBackground=x>300&&z<-390&&height<24;
+      if(coldRegion&&(secondPeakCap||farRightBackground))material="snow";
+      else if(height>32||slope>.55)material="stone";
+      else material="grass";
+      return MATERIAL_COLORS[material].clone();
+    }
+    if(this.worldPreset === "arena-island-v1" && material === "sand" && !this.isArenaBeachSandAt(x,z)) material = "grass";
     return MATERIAL_COLORS[material].clone();
   }
 
@@ -919,12 +991,14 @@ export class OpenWorld {
         const water=new THREE.Mesh(geometry,this.waterMaterial);
         water.name=name;water.userData.chunkOwnedGeometry=true;water.renderOrder=2;meshes.push(water);
       };
-      // A single layer serves ocean, river and lake. `min` unions their two
-      // footprints before clipping, preventing overlap or a visible seam.
-      createClippedSurface(WATER_LEVEL,"Água",(x,z)=>Math.min(
+      // Keep the ocean and inland lake at independent levels. The lake mask
+      // is excluded from the ocean surface, so no overlapping water planes
+      // or depth-fighting remain below it.
+      createClippedSurface(WATER_LEVEL,"Oceano",(x,z)=>Math.max(
         this.getHeightAt(x,z)-(WATER_LEVEL-.15),
-        this.arenaRiverDistance(x,z)-INLAND_WATER_EDGE,
+        INLAND_WATER_EDGE-this.arenaRiverDistance(x,z),
       ));
+      createClippedSurface(LAKE_WATER_LEVEL,"Lago",(x,z)=>this.arenaRiverDistance(x,z)-INLAND_WATER_EDGE);
       return meshes;
     }
     const centerZ = originZ + size * .5, riverX = riverCenter(centerZ);
@@ -943,7 +1017,6 @@ export class OpenWorld {
   private addArenaProps(group:THREE.Group,cx:number,cz:number,colliders:Collider[],density=1){
     const size=this.config.chunkSize,half=this.config.worldSize*.5,ox=cx*size-half,oz=cz*size-half,centerX=ox+size*.5,centerZ=oz+size*.5,random=seededRandom((cx+11)*92821+(cz+23)*68917+this.config.seed);
     const forest=1-THREE.MathUtils.smoothstep(Math.hypot(centerX+450,centerZ+250),150,330);
-    const treeCount=Math.round((150+forest*90)*density);
     const rockCount=Math.round((22+forest*12)*density);
     const placedTrees:{x:number;z:number;radius:number}[]=[];
     const scatter = (templates: THREE.Group[], count: number, kind: string, minHeight: number, maxHeight: number) => {
@@ -962,7 +1035,10 @@ export class OpenWorld {
           const source=pool[(first+i)%pool.length];
           if(!this.canPlaceBiomeAsset(source,x,z))continue;
           // Keep the capital, waterways and exposed upper slopes clear of forest scatter.
-          if(h<3||this.isWaterAt(x,z)||(source.userData.biome===SNOW_ASSETS.folder&&mountainReliefAt(x,z)>45))continue;
+          // Trees may grow on the flat grass plane (Y=0). The old height
+          // threshold was intended to keep props off steep terrain, but it
+          // also removed every tree after the grass was flattened.
+          if((kind!=="tree"&&h<3)||this.isWaterAt(x,z)||(source.userData.biome===SNOW_ASSETS.folder&&mountainReliefAt(x,z)>45))continue;
           const height=THREE.MathUtils.lerp(minHeight,maxHeight,random());
           const crownRadius=height*.38;
           if(kind==="tree"&&placedTrees.some(tree=>Math.hypot(tree.x-x,tree.z-z)<tree.radius+crownRadius))continue;
@@ -987,15 +1063,7 @@ export class OpenWorld {
         }
       }
     };
-    scatter(this.treeAssets, treeCount, "tree", 8.45, 18.59);
-    scatter(this.forestRockAssets, rockCount, "rock", .55, 2.7);
-    scatter(this.snowAssets, Math.round(150*density), "tree", 8.45, 16.9);
-    scatter(this.mapRockAssets.filter(model=>!model.userData.largeRock),Math.round(26*density),"rock-pack-small",.8,3.5);
-    scatter(this.mapRockAssets.filter(model=>model.userData.largeRock),Math.round(8*density),"rock-pack-large",6,16);
-    scatter(this.desertAssets.filter(model=>model.userData.desertKind==="cactus"),Math.round(48*density),"desert-cactus",1.5,5);
-    scatter(this.desertAssets.filter(model=>model.userData.desertKind==="tumbleweed"),Math.round(24*density),"desert-tumbleweed",.45,1.2);
-    scatter(this.desertAssets.filter(model=>model.userData.desertKind==="bones"),Math.round(4*density),"desert-bones",.55,1.4);
-    scatter(this.desertAssets.filter(model=>model.userData.desertKind==="rocks"),Math.round(32*density),"desert-rocks",.7,4);
+    scatter([...this.forestRockAssets, ...this.snowAssets.filter(model=>model.userData.biomeAssetKind==="rock"), ...this.desertAssets], rockCount, "rock", .55, 2.7);
   }
 
   private addProps(group: THREE.Group, cx: number, cz: number, colliders: Collider[]) {

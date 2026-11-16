@@ -18,6 +18,7 @@ import { restoreCityPropBatches,reapplyCityPropBatches } from './CityPropBatchin
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { createCityWoodFloor } from './CityWoodFloor';
 import { cityPavingMaterial } from '../world/CityPaving';
+import { createCityWagon } from './CityWagon';
 
 type BuildFolderState={folders:string[];assets:Record<string,string>};
 
@@ -44,13 +45,15 @@ export interface BuildEditorContext {
   pressed: Set<string>;
   playerGroundHeightAt: (x: number, z: number, allowStepUp?: boolean) => number;
   PLAYER_GROUND_OFFSET: number;
+  playerGroundOffsetAt: (x: number, z: number, allowStepUp?: boolean) => number;
   snapCameraToPlayer: () => void;
   saveRuntimeWorld: () => void;
+  registerBeforeSave: (callback: () => void) => void;
 }
 
 // Initialize only at the original bootstrap point. Live accessors preserve later state changes.
 export function initializeBuildEditor(context: BuildEditorContext) {
-  const { camera, renderer, scene, cityBuilder, cityFloor, updateCityFloor, buildState, openWorld, worldEditorStore, saveBuildState, grid, floor, protectedBuildAssets, setPlayStatus, controls, PLAYER_GROUND_OFFSET } = context;
+  const { camera, renderer, scene, cityBuilder, cityFloor, updateCityFloor, buildState, openWorld, worldEditorStore, saveBuildState, grid, floor, protectedBuildAssets, setPlayStatus, controls, playerGroundOffsetAt } = context;
   // This dependency is declared later during main bootstrap. Keep its context
   // getter lazy instead of evaluating it while the Build editor is created.
   const playerGroundHeightAt = (x: number, z: number, allowStepUp?: boolean) =>
@@ -90,6 +93,12 @@ export function initializeBuildEditor(context: BuildEditorContext) {
     ["Gaivota","/models/animals/seagull/model.glb",.46],["Pássaros","/models/animals/sky-birds/model.glb",1]
   ] as const;
   const animalAssetTemplates=new Map<string,THREE.Group>();
+  const BUILD_MODEL_CATALOG = [
+    { id: "chicken-coop", label: "Galinheiro", url: "/models/build/chicken-coop/model.glb", height: 2.2 },
+    { id: "feed-trough", label: "Cocho de ração", url: "/models/build/feed-trough/model.glb", height: 0.9 },
+  ] as const;
+  const buildModelTemplates = new Map<string, THREE.Group>();
+  const buildModelLoads = new Set<string>();
   const BUILD_FOLDERS_KEY="rpg3d.buildFolders.v1";
 
   const buildFolderState:BuildFolderState=(()=>{try{return{folders:[],assets:{},...JSON.parse(localStorage.getItem(BUILD_FOLDERS_KEY)||"{}")};}catch{return{folders:[],assets:{}};}})();
@@ -234,6 +243,17 @@ export function initializeBuildEditor(context: BuildEditorContext) {
     const pending=pendingTerrainBrush;pendingTerrainBrush=undefined;lastTerrainBrushAt=now;applyTerrainAt(pending.point,pending.shift);
   };
   terrainToggle.addEventListener("click", () => { terrainBrushEnabled = !terrainBrushEnabled; terrainToggle.classList.toggle("active", terrainBrushEnabled); terrainToggle.textContent = terrainBrushEnabled ? "Pincel ativo" : "Ativar pincel"; if (terrainBrushEnabled) selectBuildAsset(null); else terrainPreview.visible = false; });
+  const syncTerrainPaintPreset=()=>document.querySelectorAll<HTMLButtonElement>("[data-terrain-paint]").forEach(button=>button.classList.toggle("active",button.dataset.terrainPaint===terrainMaterial.value));
+  document.querySelectorAll<HTMLButtonElement>("[data-terrain-paint]").forEach(button=>button.addEventListener("click",()=>{
+    terrainMode="paint";terrainMaterial.value=button.dataset.terrainPaint!;
+    document.querySelectorAll("[data-terrain-mode]").forEach(item=>item.classList.toggle("active",(item as HTMLElement).dataset.terrainMode==="paint"));
+    document.querySelector<HTMLElement>("[data-forest-brush-options]")!.hidden=true;
+    terrainMaterial.parentElement!.hidden=false;terrainStrength.parentElement!.hidden=false;terrainShape.parentElement!.hidden=false;
+    terrainBrushEnabled=true;terrainToggle.classList.add("active");terrainToggle.textContent="Pincel ativo";
+    terrainPreviewMaterial.color.set(terrainMaterial.value==="snow"?"#dff6ff":"#8affae");
+    selectBuildAsset(null);syncTerrainPaintPreset();
+  }));
+  terrainMaterial.addEventListener("change",()=>{syncTerrainPaintPreset();terrainPreviewMaterial.color.set(terrainMaterial.value==="snow"?"#dff6ff":"#8affae");});
   document.querySelectorAll<HTMLButtonElement>("[data-terrain-mode]").forEach((button) => button.addEventListener("click", () => {
     terrainMode = button.dataset.terrainMode as TerrainBrushMode;lastForestBrushPoint=undefined;
     document.querySelectorAll("[data-terrain-mode]").forEach((item) => item.classList.toggle("active", item === button));
@@ -295,7 +315,9 @@ export function initializeBuildEditor(context: BuildEditorContext) {
     const streetLanterns:THREE.Object3D[]=[];
     cityBuilder.root.traverse(object=>{if(object.name==='Lanterna marrom da rua')streetLanterns.push(object);});
     const cityProps:THREE.Object3D[]=[];
-    cityBuilder.root.traverse(object=>{if(object.userData.buildEditable&&object.userData.cityObject)cityProps.push(object);});
+    // Independent construction assets may live under the city scene root for
+    // historical reasons, but they are still removed by their own buildId.
+    cityBuilder.root.traverse(object=>{if(object.userData.buildEditable&&(object.userData.cityObject||object.userData.buildId||object.userData.buildModel))cityProps.push(object);});
     const forestAssets = openWorld.getEditableForestAssets();
     // Forest roots can lose the flag when a chunk is rebuilt. Reassert it at
     // the editor boundary so every live tree remains selectable in Build.
@@ -307,6 +329,14 @@ export function initializeBuildEditor(context: BuildEditorContext) {
     object.traverse((child) => { if (child instanceof THREE.Mesh || child instanceof THREE.Sprite) hasRenderable = true; });
       return hasRenderable;
     });
+  };
+  const editableRootFromHit = (hit: THREE.Object3D, candidates: THREE.Object3D[]) => {
+    let current: THREE.Object3D | null = hit;
+    while (current && current !== scene) {
+      if (candidates.includes(current) || current.userData.biomeAssetKind || current.userData.buildEditable) return current;
+      current = current.parent;
+    }
+    return null;
   };
   const buildIdFor = (object: THREE.Object3D, index: number) => {
     if (!object.userData.buildId) {
@@ -331,28 +361,38 @@ export function initializeBuildEditor(context: BuildEditorContext) {
       return;
     }
     const assets = buildCandidates(), index = assets.indexOf(object);
-    if (index < 0) return;
+    // A forest object may already be present in removedAssets after a failed
+    // interaction. It still needs to be deletable from the live scene; its
+    // removal identity is the stable buildId/name, never the list index.
+    if (index < 0 && !object.userData.biomeAssetKind && !object.userData.buildEditable) return;
     worldEditorStore.checkpoint();
-    const key = buildRemovalKey(object, index);
+    const key = buildRemovalKey(object, Math.max(0, index));
     if (!buildState.removedAssets.includes(key)) buildState.removedAssets.push(key);
     const buildId = object.userData.buildId as string | undefined;
-    if (buildId && !buildState.removedAssets.includes(buildId)) buildState.removedAssets.push(buildId);
+    // Do not leave a deleted asset in the saved asset table. The removal
+    // identity/forest erasure below is persisted as the tombstone, preventing
+    // the object from being recreated on the next refresh or reload.
+    if (buildId) delete buildState.assets[buildId];
     if (object.userData.biomeAssetKind === "tree") {
-      object.updateWorldMatrix(true, true);
-      const size = new THREE.Box3().setFromObject(object).getSize(new THREE.Vector3());
-      const radius = Math.max(2, Math.max(size.x, size.z) * .55);
-      const erase = { x: object.position.x, z: object.position.z, radius, kind: "trees" as const };
-      buildState.forestErasures ??= [];
-      const exists = buildState.forestErasures.some(area => area.kind === "trees" && Math.hypot(area.x - erase.x, area.z - erase.z) < Math.max(area.radius, erase.radius) * .35);
-      if (!exists) {
-        buildState.forestErasures.push(erase);
-        // A right-click removes this exact instance. Do not rebuild the chunk:
-        // rebuilding would recreate/reorder every procedural tree nearby.
-        openWorld.recordForestErasure(new THREE.Vector3(erase.x, object.position.y, erase.z), radius, "trees");
+      const trees = [...buildAssetRegistry.values()]
+        .filter(candidate => candidate.userData.biomeAssetKind === "tree" && candidate !== object)
+        .sort((a,b) => a.position.x - b.position.x || a.position.z - b.position.z);
+      for (const [index, tree] of trees.entries()) {
+        const nextId = `arvore-${String(index + 1).padStart(2, "0")}`;
+        const previousId = String(tree.userData.buildId ?? "");
+        tree.userData.buildId = nextId;
+        tree.userData.treeCatalogId = nextId;
+        tree.name = `Árvore ${String(index + 1).padStart(2, "0")}`;
+        if (previousId && previousId !== nextId && buildState.assets[previousId]) {
+          buildState.assets[nextId] = { ...buildState.assets[previousId], label: tree.name };
+          delete buildState.assets[previousId];
+        }
       }
     }
     if (selectedBuildAsset === object) { selectedBuildAsset = null; transformControls.detach(); refreshBuildInspector(); }
     object.removeFromParent();
+    // Persist the tombstone before rebuilding the editor list. This is
+    // intentionally immediate so a subsequent edit cannot resurrect it.
     saveBuildState();
     refreshBuildAssetList();
   };
@@ -361,7 +401,23 @@ export function initializeBuildEditor(context: BuildEditorContext) {
     ...(object.userData.forestModel ? { forestModel: object.userData.forestModel, label: object.name } : {}),
     ...(object.userData.harborModel ? { harborModel: object.userData.harborModel, label: object.name } : {}),
     ...(isStreetLantern(object) ? { streetLantern: true, label: object.name } : {}),
+    ...(object.userData.buildModel ? { buildModel: object.userData.buildModel, label: object.name } : {}),
   });
+  const syncWorldAssetsToSave = () => {
+    const forest = openWorld.getEditableForestAssets().filter(object => object.parent && object.userData.buildEditable);
+    const assignedTreeIds = new Set(forest.map(object => String(object.userData.buildId ?? "")).filter(id => /^arvore-\d+$/.test(id)));
+    const nextTreeId = () => { let index = 1; while (assignedTreeIds.has(`arvore-${String(index).padStart(2, "0")}`)) index++; const id = `arvore-${String(index).padStart(2, "0")}`; assignedTreeIds.add(id); return id; };
+    for (const object of forest) {
+      const previousId = String(object.userData.buildId ?? "");
+      const id = object.userData.biomeAssetKind === "tree" ? (/^arvore-\d+$/.test(previousId) ? previousId : nextTreeId()) : previousId;
+      if (!id) continue;
+      object.userData.buildId = id;
+      if (object.userData.biomeAssetKind === "tree") object.name = `Árvore ${id.split("-")[1]}`;
+      buildState.assets[id] = snapshotBuildAsset(object);
+      if (previousId && previousId !== id) delete buildState.assets[previousId];
+    }
+  };
+  context.registerBeforeSave(syncWorldAssetsToSave);
   const applySavedBuildAsset = (object: THREE.Object3D, saved: SavedBuildAsset) => {
     if (object.name === "LobbyCharacter") {
       // Player position and facing belong to the live gameplay state. Restoring
@@ -423,9 +479,42 @@ export function initializeBuildEditor(context: BuildEditorContext) {
     refreshBuildInspector(); refreshBuildAssetList();
   };
   function refreshBuildAssetList() {
-    openWorld.configureForestEditor(buildState.assets, buildState.removedAssets,buildState.forestErasures);
+    // Bridges were explicitly removed from the project. Clean both legacy
+    // city entries and independent construction assets that may already be
+    // present in the live scene before rebuilding the Build list.
+    let removedBridges = false;
+    for (const [id, saved] of Object.entries(buildState.city)) {
+      if (saved.kind === "bridge" || /ponte/i.test(saved.layer ?? "")) {
+        removedBridges = true;
+        buildState.city[id] && delete buildState.city[id];
+        cityBuilder.objects.get(id)?.removeFromParent();
+        cityBuilder.objects.delete(id);
+      }
+    }
     for (const [id, saved] of Object.entries(buildState.assets)) {
-      if (!saved.forestModel || scene.children.some((object) => object.userData.buildId === id) || buildState.removedAssets.includes(id) || buildState.removedAssets.includes(saved.label ?? "")) continue;
+      if (saved.buildModel === "bridge" || saved.buildModel === "dock-group" || id === "dock-lake-group" || /ponte|doca/i.test(saved.label ?? "")) {
+        removedBridges = true;
+        delete buildState.assets[id];
+        buildState.removedAssets = buildState.removedAssets.filter(value => value !== id);
+        scene.traverse(object => { if (object.userData.buildId === id) object.removeFromParent(); });
+      }
+    }
+    if (removedBridges) saveBuildState();
+    openWorld.configureForestEditor(buildState.assets, buildState.removedAssets,buildState.forestErasures);
+    const liveBuildModelIds = new Set<string>();
+    scene.traverse(object => { if (object.userData.buildModel && object.userData.buildId) liveBuildModelIds.add(String(object.userData.buildId)); });
+    for (const [id, saved] of Object.entries(buildState.assets)) {
+      if (!saved.buildModel || liveBuildModelIds.has(id) || buildState.removedAssets.includes(id)) continue;
+      const template = buildModelTemplates.get(saved.buildModel);
+      if (!template) continue;
+      const object = cloneSkeleton(template) as THREE.Group;
+      object.name = saved.label ?? `${saved.buildModel} · ${id.slice(-8)}`;
+      object.userData = { ...object.userData, buildId: id, buildModel: saved.buildModel, buildFolder: "Construções", buildEditable: true, buildStateApplied: true };
+      applySavedBuildAsset(object, saved);
+      scene.add(object);
+    }
+    for (const [id, saved] of Object.entries(buildState.assets)) {
+      if (!saved.forestModel || scene.children.some((object) => object.userData.buildId === id) || openWorld.getEditableForestAssets().some(object => object.userData.buildId === id) || buildState.removedAssets.includes(id) || buildState.removedAssets.includes(saved.label ?? "")) continue;
       const model = openWorld.createBiomeModel(saved.forestModel);
       if (!model) continue;
       model.name = saved.label ?? `${saved.forestModel} · ${id}`;
@@ -456,6 +545,31 @@ export function initializeBuildEditor(context: BuildEditorContext) {
       if (!protectedBuildAssets.has(object.name) && buildState.removedAssets.includes(buildRemovalKey(object, index))) object.removeFromParent();
     });
     assets = buildCandidates();
+    const treeAssets = assets.filter(object => object.userData.biomeAssetKind === "tree");
+    const assignedTreeIds = new Set(treeAssets.map(object => String(object.userData.buildId ?? "")).filter(id => /^arvore-\d+$/.test(id)));
+    const nextTreeId = () => {
+      let index = 1;
+      while (assignedTreeIds.has(`arvore-${String(index).padStart(2, "0")}`)) index++;
+      const id = `arvore-${String(index).padStart(2, "0")}`;
+      assignedTreeIds.add(id);
+      return id;
+    };
+    const treeIdByObject = new Map<THREE.Object3D, string>();
+    treeAssets.sort((a, b) => a.position.x - b.position.x || a.position.z - b.position.z).forEach((object) => {
+      const id = /^arvore-\d+$/.test(String(object.userData.buildId ?? "")) ? String(object.userData.buildId) : nextTreeId();
+      const previousId = String(object.userData.buildId ?? "");
+      treeIdByObject.set(object, id);
+      object.userData.buildId = id;
+      object.userData.treeCatalogId = id;
+      object.name = `Árvore ${id.split("-")[1]}`;
+      if (previousId && previousId !== id && buildState.assets[previousId]) {
+        buildState.assets[id] = { ...buildState.assets[previousId], label: object.name };
+        delete buildState.assets[previousId];
+        const removedIndex = buildState.removedAssets.indexOf(previousId);
+        if (removedIndex >= 0) buildState.removedAssets[removedIndex] = id;
+      }
+    });
+    let treeDisplayIndex = 0;
     lastBuildCandidateCount = openWorld.getBiomeModels().length + animalAssetTemplates.size + cityBuilder.objects.size;
     const folders = new Map<string, { hidden: boolean; render: () => HTMLElement }[]>();
     const animalModels = new Set<string>();
@@ -468,13 +582,15 @@ export function initializeBuildEditor(context: BuildEditorContext) {
       if (object.userData.biome) object.visible = openWorld.canPlaceBiomeAsset(object);
       // The library lists source models. Scatter instances remain selectable in the viewport.
       if (object.userData.biome && !object.userData.forestModel) return;
-      const folderName = buildFolderFor(object, label);
+      const isTreeAsset = object.userData.biomeAssetKind === "tree";
+      const numberedTreeLabel = isTreeAsset ? (treeIdByObject.get(object) ? `Árvore ${treeIdByObject.get(object)!.split("-")[1]}` : `Árvore ${String(++treeDisplayIndex).padStart(2, "0")}`) : label;
+      const folderName = buildFolderFor(object, numberedTreeLabel);
       const isAnimalModel = Boolean(object.userData.animalModel);
       if (isAnimalModel) {
         if (animalModels.has(object.userData.animalModel)) return;
         animalModels.add(object.userData.animalModel);
       }
-      const displayLabel = isAnimalModel ? object.userData.modelLabel as string : label;
+      const displayLabel = isAnimalModel ? object.userData.modelLabel as string : numberedTreeLabel;
       const hidden = Boolean(query && !displayLabel.toLowerCase().includes(query));
       const render = () => {
       const row = document.createElement("div"), button = document.createElement("button"), remove = document.createElement("button");
@@ -526,11 +642,12 @@ export function initializeBuildEditor(context: BuildEditorContext) {
       }
     })));
     const catalogModels=openWorld.getBiomeModels().filter(model=>
-      model.biome==="Deserto"||
+      (model.biome==="Areia"||model.biome==="Deserto")||
       (model.biome==="Floresta"&&/^(?:Pinheiro|Pedra)/i.test(model.label))||
-      (model.biome==="Neve"&&/^Pinheiro/i.test(model.label))
+      (model.biome==="Neve"&&/^(?:Pinheiro|Pedra)/i.test(model.label))
     );
-    for (const folder of ["Floresta","Neve","Deserto"]) folders.set(folder, catalogModels.filter((model) => model.biome === folder).map((model) => ({
+    const treeCatalogModel = catalogModels.find(model => model.biome === "Floresta" && /^(?:Pinheiro|Árvore)/i.test(model.label));
+    for (const folder of ["Floresta","Neve","Areia"]) folders.set(folder, catalogModels.filter((model) => (model.biome === folder || (folder === "Areia" && model.biome === "Deserto")) && !(model.biome === "Floresta" && /^(?:Pinheiro|Árvore)/i.test(model.label))).map((model) => ({
       hidden: Boolean(query && !model.label.toLowerCase().includes(query)),
       render: () => {
         const row = document.createElement("div"), add = document.createElement("button");
@@ -560,6 +677,27 @@ export function initializeBuildEditor(context: BuildEditorContext) {
         return row;
       },
     })));
+    if (treeCatalogModel) folders.get("Floresta")!.unshift({
+      hidden: Boolean(query && !"árvore pinheiro".includes(query)),
+      render: () => {
+        const row = document.createElement("div"), add = document.createElement("button");
+        row.className = "build-asset-row"; add.type = "button";
+        let preview = buildBiomePreviewSources.get(treeCatalogModel.id);
+        if (!preview) { preview = openWorld.createBiomeModel(treeCatalogModel.id) ?? undefined; if (preview) buildBiomePreviewSources.set(treeCatalogModel.id, preview); }
+        const thumbnail = preview ? renderBuildThumbnail(preview) : "";
+        add.innerHTML = `<i class="asset-real-thumb"${thumbnail ? ` style="background-image:url('${thumbnail}')"` : ""}></i><span>Árvore</span>`;
+        add.title = "Adicionar uma árvore ao ponto central da câmera";
+        add.addEventListener("click", () => {
+          const object = openWorld.createBiomeModel(treeCatalogModel.id); if (!object) return;
+          const id = `arvore-${String(treeAssets.length + 1).padStart(2, "0")}`;
+          object.userData.buildId = id; object.userData.treeCatalogId = id; object.userData.buildEditable = true;
+          object.name = `Árvore ${id.split("-")[1]}`;
+          object.position.set(controls.target.x, 0, controls.target.z);
+          scene.add(object); buildState.assets[id] = snapshotBuildAsset(object); saveBuildState(); selectBuildAsset(object); refreshBuildAssetList();
+        });
+        row.append(add); return row;
+      },
+    });
     if(proceduralDockTemplate){
       const dockTemplate=proceduralDockTemplate;
       folders.get("Floresta")!.unshift({hidden:Boolean(query&&!"doca artesanal madeira floresta".includes(query)),render:()=>{
@@ -601,7 +739,65 @@ export function initializeBuildEditor(context: BuildEditorContext) {
         },
       }));
     });
+    constructionEntries.push({
+      hidden: Boolean(query && !"carroça wagon".includes(query)),
+      render: () => {
+        const row=document.createElement('div'),button=document.createElement('button');
+        row.className='build-asset-row';button.type='button';
+        const template=createCityWagon(),thumbnail=renderBuildThumbnail(template);
+        button.innerHTML=`<i class="asset-real-thumb"${thumbnail?` style="background-image:url('${thumbnail}')"`:''}></i><span>Carroça</span>`;
+        button.title='Adicionar carroça como asset independente';
+        button.addEventListener('click',()=>{
+          const object=createCityWagon(),id=`wagon-catalog-${crypto.randomUUID()}`;
+          object.name=`Carroça · ${id.slice(-8)}`;
+          object.userData={...object.userData,buildId:id,buildModel:'wagon',buildFolder:'Construções',buildEditable:true};
+          const x=controls.target.x,z=controls.target.z;object.position.set(x,openWorld.getHeightAt(x,z),z);
+          scene.add(object);object.updateMatrixWorld(true);buildState.assets[id]=snapshotBuildAsset(object);saveBuildState();selectBuildAsset(object);refreshBuildAssetList();
+        });
+        row.append(button);return row;
+      },
+    });
     constructionEntries.push(...lanternEntries);
+    for (const model of BUILD_MODEL_CATALOG) {
+      const template = buildModelTemplates.get(model.id);
+      if (!template) {
+        if (!buildModelLoads.has(model.id)) {
+          buildModelLoads.add(model.id);
+          new GLTFLoader().loadAsync(model.url).then(gltf => {
+            const source = gltf.scene;
+            source.updateMatrixWorld(true);
+            const bounds = new THREE.Box3().setFromObject(source, true);
+            const size = bounds.getSize(new THREE.Vector3());
+            source.scale.setScalar(model.height / Math.max(size.y, 0.001));
+            source.updateMatrixWorld(true);
+            const fitted = new THREE.Box3().setFromObject(source, true);
+            const center = fitted.getCenter(new THREE.Vector3());
+            source.position.set(-center.x, -fitted.min.y, -center.z);
+            const normalized = new THREE.Group(); normalized.add(source); normalized.userData.modelLabel = model.label;
+            buildModelTemplates.set(model.id, normalized);
+            refreshBuildAssetList();
+          }).catch(error => console.error(`Não foi possível carregar ${model.label}`, error));
+        }
+        continue;
+      }
+      constructionEntries.push({
+        hidden: Boolean(query && !model.label.toLowerCase().includes(query)),
+        render: () => {
+          const row = document.createElement("div"), button = document.createElement("button"); row.className = "build-asset-row"; button.type = "button";
+          const thumbnail = renderBuildThumbnail(template); button.innerHTML = `<i class="asset-real-thumb"${thumbnail ? ` style="background-image:url('${thumbnail}')"` : ""}></i><span>${model.label}</span>`;
+          button.title = "Adicionar este modelo ao ponto central da câmera";
+          button.addEventListener("click", () => {
+            const object = cloneSkeleton(template) as THREE.Group, id = `build-model-${model.id}-${crypto.randomUUID()}`;
+            object.name = `${model.label} · ${id.slice(-8)}`;
+            object.userData = { ...object.userData, buildId: id, buildModel: model.id, buildFolder: "Construções", buildEditable: true };
+            const x = controls.target.x, z = controls.target.z; object.position.set(x, openWorld.getHeightAt(x, z), z);
+            scene.add(object); object.updateMatrixWorld(true);
+            buildState.assets[id] = snapshotBuildAsset(object); saveBuildState(); selectBuildAsset(object); refreshBuildAssetList();
+          });
+          row.append(button); return row;
+        },
+      });
+    }
     const well=assets.find(object=>object.userData.generatedWell);
     if(well)constructionEntries.push({
       hidden:Boolean(query&&!"poço d'água poco agua well".includes(query)),
@@ -627,7 +823,7 @@ export function initializeBuildEditor(context: BuildEditorContext) {
     ].map(item=>({hidden:Boolean(query&&!item.label.toLowerCase().includes(query)),render:()=>{const row=document.createElement('div'),button=document.createElement('button');row.className='build-asset-row';button.type='button';let preview=floorPreviewSources.get(item.kind);if(!preview){if(!floorPreviewLoads.has(item.kind)){floorPreviewLoads.add(item.kind);const original=item.kind==='path-dirt'?new GLTFLoader().loadAsync('/models/comparisons/path-dirt-original.glb').then(g=>g.scene):item.kind==='house-wood'?createCityWoodFloor():Promise.resolve(item.preview());void original.then(model=>{floorPreviewSources.set(item.kind,model);refreshBuildAssetList();});}preview=item.kind==='house-wood'?undefined:item.preview();}const thumbnail=preview?renderBuildThumbnail(preview):'';button.innerHTML=`<i class="asset-real-thumb"${thumbnail?` style="background-image:url('${thumbnail}')"`:''}></i><span>${item.label}</span>`;button.addEventListener('click',async()=>{const object=await item.add();const id=`floor-${item.kind}-${crypto.randomUUID()}`;object.name=`${item.label} · ${id.slice(-8)}`;object.userData={...object.userData,buildId:id,buildFolder:'Piso',floorModel:item.kind,buildEditable:true};object.scale.set(5,1,5);object.position.copy(floorSpawnPoint());scene.add(object);buildState.assets[id]=snapshotBuildAsset(object);saveBuildState();selectBuildAsset(object);refreshBuildAssetList();});row.append(button);return row;}}));
     folders.set('Piso',floorEntries);
     for(const custom of buildFolderState.folders)if(!folders.has(custom))folders.set(custom,[]);
-    const order = [...new Set(["Floresta","Neve","Deserto","Animais","Cidades","Construções","Piso",...buildFolderState.folders])];
+    const order = [...new Set(["Floresta","Neve","Areia","Animais","Cidades","Construções","Piso",...buildFolderState.folders])];
     buildAssetsHost.replaceChildren(...order.flatMap((folder) => {
       const buttons = folders.get(folder); if (!buttons||(!buttons.length&&!(["Cidades","Animais"].includes(folder))&&!buildFolderState.folders.includes(folder))) return [];
       const details = document.createElement("details"), summary = document.createElement("summary"), content = document.createElement("div");
@@ -669,6 +865,11 @@ export function initializeBuildEditor(context: BuildEditorContext) {
       details.addEventListener("toggle",()=>{if(details.isConnected&&details.open)renderContents();});
       return [details];
     }));
+    // Keep the world registry materialized even before the explicit Save
+    // button is pressed. Newly streamed trees are therefore captured in the
+    // same JSON registry instead of remaining procedural-only.
+    syncWorldAssetsToSave();
+    worldEditorStore.save();
   }
   openWorld.onBiomeModelsChanged = () => refreshBuildAssetList();
   const applyEditorState = () => {
@@ -708,8 +909,8 @@ export function initializeBuildEditor(context: BuildEditorContext) {
     floor.scale.set(width / 50, depth / 35, 1);
     grid.scale.set(width / 50, 1, depth / 50);
     buildMapOutput.value = `${width} × ${depth}`;
-    if (buildMode) controls.maxDistance = 3200;
-    camera.far = 5000; camera.updateProjectionMatrix();
+    controls.maxDistance = buildMode ? 6000 : 6000;
+    camera.far = 10000; camera.updateProjectionMatrix();
     if (persist) saveBuildState();
   };
   buildWidth.value = String(buildState.mapWidth); buildDepth.value = String(buildState.mapDepth); applyBuildMapSize(false);
@@ -733,8 +934,9 @@ export function initializeBuildEditor(context: BuildEditorContext) {
     buildMode = open; buildPanel.classList.toggle("open", open); buildPanel.classList.remove("collapsed"); buildBadge.classList.remove("open"); document.body.classList.toggle("build-active", open);
     buildPanel.setAttribute("aria-hidden", String(!open));
     controls.minDistance = open ? 1 : 3.5;
-    controls.maxDistance = 3200;
-    camera.far = 5000;
+    // The Build overview must be able to frame the complete 2048×2048 world.
+    controls.maxDistance = open ? 6000 : 3200;
+    camera.far = open ? 10000 : 5000;
     camera.updateProjectionMatrix();
     // Build mode temporarily keeps the complete island loaded for overview
     // captures and editing. Closing Build restores regional streaming.
@@ -745,7 +947,7 @@ export function initializeBuildEditor(context: BuildEditorContext) {
     }
     setTimeEditorOpen(open);
     if (open) { restoreCityPropBatches(cityBuilder.root); rebuildTerrainPaintMarks(); context.setInventoryOpen(false); context.pressed.clear(); requestAnimationFrame(()=>{if(buildMode)refreshBuildAssetList();}); buildAssetRefreshTimer = window.setInterval(() => { if (openWorld.getBiomeModels().length + animalAssetTemplates.size + cityBuilder.objects.size !== lastBuildCandidateCount) refreshBuildAssetList(); }, 1200); }
-    else { reapplyCityPropBatches(cityBuilder.root); window.clearInterval(buildAssetRefreshTimer); selectBuildAsset(null); selectedCityIds.clear(); updateCitySelection(); clearCityPlacement(); terrainBrushEnabled = false; terrainPreview.visible = false; context.character.group.position.y = context.playerGroundHeightAt(context.character.group.position.x, context.character.group.position.z)+PLAYER_GROUND_OFFSET; context.snapCameraToPlayer(); }
+    else { reapplyCityPropBatches(cityBuilder.root); window.clearInterval(buildAssetRefreshTimer); selectBuildAsset(null); selectedCityIds.clear(); updateCitySelection(); clearCityPlacement(); terrainBrushEnabled = false; terrainPreview.visible = false; context.character.group.position.y = context.playerGroundHeightAt(context.character.group.position.x, context.character.group.position.z)+playerGroundOffsetAt(context.character.group.position.x, context.character.group.position.z); context.snapCameraToPlayer(); }
   };
   let buildTransformBefore = "";
   transformControls.addEventListener("mouseDown", () => { buildTransformBefore = worldEditorStore.snapshot(); selectedBuildUniformScale=transformControls.object?.scale.x??1; cityGroupStart.copy(cityGroupProxy.position); cityGroupRotationStart.copy(cityGroupProxy.quaternion); cityGroupScaleStart.copy(cityGroupProxy.scale); cityGroupObjectStarts = new Map([...selectedCityIds].map((id) => {const object=cityBuilder.objects.get(id)!;return [id,{position:object.position.clone(),quaternion:object.quaternion.clone(),scale:object.scale.clone()}];})); startAttachedCityTransform(); });
@@ -941,9 +1143,9 @@ export function initializeBuildEditor(context: BuildEditorContext) {
     const rect = renderer.domElement.getBoundingClientRect(), pointer = new THREE.Vector2((event.clientX - rect.left) / rect.width * 2 - 1, -(event.clientY - rect.top) / rect.height * 2 + 1);
     const raycaster = new THREE.Raycaster(); raycaster.setFromCamera(pointer, camera);
     const candidates = buildCandidates(), hits = raycaster.intersectObjects(candidates, true);
-    if (!hits.length) return; let target: THREE.Object3D = hits[0].object;
-    while (target.parent && target.parent !== scene&&!candidates.includes(target)) target = target.parent;
-    if (candidates.includes(target)) selectBuildAsset(target);
+    if (!hits.length) return;
+    const target = editableRootFromHit(hits[0].object, candidates);
+    if (target && candidates.includes(target)) selectBuildAsset(target);
   });
   renderer.domElement.addEventListener("pointermove", (event) => {
     if(floorDragPaint){const hit=terrainHit(event);if(!hit)return;const delta=hit.point.clone().sub(floorDragPaint.start);const axis=Math.abs(delta.x)>=Math.abs(delta.z)?'x':'z';const distance=Math.abs(delta[axis]);const count=Math.floor(distance/floorDragPaint.step);const sign=delta[axis]>=0?1:-1;while(floorDragPaint.copies.length<count){const copy=floorDragPaint.source.clone(true),id=`floor-stamp-${crypto.randomUUID()}`;copy.name=`${floorDragPaint.source.name} · ${floorDragPaint.copies.length+1}`;copy.userData={...copy.userData,buildId:id,buildEditable:true,buildStateApplied:true};copy.position.copy(floorDragPaint.source.position);copy.position[axis]+=sign*floorDragPaint.step*(floorDragPaint.copies.length+1);scene.add(copy);buildAssetRegistry.set(id,copy);buildState.assets[id]=snapshotBuildAsset(copy);floorDragPaint.copies.push(copy);}return;}
@@ -967,37 +1169,71 @@ export function initializeBuildEditor(context: BuildEditorContext) {
     refreshBuildAssetList();
   });
   renderer.domElement.addEventListener("pointerleave", () => { if (!terrainPainting) terrainPreview.visible = false; });
+  let rightDeleteHandledAt = 0;
+  const deleteAtPointer = (event: MouseEvent) => {
+    if (!buildMode || cityPlacementKind || terrainBrushEnabled) return false;
+    const rect = renderer.domElement.getBoundingClientRect(), pointer = new THREE.Vector2((event.clientX - rect.left) / rect.width * 2 - 1, -(event.clientY - rect.top) / rect.height * 2 + 1);
+    const raycaster = new THREE.Raycaster(); raycaster.setFromCamera(pointer, camera);
+    const editableCandidates=buildCandidates();
+    for(const editableHit of raycaster.intersectObjects(editableCandidates,true)){
+      const editable = editableRootFromHit(editableHit.object, editableCandidates);
+      if(editable?.userData.buildEditable && editableCandidates.includes(editable)){
+        removeBuildAssetFromScene(editable); return true;
+      }
+    }
+    const forestCandidates = openWorld.getEditableForestAssets().filter(object => object.parent);
+    for (const forestHit of raycaster.intersectObjects(forestCandidates, true)) {
+      const tree = editableRootFromHit(forestHit.object, forestCandidates);
+      if (tree?.userData.biomeAssetKind === "tree") { removeBuildAssetFromScene(tree); return true; }
+    }
+    for(const editableHit of raycaster.intersectObjects(scene.children,true)){
+      const editable = editableRootFromHit(editableHit.object, editableCandidates);
+      if(editable?.userData.buildEditable){
+        removeBuildAssetFromScene(editable); return true;
+      }
+    }
+    return false;
+  };
+  renderer.domElement.addEventListener("pointerdown", (event) => {
+    if (event.button !== 2) return;
+    event.preventDefault();
+    if (deleteAtPointer(event)) rightDeleteHandledAt = performance.now();
+  });
+  renderer.domElement.addEventListener("mousedown", (event) => {
+    if (event.button !== 2) return;
+    if (performance.now() - rightDeleteHandledAt < 500) return;
+    event.preventDefault();
+    if (deleteAtPointer(event)) rightDeleteHandledAt = performance.now();
+  });
   renderer.domElement.addEventListener("contextmenu", (event) => {
     if (!buildMode) return;
     event.preventDefault();
+    if (performance.now() - rightDeleteHandledAt < 500) return;
     if (cityPlacementKind) { clearCityPlacement(); return; }
     if (terrainBrushEnabled) { terrainBrushEnabled = false; terrainToggle.classList.remove("active"); terrainToggle.textContent = "Ativar pincel"; terrainPreview.visible = false; return; }
+    if (deleteAtPointer(event)) { rightDeleteHandledAt = performance.now(); return; }
     const rect = renderer.domElement.getBoundingClientRect(), pointer = new THREE.Vector2((event.clientX - rect.left) / rect.width * 2 - 1, -(event.clientY - rect.top) / rect.height * 2 + 1);
-    const raycaster = new THREE.Raycaster(); raycaster.setFromCamera(pointer, camera);
-    // A loose editable asset may be directly in front of an avenue or a
-    // building. Delete that asset first instead of the city object behind it.
-    const editableCandidates=buildCandidates();
-    for(const editableHit of raycaster.intersectObjects(editableCandidates,true)){
-      let editable:THREE.Object3D|null=editableHit.object;
-      while(editable&&!editableCandidates.includes(editable))editable=editable.parent;
-      if(editable?.userData.buildEditable){
-        removeBuildAssetFromScene(editable);return;
+    const cityRaycaster = new THREE.Raycaster(); cityRaycaster.setFromCamera(pointer, camera);
+    const cityHit = cityRaycaster.intersectObject(cityBuilder.root, true)[0];
+    if (cityHit) {
+      let cityObject: THREE.Object3D | null = cityHit.object;
+      while (cityObject && !cityObject.userData.cityId && cityObject !== cityBuilder.root) cityObject = cityObject.parent;
+      if(cityObject?.userData.generatedWell){removeBuildAssetFromScene(cityObject);return;}
+      const id = cityObject?.userData.cityId as string | undefined;
+      if (id) {
+        if (!cityObject) return;
+        worldEditorStore.checkpoint();
+        delete buildState.city[id];
+        // Remove the actual rendered root as well as the registry entry. This
+        // matters for structural assets such as bridges restored from older
+        // saves whose registry reference may no longer be the live object.
+        cityObject.removeFromParent();
+        cityBuilder.objects.get(id)?.removeFromParent();
+        cityBuilder.objects.delete(id);
+        selectedCityIds.delete(id);
+        saveBuildState(); updateCitySelection(); return;
       }
     }
-    for(const editableHit of raycaster.intersectObjects(scene.children,true)){
-      let editable:THREE.Object3D|null=editableHit.object;
-      while(editable&&editable!==scene&&!editable.userData.buildEditable)editable=editable.parent;
-      if(editable?.userData.buildEditable){
-        removeBuildAssetFromScene(editable);return;
-      }
-    }
-    const cityHit = raycaster.intersectObject(cityBuilder.root, true)[0];
-    if (cityHit) { let cityObject: THREE.Object3D | null = cityHit.object; while (cityObject && !cityObject.userData.cityId) cityObject = cityObject.parent; if(cityObject?.userData.generatedWell){removeBuildAssetFromScene(cityObject);return;} const id = cityObject?.userData.cityId as string | undefined; if (id) { worldEditorStore.checkpoint(); delete buildState.city[id]; cityBuilder.objects.get(id)?.removeFromParent(); cityBuilder.objects.delete(id); selectedCityIds.delete(id); saveBuildState(); updateCitySelection(); return; } }
-    const candidates = buildCandidates(), hit = raycaster.intersectObjects(candidates, true)[0];
-    if (!hit) return;
-    let target: THREE.Object3D = hit.object;
-    while (target.parent && target.parent !== scene) target = target.parent;
-    if (candidates.includes(target)) removeBuildAssetFromScene(target);
   });
 
     return {

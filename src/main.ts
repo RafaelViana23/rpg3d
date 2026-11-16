@@ -15,7 +15,7 @@ import {grantRoyalKitchenBread,grantAnimalMeatSamples} from './inventory/persist
 import { cloneBuildPreviewModel, freezeBuildPreviewPose } from './editor/BuildPreviewModel';
 import './editor/OrientedSelectionBox';
 import './editor/CitySelection';
-import { connectDatabaseSaveButton } from './saves/CloudSaves';
+import { connectDatabaseSaveButton, getInitialWorldMap, setSessionWorldMap } from './saves/CloudSaves';
 import {CompanionKiss} from './editor/CompanionKiss';
 import {PrincessBedRest} from './editor/PrincessBedRest';
 import { clothShirtColor, clothPantsColor } from './inventory/clothColors';
@@ -199,7 +199,7 @@ const controls = new OrbitControls(camera, renderer.domElement);
 controls.target.set(0, PLAYER_CAMERA_HEAD_HEIGHT, 0);
 controls.enableDamping = true;
 controls.minDistance = 3.5;
-controls.maxDistance = 3200;
+controls.maxDistance = 6000;
 controls.maxPolarAngle = Math.PI * 0.97;
 controls.update();
 
@@ -244,9 +244,9 @@ grid.position.set(0, 0.008, 7.5);
 // In-game world builder. It edits the real scene graph, so changes are
 // immediately visible to gameplay and survive reloads through localStorage.
 const BUILD_STORAGE_KEY = "rpg3d.worldBuilder.v1";
-const HAS_SAVED_BUILD_WORLD = localStorage.getItem(BUILD_STORAGE_KEY) !== null;
+const HAS_SAVED_BUILD_WORLD = Boolean(getInitialWorldMap());
 // Never replace an existing origin/profile save with a bundled recovery snapshot.
-const worldEditorStore = new WorldEditorStore(BUILD_STORAGE_KEY);
+const worldEditorStore = new WorldEditorStore(BUILD_STORAGE_KEY, getInitialWorldMap());
 const buildState = worldEditorStore.state;
 const openWorld = new OpenWorld(scene, { worldSize: 2048, chunkSize: 128 }, buildState.terrain, buildState.worldPreset);
 // Match the top of the raised avenue paving. Keep the saved street geometry
@@ -264,7 +264,7 @@ const CAPITAL_SCALE_VERSION="3.75-towers-5-level-joints-v3", CAPITAL_SCALE_STORA
 const GROUND_SURFACES_Y02_VERSION="all-city-objects-y02-v2", GROUND_SURFACES_Y02_STORAGE_KEY="rpg3d.groundSurfacesY02Version";
 const STREET_SURFACES_Y03_VERSION="street-surfaces-y03-v1", STREET_SURFACES_Y03_STORAGE_KEY="rpg3d.streetSurfacesY03Version";
 const STREET_LEVELS_VERSION="street-avenue-levels-v1", STREET_LEVELS_STORAGE_KEY="rpg3d.streetAvenueLevelsVersion";
-const TOWER_BASE_Y0_VERSION="tower-base-y0-v1", TOWER_BASE_Y0_STORAGE_KEY="rpg3d.towerBaseY0Version";
+const TOWER_BASE_Y0_VERSION="tower-base-y-05-v2", TOWER_BASE_Y0_STORAGE_KEY="rpg3d.towerBaseY0Version";
 const hasCapital=Object.keys(buildState.city).some((id)=>id.startsWith(CAPITAL_PREFIX));
 const hasDefaultCityLayout=Object.entries(defaultCityLayout.city).every(([id,value])=>JSON.stringify(buildState.city[id])===JSON.stringify(value));
 if(!HAS_SAVED_BUILD_WORLD&&hasDefaultCityLayout)localStorage.setItem(CAPITAL_SCALE_STORAGE_KEY,CAPITAL_SCALE_VERSION);
@@ -299,7 +299,6 @@ cityBuilder.rebuild(buildState.city);
 // base* at .1 instead of assuming a position value is the visible floor.
 if((buildState.groundBaselineRevision??0)<2){
   const groundedKinds=new Set(['house','shop','inn','tavern','church','guild','weapons','potions','warehouse','market','fountain','palace']);
-  try{localStorage.setItem(`rpg3d.ground-zero-building-backup.${Date.now()}`,worldEditorStore.snapshot());}catch{/* preserve the current map when storage permits */}
   for(const [id,saved]of Object.entries(buildState.city)){
     if(!groundedKinds.has(saved.kind))continue;
     const object=cityBuilder.objects.get(id);if(!object)continue;
@@ -383,8 +382,8 @@ if(localStorage.getItem(STREET_LEVELS_STORAGE_KEY)!==STREET_LEVELS_VERSION){
 if(localStorage.getItem(TOWER_BASE_Y0_STORAGE_KEY)!==TOWER_BASE_Y0_VERSION){
   let changed=false;
   for(const [id,entry] of Object.entries(buildState.city)){
-    if(!id.startsWith(`${CAPITAL_PREFIX}tower-`)||entry.position[1]===0)continue;
-    entry.position[1]=0;cityBuilder.objects.get(id)?.position.setY(0);changed=true;
+    if(!id.startsWith(`${CAPITAL_PREFIX}tower-`)||entry.position[1]===-.5)continue;
+    entry.position[1]=-.5;cityBuilder.objects.get(id)?.position.setY(-.5);changed=true;
   }
   localStorage.setItem(TOWER_BASE_Y0_STORAGE_KEY,TOWER_BASE_Y0_VERSION);
   if(changed)worldEditorStore.save();
@@ -393,7 +392,8 @@ if(localStorage.getItem(TOWER_BASE_Y0_STORAGE_KEY)!==TOWER_BASE_Y0_VERSION){
 openWorld.cityFloorHeightAt=(x,z)=>cityFloor.terrainHeightAt(x,z);
 openWorld.cityTreeBlockedAt=(x,z,clearance)=>cityFloor.heightAt(x,z)!==null||cityFloor.blocksTreeAt(x,z,clearance+1)||cityBuilder.overlapsTree(x,z,Math.max(4,clearance+1));
 const protectedBuildAssets = new Set(["LobbyCharacter", "Horse"]);
-const saveBuildState = () => {updateCityFloor();worldEditorStore.save();};
+let syncWorldAssetsBeforeSave = () => {};
+const saveBuildState = () => {syncWorldAssetsBeforeSave();updateCityFloor();worldEditorStore.save();};
 const buildEditor = initializeBuildEditor({
   camera,
   renderer,
@@ -417,8 +417,15 @@ const buildEditor = initializeBuildEditor({
   get pressed() { return pressed; },
   get playerGroundHeightAt() { return playerGroundHeightAt; },
   PLAYER_GROUND_OFFSET,
+  playerGroundOffsetAt: (x: number, z: number, allowStepUp = true) => {
+    const cityFloorHeight = cityFloor.heightAt(x, z);
+    const stairHeight = cityFloor.stairHeightAt(x, z);
+    const walkHeight = cityBuilder.walkHeightAt(x, z, 0, allowStepUp);
+    return cityFloorHeight !== null || stairHeight !== null || walkHeight !== null ? PLAYER_GROUND_OFFSET : 0;
+  },
   get snapCameraToPlayer() { return snapCameraToPlayer; },
   get saveRuntimeWorld() { return saveRuntimeWorld; },
+  registerBeforeSave: (callback) => { syncWorldAssetsBeforeSave = callback; },
 });
 const character = new ProceduralCharacter({ ...DEFAULT_CONFIG });
 // Terrain paint is part of the saved world, not Build UI state. Restore it
@@ -793,6 +800,17 @@ const applyNimbusArmDebug = () => character.setMagicArmTuning({
   wrist:{position:[...nimbusArmDebug.wrist.position],rotation:nimbusArmDebug.wrist.rotation.map(THREE.MathUtils.degToRad) as [number,number,number]},
 });
 const gltfLoader = createWorldAssetLoader();
+let shortbowSource: THREE.Object3D | null = null;
+let quiverSource: THREE.Object3D | null = null;
+const createEquipmentInstance = (id: string) => {
+  const source = id === "shortbow" ? shortbowSource : id === "quiver" ? quiverSource : null;
+  if (!source) return null;
+  const instance = cloneSkeleton(source);
+  instance.traverse(object => {
+    if (object instanceof THREE.Mesh) { object.castShadow = true; object.receiveShadow = true; }
+  });
+  return instance;
+};
 // Parse each repeated GLB once. Population instances clone the transform and
 // skeleton hierarchy but share immutable geometry, materials and textures.
 const sharedGltfCache=new Map<string,Promise<GLTF>>();
@@ -878,8 +896,8 @@ buildEditor.fitProceduralDockSupports=(dock)=>{
     object.scale.y=height/Math.max(.001,baseHeight*Math.abs(worldScale.y));object.position.y=midpoint.y;
   });
 };
-{
-  const template=buildEditor.proceduralDockTemplate;
+if(false){
+  const template=buildEditor.proceduralDockTemplate!;
   const lakeDocks=new THREE.Group(),seaDocks=new THREE.Group();
   lakeDocks.name="Doca de pesca do lago · 3 peças";lakeDocks.userData.harborModel="dock-group";lakeDocks.userData.buildFolder="Construção";lakeDocks.userData.buildId="dock-lake-group";
   seaDocks.name="Doca marítima · 3 peças";seaDocks.userData.harborModel="dock-group";seaDocks.userData.buildFolder="Construção";seaDocks.userData.buildId="dock-sea-group";
@@ -929,21 +947,23 @@ buildEditor.fitProceduralDockSupports=(dock)=>{
   buildEditor.refreshBuildAssetList();
 }
 gltfLoader.load("/models/environment/harbor/pirate-ship.glb",({scene:shipScene})=>{
-  const ship=prepareHarborModel(shipScene),coastHeading=Math.atan2(750,550);
-  const outward=new THREE.Vector3(Math.sin(coastHeading),0,Math.cos(coastHeading));
-  const side=new THREE.Vector3(-outward.z,0,outward.x);
+  const ship=prepareHarborModel(shipScene);
   ship.name="Navio pirata atracado";
-  // Keep the complete hull beyond the coastline instead of burying its stern
-  // in the forest terrain. The lateral offset leaves it beside the pier.
-  ship.position.copy(outward.multiplyScalar(995).add(side.multiplyScalar(24)));
-  // The ship's long axis is local X; turn it parallel to the pier.
-  ship.rotation.y=coastHeading-Math.PI*.5;
+  // Open-water placement: centered beyond the southern beach, away from the
+  // coast and the inland lake. The ship's long axis is local X.
+  ship.position.set(0,-8.72,964.86);
+  ship.rotation.y=0;
   ship.userData.harborModel="ship";ship.userData.buildFolder="Construção";ship.userData.buildId="harbor-pirate-ship";ship.userData.solidHarbor=true;ship.userData.collisionHalfSize=[17,7.5];
   scene.add(ship);
   for(const [id,saved] of Object.entries(buildState.assets)){
     if(saved.harborModel!=="ship"||scene.children.some(object=>object.userData.buildId===id)||buildState.removedAssets.includes(id)||buildState.removedAssets.includes(saved.label??""))continue;
     const copy=ship.clone(true);copy.name=saved.label??`Navio pirata · ${id.slice(-8)}`;
-    copy.userData={...ship.userData,buildId:id,buildStateApplied:true};buildEditor.applySavedBuildAsset(copy,saved);scene.add(copy);
+    copy.userData={...ship.userData,buildId:id,buildStateApplied:true};
+    // The approved ship placement is now open water; keep the stable saved
+    // identity while migrating its old moored transform.
+    if(id==="harbor-pirate-ship") copy.position.copy(ship.position),copy.rotation.copy(ship.rotation),copy.scale.copy(ship.scale);
+    else buildEditor.applySavedBuildAsset(copy,saved);
+    scene.add(copy);
   }
   buildEditor.refreshBuildAssetList();
 },undefined,error=>console.error("Não foi possível carregar o navio pirata",error));
@@ -967,6 +987,10 @@ const harborGroundHeightAt=(x:number,z:number,terrainHeight:number)=>{
   return surface;
 };
 const playerGroundHeightAt=(x:number,z:number,allowStepUp=true)=>Math.max(harborGroundHeightAt(x,z,openWorld.getHeightAt(x,z)),cityFloor.heightAt(x,z)??-Infinity,cityFloor.stairHeightAt(x,z)??-Infinity,cityBuilder.walkHeightAt(x,z,character.group.position.y,allowStepUp)??-Infinity);
+const playerGroundOffsetAt=(x:number,z:number,allowStepUp=true)=>{
+  const cityFloorHeight=cityFloor.heightAt(x,z), stairHeight=cityFloor.stairHeightAt(x,z), walkHeight=cityBuilder.walkHeightAt(x,z,character.group.position.y,allowStepUp);
+  return cityFloorHeight!==null||stairHeight!==null||walkHeight!==null?PLAYER_GROUND_OFFSET:0;
+};
 const createNimbusInstance = () => {
   if (!nimbusSource) return null;
   const clone = nimbusSource.clone(true);
@@ -1078,7 +1102,6 @@ if (LEGACY_HUB_ENABLED) gltfLoader.load(
   (gltf) => {
     const model = gltf.scene;
     model.updateMatrixWorld(true);
-    openWorld.registerForestRocks(model);
     removeCastleActors(model);
     model.traverse((child) => {
       if (/^Floor_0$/i.test(child.name)) child.visible = false;
@@ -1404,7 +1427,7 @@ for(const palace of cityBuilder.objects.values()){
  }
 }
 // Both new games and restored games start on the current terrain surface.
-character.group.position.y = playerGroundHeightAt(character.group.position.x, character.group.position.z)+PLAYER_GROUND_OFFSET;
+character.group.position.y = playerGroundHeightAt(character.group.position.x, character.group.position.z)+playerGroundOffsetAt(character.group.position.x, character.group.position.z);
 snapCameraToPlayer();
 const restoreHorseRuntimePosition = () => {
   if (!horseRoot || !runtimeWorld.horse || !validPosition(runtimeWorld.horse.position)) return;
@@ -1582,9 +1605,9 @@ function toggleMount() {
     const horseState=rideableHorses.get(horseRoot);if(horseState)resetHorseLook(horseState);
     activeAction = null;
     horseRoot.getWorldPosition(mountPosition);
-    character.group.position.set(mountPosition.x+1.8,playerGroundHeightAt(mountPosition.x+1.8,mountPosition.z)+PLAYER_GROUND_OFFSET,mountPosition.z);
+    character.group.position.set(mountPosition.x+1.8,playerGroundHeightAt(mountPosition.x+1.8,mountPosition.z)+playerGroundOffsetAt(mountPosition.x+1.8,mountPosition.z),mountPosition.z);
     resolveWorldCollisions(character.group.position,.32,character.group);
-    character.group.position.y=playerGroundHeightAt(character.group.position.x,character.group.position.z)+PLAYER_GROUND_OFFSET;
+    character.group.position.y=playerGroundHeightAt(character.group.position.x,character.group.position.z)+playerGroundOffsetAt(character.group.position.x,character.group.position.z);
     horseRoot.getWorldQuaternion(frameQuaternionScratch);
     character.group.rotation.set(0,frameEulerScratch.setFromQuaternion(frameQuaternionScratch,'YXZ').y,0);
     setHorseMotion("idle");
@@ -1988,8 +2011,38 @@ const equipmentSystem = initializePlayerEquipment({
   applyBroomRideDebug,
   equippedDecorations,
   createHeldNimbusInstance,
+  createEquipmentInstance,
   get mageHoodRoot() { return mageHoodRoot; },
   set mageHoodRoot(value) { mageHoodRoot = value; },
+});
+const prepareEquipmentModel = (source: THREE.Object3D, targetHeight: number) => {
+  source.updateMatrixWorld(true);
+  const box = new THREE.Box3().setFromObject(source, true);
+  const size = box.getSize(new THREE.Vector3());
+  source.scale.setScalar(targetHeight / Math.max(size.y, 0.001));
+  source.updateMatrixWorld(true);
+  const fitted = new THREE.Box3().setFromObject(source, true);
+  const center = fitted.getCenter(new THREE.Vector3());
+  source.position.set(-center.x, -fitted.min.y, -center.z);
+};
+gltfLoader.load("/models/equipment/shortbow/model.glb", gltf => {
+  shortbowSource = gltf.scene;
+  prepareEquipmentModel(shortbowSource, 1.05);
+  const thumbnailModel = cloneSkeleton(shortbowSource);
+  thumbnailModel.rotation.z = Math.PI / 2;
+  const image = buildEditor.renderBuildThumbnail(thumbnailModel);
+  thumbnailModel.traverse(object => {
+    if (object instanceof THREE.Mesh) object.geometry.dispose();
+  });
+  setItemThumbnail("shortbow", image);
+  document.querySelectorAll<HTMLElement>('[data-item-id="shortbow"] span').forEach(holder => holder.style.backgroundImage = `url(${image})`);
+  equipmentSystem.syncCharacterEquipment();
+  equipmentSystem.refreshEquipmentSlots();
+});
+gltfLoader.load("/models/equipment/quiver/model.glb", gltf => {
+  quiverSource = gltf.scene;
+  prepareEquipmentModel(quiverSource, 0.82);
+  equipmentSystem.syncCharacterEquipment();
 });
 const corpseLoot = document.querySelector<HTMLElement>("#corpseLoot")!,
   corpseLootTitle = document.querySelector<HTMLElement>("#corpseLootTitle")!,
@@ -2692,6 +2745,12 @@ const scabbardWidthInputs = [
 const swordPositionInputs = [
   ...document.querySelectorAll<HTMLInputElement>("[data-sword-position]"),
 ];
+const bowPositionInputs = [...document.querySelectorAll<HTMLInputElement>("[data-bow-position]")];
+const bowRotationInputs = [...document.querySelectorAll<HTMLInputElement>("[data-bow-rotation]")];
+const bowScaleInput = document.querySelector<HTMLInputElement>("[data-bow-scale]")!;
+const quiverPositionInputs = [...document.querySelectorAll<HTMLInputElement>("[data-quiver-position]")];
+const quiverRotationInputs = [...document.querySelectorAll<HTMLInputElement>("[data-quiver-rotation]")];
+const quiverScaleInput = document.querySelector<HTMLInputElement>("[data-quiver-scale]")!;
 const shieldEditors = (["right", "left"] as const).map(side => {
   const positions = [...document.querySelectorAll<HTMLInputElement>(`[data-shield-position^="${side}-"]`)];
   const rotations = [...document.querySelectorAll<HTMLInputElement>(`[data-shield-rotation^="${side}-"]`)];
@@ -2725,8 +2784,33 @@ const shieldEditors = (["right", "left"] as const).map(side => {
   return {sync};
 });
 const syncShieldEditor = () => shieldEditors.forEach(editor => editor.sync());
+const syncBowQuiverEditor = () => {
+  const bow = character.getBowTransform();
+  if (bow) {
+    document.querySelector("[data-bow-status]")!.textContent = `Arco · mão esquerda · equipado`;
+    bow.position.forEach((value, index) => bowPositionInputs[index].value = value.toFixed(2));
+    bow.rotation.forEach((value, index) => bowRotationInputs[index].value = value.toFixed(1));
+    bowScaleInput.value = bow.scale.toFixed(2);
+  }
+  const quiver = character.getQuiverTransform();
+  if (quiver) {
+    document.querySelector("[data-quiver-status]")!.textContent = "Aljava · costas · equipada";
+    quiver.position.forEach((value, index) => quiverPositionInputs[index].value = value.toFixed(2));
+    quiver.rotation.forEach((value, index) => quiverRotationInputs[index].value = value.toFixed(1));
+    quiverScaleInput.value = quiver.scale.toFixed(2);
+  }
+};
+const updateBowQuiverFromEditor = () => {
+  const bowPosition = bowPositionInputs.map(input => Number(input.value) || 0), bowRotation = bowRotationInputs.map(input => Number(input.value) || 0), bowScale = Math.max(.1, Number(bowScaleInput.value) || .1);
+  const quiverPosition = quiverPositionInputs.map(input => Number(input.value) || 0), quiverRotation = quiverRotationInputs.map(input => Number(input.value) || 0), quiverScale = Math.max(.1, Number(quiverScaleInput.value) || .1);
+  character.setBowTransform(bowPosition, bowRotation, bowScale);
+  character.setQuiverTransform(quiverPosition, quiverRotation, quiverScale);
+  localStorage.setItem("rpg3d.bowTransform", JSON.stringify({position: bowPosition, rotation: bowRotation, scale: bowScale}));
+  localStorage.setItem("rpg3d.quiverTransform", JSON.stringify({position: quiverPosition, rotation: quiverRotation, scale: quiverScale}));
+};
+const syncEquipmentDebugEditor = () => { syncShieldEditor(); syncBowQuiverEditor(); };
 const syncScabbardEditor = () => {
-  syncShieldEditor();
+  syncEquipmentDebugEditor();
   const transform = character.getScabbardTransform();
   if (!transform) return;
   document.querySelector("#scabbardSide")!.textContent =
@@ -2779,6 +2863,10 @@ const updateScabbardFromEditor = () => {
   input.addEventListener("input", updateScabbardFromEditor);
   input.addEventListener("keydown", (event) => event.stopPropagation());
 });
+[
+  ...bowPositionInputs, ...bowRotationInputs, bowScaleInput,
+  ...quiverPositionInputs, ...quiverRotationInputs, quiverScaleInput,
+].forEach(input => { input.addEventListener("input", updateBowQuiverFromEditor); input.addEventListener("keydown", event => event.stopPropagation()); });
 document
   .querySelector<HTMLButtonElement>("[data-scabbard-reset]")!
   .addEventListener("click", () => {
@@ -2916,6 +3004,7 @@ const movementKeys = new Set([
   "KeyM",
   "KeyT",
   "KeyB",
+  "KeyL",
   "KeyC",
   "KeyV",
   "KeyF",
@@ -3079,6 +3168,10 @@ window.addEventListener("keydown", (event) => {
     return;
   }
   if (!event.repeat && event.code === "KeyB") {
+    buildEditor.setBuildMode(!buildEditor.buildMode);
+    return;
+  }
+  if (!event.repeat && event.code === "KeyL") {
     setScabbardEditorOpen(scabbardEditor.classList.contains("hidden"));
     return;
   }
@@ -3326,7 +3419,7 @@ const isSubmergedAt=(position:THREE.Vector3)=>
   openWorld.isWaterAt(position.x,position.z)&&
   position.y<openWorld.getWaterLevelAt(position.x,position.z)-.08;
 function updatePlayerBuoyancy(delta: number) {
-  const ground = playerGroundHeightAt(character.group.position.x, character.group.position.z)+PLAYER_GROUND_OFFSET;
+  const ground = playerGroundHeightAt(character.group.position.x, character.group.position.z)+playerGroundOffsetAt(character.group.position.x, character.group.position.z);
   const waterLevel = openWorld.getWaterLevelAt(character.group.position.x, character.group.position.z);
   const targetY=Math.max(ground,waterLevel-1.85+Math.sin(performance.now()*.0022)*.012);
   character.group.position.y=THREE.MathUtils.lerp(character.group.position.y,targetY,1-Math.exp(-5*delta));
@@ -3335,7 +3428,7 @@ let playerDeathElapsed:number|undefined;
 const respawnPlayerInCity=()=>{
   const square=[...cityBuilder.objects.values()].find(o=>o.name==="Cidade:fountain");
   const x=square?.position.x??0,z=(square?.position.z??7.5)+30;
-  character.group.position.set(x,playerGroundHeightAt(x,z)+PLAYER_GROUND_OFFSET,z);character.group.rotation.y=0;
+  character.group.position.set(x,playerGroundHeightAt(x,z)+playerGroundOffsetAt(x,z),z);character.group.rotation.y=0;
   inventoryState.hp=equipmentSystem.totalStats().hp;inventoryState.stamina=equipmentSystem.totalStats().stamina;
   broomFallVelocity=0;playerDeathElapsed=undefined;activeAction=null;pressed.clear();setAnimation("idle");
   saveInventory(inventoryState);refreshHud();snapCameraToPlayer();setPlayStatus("Você voltou à Cidade Inicial");
@@ -3449,7 +3542,11 @@ function updatePlayer(delta: number) {
       setHorseMotion(base+turn,(vertical<0?-1:1)*(running?1.6:1));
       const distance=(running?14.88:4.725)*vertical*delta;
       move.copy(forward).multiplyScalar(distance);
+      const previousHorseX=horseRoot.position.x,previousHorseZ=horseRoot.position.z;
       horseRoot.position.add(move);
+      if(!openWorld.canWalkBetween(previousHorseX,previousHorseZ,horseRoot.position.x,horseRoot.position.z,36)){
+        horseRoot.position.x=previousHorseX;horseRoot.position.z=previousHorseZ;
+      }
       horseRoot.getWorldScale(horseWorldScale);
       resolveWorldCollisions(horseRoot.position,.78*Math.max(.65,horseWorldScale.z),horseRoot);
       horseRoot.position.y=Math.max(openWorld.getHeightAt(horseRoot.position.x,horseRoot.position.z),cityFloor.heightAt(horseRoot.position.x,horseRoot.position.z)??-Infinity,cityBuilder.walkHeightAt(horseRoot.position.x,horseRoot.position.z,horseRoot.position.y)??-Infinity);
@@ -3491,7 +3588,7 @@ function updatePlayer(delta: number) {
   let airborne=broomFallVelocity!==0;
   const updateVertical=()=>{
     if(inWater&&broomFallVelocity<=0){broomFallVelocity=0;airborne=false;updatePlayerBuoyancy(delta);return;}
-    const ground=playerGroundHeightAt(character.group.position.x,character.group.position.z,!airborne)+PLAYER_GROUND_OFFSET;
+    const ground=playerGroundHeightAt(character.group.position.x,character.group.position.z,!airborne)+playerGroundOffsetAt(character.group.position.x,character.group.position.z,!airborne);
     const motion=advancePlayerVertical(character.group.position.y,broomFallVelocity,ground,delta,PLAYER_GRAVITY);
     character.group.position.y=motion.height;broomFallVelocity=motion.velocity;airborne=motion.airborne;
   };
@@ -3502,10 +3599,14 @@ function updatePlayer(delta: number) {
       const distance=DODGE_DISTANCE*(dodgeProgress(activeAction.elapsed)-dodgeProgress(previousElapsed));
       const steps=Math.max(1,Math.ceil(distance/.08));
       for(let i=0;i<steps;i++){
+        const previousX=character.group.position.x,previousZ=character.group.position.z;
         character.group.position.addScaledVector(dodgeDirection,distance/steps);
+        if(!openWorld.canWalkBetween(previousX,previousZ,character.group.position.x,character.group.position.z)){
+          character.group.position.x=previousX;character.group.position.z=previousZ;break;
+        }
         resolveWorldCollisions(character.group.position,.32,character.group);
         if(!airborne){
-          const ground=playerGroundHeightAt(character.group.position.x,character.group.position.z)+PLAYER_GROUND_OFFSET;
+          const ground=playerGroundHeightAt(character.group.position.x,character.group.position.z)+playerGroundOffsetAt(character.group.position.x,character.group.position.z);
           if(character.group.position.y-ground<=.08)character.group.position.y=ground;
           else {broomFallVelocity=-Number.EPSILON;airborne=true;}
         }
@@ -3544,10 +3645,15 @@ function updatePlayer(delta: number) {
   // Sample short moves so running and slow frames cannot skip stair treads.
   const movementSteps=Math.max(1,Math.ceil(distance/.08));
   for(let step=0;step<movementSteps;step++){
+    const previousX=character.group.position.x,previousZ=character.group.position.z;
     character.group.position.addScaledVector(move,distance/movementSteps);
+    if(!inWater&&!airborne&&!openWorld.canWalkBetween(previousX,previousZ,character.group.position.x,character.group.position.z)){
+      character.group.position.x=previousX;character.group.position.z=previousZ;
+      break;
+    }
     resolveWorldCollisions(character.group.position,0.32,character.group);
     if(!inWater&&!airborne){
-      const ground=playerGroundHeightAt(character.group.position.x,character.group.position.z)+PLAYER_GROUND_OFFSET;
+      const ground=playerGroundHeightAt(character.group.position.x,character.group.position.z)+playerGroundOffsetAt(character.group.position.x,character.group.position.z);
       if(character.group.position.y-ground<=.08)character.group.position.y=ground;
       else {broomFallVelocity=-Number.EPSILON;airborne=true;}
     }
@@ -3738,6 +3844,9 @@ renderer.setAnimationLoop((now) => {
   }
   updateEditorCamera(delta);
   const streamStart=performance.now();
+  // At a distant zoom the gameplay camera is an overview camera too: keep the
+  // complete island streamed instead of leaving the far side empty.
+  openWorld.setFlightOverview(!buildEditor.buildMode && controls.getDistance() > 420);
   openWorld.update(buildEditor.buildMode ? controls.target : character.group.position);
   performanceMonitor.record("chunks",performance.now()-streamStart);
   gameAudio.update(delta, currentAnimation);
@@ -4208,4 +4317,4 @@ const releaseGraphics=()=>{
 };
 window.addEventListener('pagehide',releaseGraphics,{once:true});
 
-connectDatabaseSaveButton(() => { worldEditorStore.save(); runtimeWorldStore.save(); saveInventory(inventoryState); });
+connectDatabaseSaveButton(() => { syncWorldAssetsBeforeSave(); updateCityFloor(); setSessionWorldMap(worldEditorStore.worldJson()); });

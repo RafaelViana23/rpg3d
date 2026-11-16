@@ -112,7 +112,7 @@ h1 { margin: 0; font: 600 clamp(24px, 3vw, 38px)/1.05 Georgia, serif; letter-spa
 .inventory-avatar canvas { position:absolute; z-index:1; inset:0; width:100%; height:100%; cursor:grab; touch-action:none; }
 .inventory-avatar canvas.dragging { cursor:grabbing; }
 .inventory-avatar span { position:absolute; z-index:2; left:50%; bottom:12px; transform:translateX(-50%); padding:5px 10px; border:1px solid #ffffff16; border-radius:999px; background:#101214c9; color:#d8b67e; font-size:9px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; white-space:nowrap; }
-.inventory-consumables { padding:7px; border-top:1px solid #d0cba944; background:#090a0588; }
+.inventory-consumables { padding:7px 7px 16px; border-top:1px solid #d0cba944; background:#090a0588; }
 .inventory-consumables>strong,.equipment-slots>strong { display:block; margin:0 0 6px; color:#d9d5b0; font-size:9px; letter-spacing:.13em; text-transform:uppercase; }
 .inventory-consumables>strong small { display:block; margin-top:3px; color:#777866; font-size:7px; font-weight:500; letter-spacing:.04em; text-transform:none; }
 .consumable-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:5px; }
@@ -124,7 +124,7 @@ h1 { margin: 0; font: 600 clamp(24px, 3vw, 38px)/1.05 Georgia, serif; letter-spa
 .consumable-grid button.drop-target { border-color:#f2e875; background:#50511f; }
 .consumable-grid button:not(.occupied) span::after { content:"+"; display:grid; place-items:center; width:100%; height:100%; color:#777866; font-size:18px; }
 .consumable-grid .empty,.equipment-slots .empty { opacity:.45; }
-.equipment-slots { align-content:start; display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:5px; padding-top:2px; }
+.equipment-slots { align-content:start; display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:5px; padding-top:0; }
 .equipment-slots>strong { grid-column:1/-1; padding:7px 8px; border:1px solid #bdb98d44; background:#17180d; }
 .equipment-slots button { position:relative; aspect-ratio:1; display:grid; grid-template-rows:1fr auto; place-items:center; min-width:0; padding:4px; border:1px solid #6f705d; background:linear-gradient(145deg,#24251f,#0c0d0b); color:#858579; cursor:pointer; box-shadow:inset 0 0 0 2px #050605; }
 .equipment-slots button>span { width:78%; aspect-ratio:1; background:center/contain no-repeat; }
@@ -248,7 +248,7 @@ h1 { margin: 0; font: 600 clamp(24px, 3vw, 38px)/1.05 Georgia, serif; letter-spa
 .terrain-editor .terrain-tools button[data-terrain-mode="forestErase"].active{border-color:#df8d77;background:#623e32;color:#ffe9df}
 .build-inspector fieldset.build-uniform-scale{grid-template-columns:1fr}
 .build-tabs{grid-template-columns:repeat(2,1fr)}
-.build-tab-panel[data-build-panel="terrain"]{display:none!important}
+.terrain-paint-presets{display:grid;grid-template-columns:1fr 1fr;gap:6px}.terrain-paint-presets button{display:flex;align-items:center;justify-content:center;gap:7px}.terrain-paint-presets i{width:13px;height:13px;border:1px solid #ffffff55;border-radius:50%;background:#416f38}.terrain-paint-presets [data-terrain-paint="snow"] i{background:#e3e9e7}.terrain-paint-presets [data-terrain-paint="snow"].active{border-color:#cdefff;background:#405968;color:#fff}
 .build-inspector .build-uniform-scale label{grid-template-columns:auto 1fr;gap:10px}
 .build-tabs{grid-template-columns:repeat(3,1fr)}
 .asset-folder-tools{display:flex;align-items:center;justify-content:space-between;gap:8px}.asset-folder-tools button{padding:7px 10px;border:1px solid #d3a45d66;border-radius:4px;background:#3b2b19;color:#ffe8bd;cursor:pointer}.asset-folder-tools small{color:#77858c;font-size:8px}

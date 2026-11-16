@@ -55,7 +55,7 @@ app.innerHTML = `
         <label class="weather-intensity">Intensidade <input id="weatherIntensity" type="range" min="0.15" max="1.5" step="0.05" value="0.8"></label>
       </aside>
       <aside class="transform-editor hidden" id="scabbardEditor" aria-hidden="true">
-        <header><strong>Bainha e escudo</strong><kbd>B</kbd></header>
+        <header><strong>Bainha e escudo</strong><kbd>L</kbd></header>
         <small id="scabbardSide">Objeto</small>
         <fieldset><legend>Posição</legend>
           <label><b>X</b><input data-scabbard-position="0" type="number" step="0.01"></label>
@@ -76,6 +76,22 @@ app.innerHTML = `
           <label><b>Y</b><input data-sword-position="1" type="number" step="0.01"></label>
           <label><b>Z</b><input data-sword-position="2" type="number" step="0.01"></label>
         </fieldset>
+        <small data-bow-status>Arco · mão esquerda</small>
+        <fieldset><legend>Posição do arco</legend>
+          <label><b>X</b><input data-bow-position="0" type="number" step="0.01"></label><label><b>Y</b><input data-bow-position="1" type="number" step="0.01"></label><label><b>Z</b><input data-bow-position="2" type="number" step="0.01"></label>
+        </fieldset>
+        <fieldset><legend>Rotação do arco</legend>
+          <label><b>X</b><input data-bow-rotation="0" type="number" step="1"></label><label><b>Y</b><input data-bow-rotation="1" type="number" step="1"></label><label><b>Z</b><input data-bow-rotation="2" type="number" step="1"></label>
+        </fieldset>
+        <fieldset><legend>Tamanho do arco</legend><label><b>Esc</b><input data-bow-scale type="number" min="0.1" step="0.05"></label></fieldset>
+        <small data-quiver-status>Aljava · costas</small>
+        <fieldset><legend>Posição da mochila</legend>
+          <label><b>X</b><input data-quiver-position="0" type="number" step="0.01"></label><label><b>Y</b><input data-quiver-position="1" type="number" step="0.01"></label><label><b>Z</b><input data-quiver-position="2" type="number" step="0.01"></label>
+        </fieldset>
+        <fieldset><legend>Rotação da mochila</legend>
+          <label><b>X</b><input data-quiver-rotation="0" type="number" step="1"></label><label><b>Y</b><input data-quiver-rotation="1" type="number" step="1"></label><label><b>Z</b><input data-quiver-rotation="2" type="number" step="1"></label>
+        </fieldset>
+        <fieldset><legend>Tamanho da aljava</legend><label><b>Esc</b><input data-quiver-scale type="number" min="0.1" step="0.05"></label></fieldset>
         <small data-shield-status="right">Escudo · Mão esquerda</small>
         <fieldset><legend>Posição do escudo</legend>
           <label><b>X</b><input data-shield-position="right-0" type="number" step="0.01"></label>
@@ -234,10 +250,10 @@ app.innerHTML = `
               <div><i>⚔</i><span id="attackLabel">Ataque<b id="attackStat">10</b></span></div>
             </aside>
             <div class="inventory-character-column">
-              <div class="inventory-avatar" id="inventoryAvatar"><canvas aria-label="Avatar 3D ao vivo"></canvas><span>Arraste para girar</span></div>
+              <div class="inventory-avatar" id="inventoryAvatar"><canvas aria-label="Avatar 3D ao vivo"></canvas></div>
               <section class="inventory-consumables" aria-label="Consumíveis"><strong>Consumíveis rápidos <small>Selecione um slot e escolha no inventário</small></strong><div class="consumable-grid">${quickSlots}</div></section>
             </div>
-            <aside class="equipment-slots" aria-label="Itens equipados"><strong>Equipado</strong>
+            <aside class="equipment-slots" aria-label="Itens equipados">
               <button data-equip-slot="head" draggable="true"><span></span><small>Capacete</small></button><button data-equip-slot="accessory" draggable="true"><span></span><small>Acessório</small></button>
               <button data-equip-slot="torso" draggable="true"><span></span><small>Roupa</small></button><button data-equip-slot="armor" draggable="true"><span></span><small>Armadura</small></button>
               <button data-equip-slot="legs" draggable="true"><span></span><small>Pernas</small></button><button data-equip-slot="gloves" draggable="true"><span></span><small>Luvas</small></button>
@@ -245,7 +261,7 @@ app.innerHTML = `
               <button class="hand-slot" data-equip-slot="leftHand" draggable="true"><span></span><small>Mão esquerda</small></button><button class="hand-slot" data-equip-slot="rightHand" draggable="true"><span></span><small>Mão direita</small></button>
             </aside>
             <div class="inventory-items">
-              <div class="inventory-section-title"><span>Inventário de Aincrad</span><small id="inventoryCount">58 itens</small></div>
+              <div class="inventory-section-title"><span>Inventário</span><small id="inventoryCount">58 itens</small></div>
               <nav class="inventory-filters" aria-label="Filtros do inventário"><button class="active" data-filter="all">Todos</button><button data-filter="magic">Itens mágicos</button><button data-filter="weapon">Armas</button><button data-filter="clothing">Roupas</button><button data-filter="armor">Armaduras</button><button data-filter="accessory">Acessórios</button><button data-filter="consumable">Consumíveis</button><button data-filter="material">Materiais</button></nav>
               <div class="inventory-bulk-actions"><button type="button" id="inventorySelectMode">Selecionar</button><button type="button" id="inventoryDeleteSelected" disabled>Excluir selecionados <b>0</b></button></div>
               <div class="inventory-trash" id="inventoryTrash" aria-label="Excluir item"><span>⌫</span><b>Excluir item</b><small>Arraste aqui</small></div>
@@ -286,17 +302,21 @@ app.innerHTML = `
         <header><div><small>EDITOR DO MUNDO</small><strong>Modo Criação</strong></div><div><button type="button" data-build-collapse title="Ocultar painel">‹</button><button type="button" data-build-close aria-label="Sair do modo criação">×</button></div></header>
         <div class="build-toolbar" role="toolbar"><button class="active" type="button" data-build-tool="translate" title="Mover (W)">↔ <span>Mover</span></button><button type="button" data-build-tool="rotate" title="Girar (E)">⟳ <span>Girar</span></button><button type="button" data-build-tool="scale" title="Escalar (R)">⤢ <span>Escalar</span></button><button type="button" data-build-space>Local</button><button class="active" type="button" data-build-grid title="Mostrar ou ocultar a grade do chão"># Grade</button></div>
         <div class="build-history" role="toolbar" aria-label="Histórico e arquivo"><button type="button" data-build-save title="Gravar o mundo atual no banco de dados">Salvar mundo</button><output data-build-save-status role="status" aria-live="polite"></output><button type="button" data-build-undo title="Desfazer (Ctrl+Z)">↶ Desfazer</button><button type="button" data-build-redo title="Refazer (Ctrl+Shift+Z)">↷ Refazer</button><button type="button" data-build-duplicate title="Duplicar (Ctrl+D)">⧉ Duplicar</button><button type="button" data-build-export>Exportar JSON</button><button type="button" data-build-import>Importar JSON</button><input type="file" accept="application/json" data-build-import-file hidden></div>
-        <nav class="build-tabs" aria-label="Seções do editor"><button class="active" data-build-tab="objects">Objetos</button><button data-build-tab="world">Mundo</button></nav>
+        <nav class="build-tabs" aria-label="Seções do editor"><button class="active" data-build-tab="objects">Objetos</button><button data-build-tab="terrain">Terreno</button><button data-build-tab="world">Mundo</button></nav>
         <div class="build-panel-scroll">
         <div class="build-tab-panel" data-build-panel="terrain">
         <section class="terrain-editor">
           <header><span>Terreno low poly</span><button type="button" data-terrain-toggle>Ativar pincel</button></header>
           <div class="terrain-tools" role="toolbar">
-            <button class="active" data-terrain-mode="paint">Pintar</button><button data-terrain-mode="forest">Preencher floresta</button><button data-terrain-mode="forestErase">Borracha de floresta</button>
+            <button class="active" data-terrain-mode="paint">Pintar terreno</button>
+          </div>
+          <div class="terrain-paint-presets" role="toolbar" aria-label="Pincéis de bioma">
+            <button class="active" type="button" data-terrain-paint="grass"><i></i>Grama</button>
+            <button type="button" data-terrain-paint="snow"><i></i>Neve</button>
           </div>
           <label>Material <select data-terrain-material><option value="grass">Grama</option><option value="dirt">Terra</option><option value="sand">Areia</option><option value="stone">Pedra</option><option value="snow">Neve</option></select></label>
-          <div data-forest-brush-options hidden>
-            <label>Assets <select data-forest-brush-kind><option value="mixed">Árvores + grama + pedras</option><option value="trees">Só árvores</option><option value="grass">Só grama</option><option value="rocks">Só pedras</option></select></label>
+          <div data-forest-brush-options hidden aria-hidden="true">
+            <label>Assets <select data-forest-brush-kind><option value="grass">Só grama</option><option value="rocks">Só pedras</option></select></label>
             <label>Densidade <input data-forest-brush-density type="range" min="0.25" max="3" step="0.25" value="1"><output>1×</output></label>
             <small>Arraste para preencher somente a grama. Sobrepor o mesmo trecho não duplica o preenchimento. Use Desfazer para remover a pincelada.</small>
           </div>
