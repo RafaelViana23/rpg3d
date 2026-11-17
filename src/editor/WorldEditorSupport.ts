@@ -1,12 +1,15 @@
 import type {PavedStreet} from './CityPavedStreet';
 import defaultMap from './default-map.json';
-export type SavedBuildAsset = { position: number[]; rotation: number[]; scale: number[]; visible: boolean; forestModel?: string; harborModel?: "dock-group" | "ship"; streetLantern?: true; label?: string };
+export type SavedBuildAsset = { position: number[]; rotation: number[]; scale: number[]; visible: boolean; forestModel?: string; harborModel?: "dock-group" | "ship"; streetLantern?: true; buildModel?: string; label?: string };
 export type ForestErasure = { x:number;z:number;radius:number;kind:"mixed"|"trees"|"grass"|"rocks" };
 export type TerrainMaterial = "grass" | "dirt" | "sand" | "stone" | "snow" | "road";
 export type SavedTerrainChunk = { heights: number[]; materials: (TerrainMaterial | null)[] };
 export type CityAssetKind = "guardhouse" | "stable" | "training-yard" | "military-store" | "tollhouse" | "repair-workshop" | "smithy" | "wagon-shelter" | "wall-shrine" | "wall-access" | "warehouse" | "inn" | "guild" | "weapons" | "potions" | "market" | "fountain" | "palace" | "house" | "shop" | "tavern" | "church" | "castle" | "tower" | "gate" | "bridge" | "stairs" | "wall" | "road" | "path";
-export type SavedCityObject = { streetBorderOpenings?:number[][][]; pavedStreet?:PavedStreet; pavingUvReference?:{position:number[];rotationY:number}; centralPlazaRadius?:number; fountainPlazaRadius?:number; militaryFacilitiesRevision?:number; outpostRemovalRevision?:number; id: string; kind: CityAssetKind; layer: string; position: number[]; rotation: number[]; scale: number[]; avenueFrontage?:'main'|'secondary';frontageLayoutRevision?:number;avenueClearanceRevision?:number;secondaryAvenues?:{revision:1;left:number;right:number;width:number};palaceEntranceRevision?:number;palaceComplexRevision?:number;royalAvenueRevision?:number; architectureRevision?: number; warehouseLayoutRevision?: number; perimeterLayoutRevision?: number; warehouseClearanceRevision?: number; tavernLayoutRevision?: number; churchScaleRevision?: number; points?: number[][]; width?: number };
-export type SavedBuildState = { version: 4; mapWidth: number; mapDepth: number; assets: Record<string, SavedBuildAsset>; removedAssets: string[]; terrain: Record<string, SavedTerrainChunk>; city: Record<string, SavedCityObject>; worldPreset: "arena-island-v1"; pathsRemoved?: boolean; sceneryCleaned?:boolean; sceneryCleanupRevision?:number; harborCleanupRevision?:number;groundBaselineRevision?:number;sceneryCleanupBackup?:Record<string,SavedCityObject>; forestErasures?:ForestErasure[] };
+export type SavedCityObject = { buildingStyle?:'wood'; fortificationStyle?:'village'; villagePerimeterRevision?:number; villageGateLayoutRevision?:number; streetBorderOpenings?:number[][][]; pavedStreet?:PavedStreet; pavingUvReference?:{position:number[];rotationY:number}; centralPlazaRadius?:number; fountainPlazaRadius?:number; militaryFacilitiesRevision?:number; outpostRemovalRevision?:number; id: string; kind: CityAssetKind; layer: string; position: number[]; rotation: number[]; scale: number[]; avenueFrontage?:'main'|'secondary';frontageLayoutRevision?:number;avenueClearanceRevision?:number;secondaryAvenues?:{revision:1;left:number;right:number;width:number};palaceEntranceRevision?:number;palaceComplexRevision?:number;royalAvenueRevision?:number; architectureRevision?: number; warehouseLayoutRevision?: number; perimeterLayoutRevision?: number; warehouseClearanceRevision?: number; tavernLayoutRevision?: number; churchScaleRevision?: number; points?: number[][]; width?: number };
+export type WorldJsonAsset = { id:string; modelo:string; nome:string; posição:number[]; rotação:number[]; escala:number[]; visível:boolean; biome?:true; estiloConstrução?:'wood'; estiloFortificação?:'village'; revisaoPortaoVila?:number; pontosEstruturais?:number[][]; larguraEstrutural?:number };
+export type WorldJson = { version:5; mapWidth:number; mapDepth:number; objects:Record<string,WorldJsonAsset>; terrain:Record<string,SavedTerrainChunk>; worldPreset:"arena-island-v1"; forestErasures?:ForestErasure[] };
+export type SavedBuildState = { version: 4; mapWidth: number; mapDepth: number; assets: Record<string, SavedBuildAsset>; removedAssets: string[]; terrain: Record<string, SavedTerrainChunk>; city: Record<string, SavedCityObject>; worldPreset: "arena-island-v1"; pathsRemoved?: boolean; sceneryCleaned?:boolean; sceneryCleanupRevision?:number; harborCleanupRevision?:number;groundBaselineRevision?:number; forestErasures?:ForestErasure[] };
+const STRUCTURAL_MODELS = new Set<CityAssetKind>(['guardhouse','stable','training-yard','military-store','tollhouse','repair-workshop','smithy','wagon-shelter','wall-shrine','wall-access','warehouse','inn','guild','weapons','potions','market','fountain','palace','house','shop','tavern','church','castle','tower','gate','bridge','stairs','wall','road','path']);
 
 const DEFAULT_STATE: SavedBuildState = structuredClone(defaultMap as unknown as SavedBuildState);
 
@@ -16,10 +19,8 @@ export class WorldEditorStore {
   private readonly redoStack: string[] = [];
   private loadFailure: Error | null = null;
 
-  constructor(private readonly storageKey: string) {
-    const rawStoredMap = localStorage.getItem(storageKey);
-    const hadPaintMeshSave = rawStoredMap?.includes('"terrainPaints"') ?? false;
-    const hadStoredSave = localStorage.getItem(storageKey) !== null;
+  constructor(_storageKey: string, private readonly initialRaw: string | null = null) {
+    const hadStoredSave = Boolean(initialRaw);
     this.state = this.load();
     if (this.loadFailure) {
       throw this.loadFailure;
@@ -31,15 +32,11 @@ export class WorldEditorStore {
         if (object.kind === "road" || object.kind === "path") delete this.state.city[id];
       for (const chunk of Object.values(this.state.terrain))
         chunk.materials = chunk.materials.map((material) => material === "road" ? null : material);
-      this.save();
     }
     if(!hadStoredSave&&this.state.sceneryCleanupRevision!==1){
       this.state.sceneryCleaned=true;this.state.sceneryCleanupRevision=1;
-      const removed=Object.fromEntries(Object.entries(this.state.city).filter(([,object])=>object.kind!=="castle"));
-      this.state.sceneryCleanupBackup={...this.state.sceneryCleanupBackup,...structuredClone(removed)};
       this.undoStack.push(this.snapshot());
       for(const [id,object] of Object.entries(this.state.city))if(object.kind!=="castle")delete this.state.city[id];
-      this.save();
     }
     if(!hadStoredSave&&this.state.harborCleanupRevision!==1){
       // Early Build-mode copies spawned complete three-piece piers only 1.5 m
@@ -47,10 +44,9 @@ export class WorldEditorStore {
       for(const [id,asset] of Object.entries(this.state.assets))
         if(asset.harborModel==="dock-group"&&/doca marítima.*cópia/i.test(asset.label??""))delete this.state.assets[id];
       this.state.harborCleanupRevision=1;
-      this.save();
     }
     if(!hadStoredSave&&!Object.keys(this.state.city).some(id=>id.startsWith('capital-octagon-'))){
-      Object.assign(this.state.city,structuredClone(DEFAULT_STATE.city));this.save();
+      Object.assign(this.state.city,structuredClone(DEFAULT_STATE.city));
     }
     // Object origins are normalized by the city model loader. Do not rewrite
     // saved world coordinates here: Build owns transforms and Y=0 is the
@@ -59,50 +55,65 @@ export class WorldEditorStore {
     const hasApprovedPerimeter=Object.keys(this.state.city).some(id=>id.startsWith('capital-octagon-wall-'));
     const hasApprovedAvenue=Boolean(this.state.city['city-royal-avenue-v1']);
     if(!hasApprovedPerimeter||!hasApprovedAvenue){
-      const recoveryKey=`rpg3d.structural-recovery.${Date.now()}`;
-      try{localStorage.setItem(recoveryKey,this.snapshot());}catch{/* best effort */}
       for(const [id,object] of Object.entries(DEFAULT_STATE.city)){
         if(id.startsWith('capital-octagon-')||id==='city-royal-avenue-v1')this.state.city[id]=structuredClone(object);
       }
-      this.save();
     }
     // Remove the abandoned overlay-mesh format from the persisted map. Terrain
     // painting is stored only in the terrain material grid now.
-    if (hadPaintMeshSave) this.save();
   }
 
   private load(): SavedBuildState {
     try {
-      let raw = localStorage.getItem(this.storageKey);
-      if(new URLSearchParams(location.search).get('restore')==='4340'){
-        const request=new XMLHttpRequest();
-        request.open('GET','/backups/current-save-4340.json',false);request.send();
-        if(request.status>=200&&request.status<300){
-          const snapshot=JSON.parse(request.responseText);
-          const restored=snapshot.payload?.entries?.[this.storageKey];
-          if(typeof restored==='string')raw=restored;
-        }
-      }
-      const saved = JSON.parse(raw ?? "null") as Partial<SavedBuildState> | null;
+      let raw = this.initialRaw;
+      const saved = JSON.parse(raw ?? "null") as (Partial<SavedBuildState> & Partial<WorldJson>) | null;
       if(!saved)return structuredClone(DEFAULT_STATE);
+      if (saved?.version === 5 && saved.objects && saved.terrain) {
+        const assets:Record<string,SavedBuildAsset>={}, city:Record<string,SavedCityObject>={};
+        for (const entry of Object.values(saved.objects as Record<string,WorldJsonAsset>)) {
+          if (entry.modelo === "bridge" || entry.modelo === "dock-group" || entry.id === "dock-lake-group" || /ponte|doca/i.test(entry.nome ?? "")) continue;
+          const base={position:entry.posição,rotation:entry.rotação,scale:entry.escala,visible:entry.visível,label:entry.nome};
+          if (STRUCTURAL_MODELS.has(entry.modelo as CityAssetKind)) {
+            // Version 5 keeps the common transform schema for every object,
+            // while roads/walls may still need structural geometry fields.
+            // Reuse the bundled structural definition only for those omitted
+            // fields; the saved transform and identity remain authoritative.
+            const template=DEFAULT_STATE.city[entry.id];
+            city[entry.id]={...(template?.kind===entry.modelo?structuredClone(template):{}),id:entry.id,kind:entry.modelo as CityAssetKind,layer:entry.nome,position:entry.posição,rotation:entry.rotação,scale:entry.escala,...(entry.estiloConstrução?{buildingStyle:entry.estiloConstrução}:{}),...(entry.estiloFortificação?{fortificationStyle:entry.estiloFortificação}:{}),...(entry.revisaoPortaoVila?{villageGateLayoutRevision:entry.revisaoPortaoVila}:{}),...(entry.pontosEstruturais?{points:entry.pontosEstruturais}:{}),...(entry.larguraEstrutural!==undefined?{width:entry.larguraEstrutural}:{})};
+          }
+          else if (entry.biome) assets[entry.id]={...base,forestModel:entry.modelo};
+          else assets[entry.id]={...base,buildModel:entry.modelo};
+        }
+        return {version:4,mapWidth:saved.mapWidth!,mapDepth:saved.mapDepth!,assets,removedAssets:[],terrain:saved.terrain!,city,worldPreset:saved.worldPreset!,forestErasures:saved.forestErasures};
+      }
       if (saved.version !== 4 || !saved.assets || !Array.isArray(saved.removedAssets)
         || !saved.terrain || !saved.city) throw new Error("estrutura incompleta");
       const legacy = saved as Partial<SavedBuildState> & { arenaTerrain?: Record<string, SavedTerrainChunk>; arenaCity?: Record<string, SavedCityObject> };
       const storedCity=legacy.arenaCity??saved?.city;
       // An explicitly saved empty city is valid: deleting everything in Build
       // must not cause the bundled default city to return on the next load.
-      const city=storedCity??structuredClone(DEFAULT_STATE.city);
-      return { version: 4, mapWidth: saved?.mapWidth ?? 50, mapDepth: saved?.mapDepth ?? 35, assets: saved?.assets ?? {}, removedAssets: saved?.removedAssets ?? [], terrain: legacy.arenaTerrain ?? saved?.terrain ?? {}, city, worldPreset: "arena-island-v1", pathsRemoved: saved?.pathsRemoved ?? false,sceneryCleaned:saved?.sceneryCleaned??false,sceneryCleanupRevision:saved?.sceneryCleanupRevision,harborCleanupRevision:saved?.harborCleanupRevision,groundBaselineRevision:saved?.groundBaselineRevision,sceneryCleanupBackup:saved?.sceneryCleanupBackup,forestErasures:saved?.forestErasures??[] };
+      const city=Object.fromEntries(Object.entries(storedCity??structuredClone(DEFAULT_STATE.city)).filter(([,value]) => value.kind !== "bridge"));
+      for (const [id,value] of Object.entries(saved?.assets ?? {})) if (value.buildModel === "bridge" || value.buildModel === "dock-group" || id === "dock-lake-group" || /ponte|doca/i.test(value.label ?? "")) delete saved.assets[id];
+      return { version: 4, mapWidth: saved?.mapWidth ?? 50, mapDepth: saved?.mapDepth ?? 35, assets: saved?.assets ?? {}, removedAssets: saved?.removedAssets ?? [], terrain: legacy.arenaTerrain ?? saved?.terrain ?? {}, city, worldPreset: "arena-island-v1", pathsRemoved: saved?.pathsRemoved ?? false,sceneryCleaned:saved?.sceneryCleaned??false,sceneryCleanupRevision:saved?.sceneryCleanupRevision,harborCleanupRevision:saved?.harborCleanupRevision,groundBaselineRevision:saved?.groundBaselineRevision,forestErasures:saved?.forestErasures??[] };
     } catch (error) {
-      const raw = localStorage.getItem(this.storageKey);
-      const backupKey = `rpg3d.corrupt-save.${Date.now()}`;
-      try { if (raw) localStorage.setItem(backupKey, raw); } catch { /* preserve the original if quota is full */ }
-      this.loadFailure = new Error(`O save local do mapa está corrompido (${backupKey}). Nenhum default foi carregado.`);
+      this.loadFailure = new Error('O save local do mapa está corrompido. Nenhum default foi carregado.');
       throw this.loadFailure;
     }
   }
 
   snapshot() { return JSON.stringify(this.state); }
+
+  worldJson() {
+    const objects:Record<string,WorldJsonAsset>={};
+    for (const [id,value] of Object.entries(this.state.city)) objects[id]={id,modelo:value.kind,nome:value.layer||id,posição:value.position,rotação:value.rotation,escala:value.scale,visível:true,...(value.buildingStyle?{estiloConstrução:value.buildingStyle}:{}),...(value.fortificationStyle?{estiloFortificação:value.fortificationStyle}:{}),...(value.villageGateLayoutRevision?{revisaoPortaoVila:value.villageGateLayoutRevision}:{}),...(value.points?{pontosEstruturais:value.points}:{}),...(value.width!==undefined?{larguraEstrutural:value.width}:{})};
+    for (const [id,value] of Object.entries(this.state.assets)) {
+      const modelo=value.forestModel??value.buildModel??value.harborModel??(value.streetLantern?'street-lantern':id.split('-')[0]);
+      objects[id]={id,modelo,nome:value.label??id,posição:value.position,rotação:value.rotation,escala:value.scale,visível:value.visible,...(value.forestModel?{biome:true as const}:{})};
+    }
+    const world:WorldJson={version:5,mapWidth:this.state.mapWidth,mapDepth:this.state.mapDepth,objects,terrain:this.state.terrain,worldPreset:this.state.worldPreset};
+    if(this.state.forestErasures?.length)world.forestErasures=this.state.forestErasures;
+    return JSON.stringify(world);
+  }
 
   checkpoint(before?: string) {
     const value = before ?? this.snapshot();
@@ -142,12 +153,11 @@ export class WorldEditorStore {
     this.state.sceneryCleaned=next.sceneryCleaned??true;
     this.state.sceneryCleanupRevision=next.sceneryCleanupRevision??1;
     this.state.harborCleanupRevision=next.harborCleanupRevision??1;
-    this.state.sceneryCleanupBackup=next.sceneryCleanupBackup??this.state.sceneryCleanupBackup;
     this.state.forestErasures=next.forestErasures??[];
     this.save();
   }
 
-  save() { localStorage.setItem(this.storageKey, this.snapshot()); }
+  save() { /* Build state lives in memory until the explicit database save. */ }
 
   exportJson() {
     const blob = new Blob([JSON.stringify(this.state, null, 2)], { type: "application/json" });

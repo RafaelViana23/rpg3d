@@ -10,15 +10,18 @@ import type { initializePreyAnimals } from "../world/PreyAnimals";
 import { PERIMETER_CATALOG } from './CityPerimeter';
 import type { CityResidents } from "./CityResidents";
 import { selectCityObject } from './CitySelection';
-import { LowPolyCityBuilder,createCityAsset } from "./LowPolyCityBuilder";
+import { LowPolyCityBuilder,createCityAsset,createCityWoodBuilding,createValenWoodHouse,createVillageFortificationAsset } from "./LowPolyCityBuilder";
 import { OrientedSelectionBox } from './OrientedSelectionBox';
 import type { CityAssetKind,SavedCityObject } from "./WorldEditorSupport";
 import { WorldEditorStore,type SavedBuildAsset } from "./WorldEditorSupport";
 import { restoreCityPropBatches,reapplyCityPropBatches } from './CityPropBatching';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { createCityWoodFloor } from './CityWoodFloor';
 import { cityPavingMaterial } from '../world/CityPaving';
 import { createCityWagon } from './CityWagon';
+import {addCityFacadeWindows} from './CityProps';
+import {REQUESTED_VILLAGES,requestedVillageObjects} from './RequestedVillages';
 
 type BuildFolderState={folders:string[];assets:Record<string,string>};
 
@@ -53,7 +56,7 @@ export interface BuildEditorContext {
 
 // Initialize only at the original bootstrap point. Live accessors preserve later state changes.
 export function initializeBuildEditor(context: BuildEditorContext) {
-  const { camera, renderer, scene, cityBuilder, cityFloor, updateCityFloor, buildState, openWorld, worldEditorStore, saveBuildState, grid, floor, protectedBuildAssets, setPlayStatus, controls, playerGroundOffsetAt } = context;
+  const { camera, renderer, scene, cityBuilder, updateCityFloor, buildState, openWorld, worldEditorStore, saveBuildState, grid, floor, protectedBuildAssets, setPlayStatus, controls, playerGroundOffsetAt } = context;
   // This dependency is declared later during main bootstrap. Keep its context
   // getter lazy instead of evaluating it while the Build editor is created.
   const playerGroundHeightAt = (x: number, z: number, allowStepUp?: boolean) =>
@@ -99,6 +102,14 @@ export function initializeBuildEditor(context: BuildEditorContext) {
   ] as const;
   const buildModelTemplates = new Map<string, THREE.Group>();
   const buildModelLoads = new Set<string>();
+  const PATH_GRID_STEP=10;
+  const createPathGridTile=()=>{
+    const root=new THREE.Group();root.name='Célula de caminho de terra';
+    const geometry=new THREE.PlaneGeometry(PATH_GRID_STEP,PATH_GRID_STEP,1,1);geometry.rotateX(-Math.PI/2);
+    const material=new THREE.MeshLambertMaterial({color:'#98704a',flatShading:true,polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-2});
+    const mesh=new THREE.Mesh(geometry,material);mesh.receiveShadow=true;mesh.renderOrder=6;root.add(mesh);return root;
+  };
+  buildModelTemplates.set('dirt-path-tile',createPathGridTile());
   const BUILD_FOLDERS_KEY="rpg3d.buildFolders.v1";
 
   const buildFolderState:BuildFolderState=(()=>{try{return{folders:[],assets:{},...JSON.parse(localStorage.getItem(BUILD_FOLDERS_KEY)||"{}")};}catch{return{folders:[],assets:{}};}})();
@@ -108,6 +119,7 @@ export function initializeBuildEditor(context: BuildEditorContext) {
   const buildBiomePreviewSources=new Map<string,THREE.Object3D>();
   const floorPreviewSources=new Map<string,THREE.Object3D>();
   const floorPreviewLoads=new Set<string>();
+  const cityThumbnailCache=new Map<string,{signature:string;image:string}>();
   let proceduralDockTemplate:THREE.Group|null=null;
   let fitProceduralDockSupports:(dock:THREE.Object3D)=>void=()=>{};
   const buildTransformInputs = [...document.querySelectorAll<HTMLInputElement>("[data-build-transform]")];
@@ -123,6 +135,11 @@ export function initializeBuildEditor(context: BuildEditorContext) {
   let lastForestBrushPoint:THREE.Vector3|undefined;
   forestBrushDensity.addEventListener("input",()=>{forestBrushDensity.parentElement!.querySelector("output")!.textContent=`${forestBrushDensity.value}×`;});
   let terrainMode: TerrainBrushMode = "paint", terrainBrushEnabled = false, terrainPainting = false, terrainStrokeBefore = "", terrainFlattenHeight = 0;
+  let pathGridMode=false;
+  let pathDragButton:0|2|null=null;
+  let pathDragCell="";
+  const pathGridButton=document.querySelector<HTMLButtonElement>('[data-path-grid-toggle]')!;
+  const pathGrid=new THREE.GridHelper(2040,204,'#d7b06f','#8a6a43');pathGrid.name='Grade mundial de caminhos 10×10';pathGrid.position.y=.12;pathGrid.visible=false;pathGrid.userData.buildEditable=false;scene.add(pathGrid);
   let terrainRampStart: THREE.Vector3 | undefined;
   let lastTerrainBrushAt=0, pendingTerrainBrush:{point:THREE.Vector3;shift:boolean}|undefined;
   const terrainPreviewMaterial = new THREE.LineBasicMaterial({ color: "#8affae", transparent: true, opacity: .9, depthTest: false });
@@ -134,7 +151,7 @@ export function initializeBuildEditor(context: BuildEditorContext) {
   const rebuildTerrainPaintMarks = () => {};
   const cityLayerInput = document.querySelector<HTMLInputElement>("[data-city-layer]")!, cityWidthInput = document.querySelector<HTMLInputElement>("[data-city-width]")!, cityGridInput = document.querySelector<HTMLInputElement>("[data-city-grid]")!;
   const citySelectionOutput = document.querySelector<HTMLOutputElement>("[data-city-selection]")!, cityCategoryInput = document.querySelector<HTMLSelectElement>("[data-city-category]")!;
-  let cityPlacementKind: CityAssetKind | null = null, cityPreview: THREE.Group | null = null, cityPathPoints: THREE.Vector3[] = [];
+  let cityPlacementKind: CityAssetKind | null = null, cityPlacementStyle:'wood'|null=null, cityFortificationStyle:'village'|null=null, cityPreview: THREE.Group | null = null, cityPathPoints: THREE.Vector3[] = [];
   const cityPathPreview = new THREE.Line(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ color: "#66ef9b", transparent: true, opacity: .65, depthTest: false })); cityPathPreview.visible = false; cityPathPreview.userData.buildEditable = false; scene.add(cityPathPreview);
   const selectedCityIds = new Set<string>(), cityGroupProxy = new THREE.Object3D(); cityGroupProxy.name = "Seleção de cidade"; cityGroupProxy.userData.buildEditable = false; scene.add(cityGroupProxy);
   const citySelectionHelpers = new THREE.Group(); citySelectionHelpers.name = "Destaques da seleção"; citySelectionHelpers.userData.buildEditable = false; scene.add(citySelectionHelpers);
@@ -142,10 +159,13 @@ export function initializeBuildEditor(context: BuildEditorContext) {
   let cityGroupObjectStarts = new Map<string, {position:THREE.Vector3;quaternion:THREE.Quaternion;scale:THREE.Vector3}>();
   const cityAttachedStarts=new Map<THREE.Object3D,THREE.Matrix4>();
   const cityAttachedStartMatrix=new THREE.Matrix4(),cityAttachedPreviousDelta=new THREE.Matrix4();
-  const capitalCityAttachedObjects=()=>[...scene.children].filter(object=>{
+  const capitalCityAttachmentBounds=()=>{
+    const bounds=new THREE.Box3();for(const id of capitalCityIds()){const object=cityBuilder.objects.get(id);if(object)bounds.union(new THREE.Box3().setFromObject(object));}return bounds.expandByScalar(60);
+  };
+  const capitalCityAttachedObjects=()=>{const bounds=capitalCityAttachmentBounds();return [...scene.children].filter(object=>{
     const horse=rideableHorses.get(object),linkedHorse=!!horse?.root.userData.stableId;
-    return linkedHorse||((!!object.userData.buildId||!!object.userData.cityResidentManaged||object===context.character.group)&&cityFloor.heightAt(object.position.x,object.position.z)!==null);
-  });
+    return (linkedHorse||!!object.userData.buildId||!!object.userData.cityResidentManaged||object===context.character.group)&&bounds.containsPoint(object.position);
+  });};
   const startAttachedCityTransform=()=>{
     cityAttachedStarts.clear();cityAttachedPreviousDelta.identity();
     if(!isCapitalCitySelection())return;
@@ -166,26 +186,47 @@ export function initializeBuildEditor(context: BuildEditorContext) {
     }
     updateCityFloor();
   };
-  const capitalCityIds=()=>Object.keys(buildState.city);
+  const valenCityIds=()=>Object.entries(buildState.city).filter(([id,entry])=>id.startsWith('valen-')||/^vila\s+de\s+valen/i.test(String(entry.layer??''))).map(([id])=>id);
+  const namedVillageIds=(name:string)=>Object.entries(buildState.city).filter(([,entry])=>entry.layer===`Vila de ${name}`).map(([id])=>id);
+  const requestedVillageLayers=new Set(REQUESTED_VILLAGES.map(village=>`Vila de ${village.name}`));
+  const capitalCityIds=()=>Object.entries(buildState.city).filter(([id,entry])=>!valenCityIds().includes(id)&&!requestedVillageLayers.has(entry.layer)).map(([id])=>id);
   const isCapitalCitySelection=()=>{const ids=capitalCityIds();return ids.length>0&&ids.length===selectedCityIds.size&&ids.every(id=>selectedCityIds.has(id));};
-  const selectCapitalCity=()=>{selectedBuildAsset=null;selectedCityIds.clear();capitalCityIds().forEach(id=>selectedCityIds.add(id));updateCitySelection();};
+  const selectCityGroup=(ids:string[])=>{selectedBuildAsset=null;selectedCityIds.clear();ids.forEach(id=>selectedCityIds.add(id));transformControls.enabled=true;transformHelper.visible=ids.length>0;transformControls.setMode('translate');updateCitySelection();};
+  const selectCapitalCity=()=>selectCityGroup(capitalCityIds());
+  const selectValenCity=()=>selectCityGroup(valenCityIds());
   document.querySelector<HTMLButtonElement>("[data-folder-create]")!.addEventListener("click",()=>{
     const name=prompt("Nome da nova pasta:")?.trim();if(!name||buildFolderState.folders.includes(name))return;
     buildFolderState.folders.push(name);openBuildFolders.add(name);saveBuildFolders();refreshBuildAssetList();
   });
   const updateCitySelection = () => {
-    citySelectionOutput.value = isCapitalCitySelection()?"Cidade Principal · grupo":`${selectedCityIds.size} selecionado${selectedCityIds.size === 1 ? "" : "s"}`;
+    const valenIds=valenCityIds();
+    const isValen=valenIds.length>0&&valenIds.length===selectedCityIds.size&&valenIds.every(id=>selectedCityIds.has(id));
+    citySelectionOutput.value = isCapitalCitySelection()?"Astheria · capital":isValen?"Valen · vila":`${selectedCityIds.size} selecionado${selectedCityIds.size === 1 ? "" : "s"}`;
     for (const helper of citySelectionHelpers.children) { if (helper instanceof THREE.LineSegments) { helper.geometry.dispose(); const materials = Array.isArray(helper.material) ? helper.material : [helper.material]; materials.forEach((material) => material.dispose()); } } citySelectionHelpers.clear(); for (const id of selectedCityIds) { const object = cityBuilder.objects.get(id); if (object) citySelectionHelpers.add(new OrientedSelectionBox(object)); }
-    if(isCapitalCitySelection())for(const object of [cityFloor.root,...capitalCityAttachedObjects()])citySelectionHelpers.add(new THREE.BoxHelper(object,0xe9bc69));
     if (selectedCityIds.size === 1) transformControls.attach(cityBuilder.objects.get([...selectedCityIds][0])!);
     else if (selectedCityIds.size > 1) { const center = new THREE.Vector3(); for (const id of selectedCityIds) center.add(cityBuilder.objects.get(id)!.position); center.multiplyScalar(1 / selectedCityIds.size); cityGroupProxy.position.copy(center); cityGroupProxy.rotation.set(0,0,0); cityGroupProxy.scale.set(1,1,1); transformControls.attach(cityGroupProxy); }
     else if (!selectedBuildAsset) transformControls.detach(); refreshBuildInspector();
   };
+  document.querySelector<HTMLButtonElement>('[data-build-city-rotate]')!.addEventListener('click',()=>{
+    document.querySelector<HTMLButtonElement>('[data-build-tab="objects"]')?.click();
+    selectCapitalCity();
+    transformControls.setMode('rotate');
+    document.querySelectorAll<HTMLButtonElement>('[data-build-tool]').forEach(button=>button.classList.toggle('active',button.dataset.buildTool==='rotate'));
+    setPlayStatus('Cidade Principal selecionada: arraste o anel para girar');
+  });
   const ghostCityObject = (object: THREE.Object3D, invalid = false) => object.traverse((child) => { if (!(child instanceof THREE.Mesh)) return; if (!child.userData.cityGhostMaterial) { const source = Array.isArray(child.material) ? child.material : [child.material]; const cloned = source.map((m) => { const copy = m.clone(); copy.transparent = true; copy.opacity = .42; copy.depthWrite = false; return copy; }); child.material = Array.isArray(child.material) ? cloned : cloned[0]; child.userData.cityGhostMaterial = true; } const materials = Array.isArray(child.material) ? child.material : [child.material]; materials.forEach((material) => material.color.set(invalid ? "#e85b55" : "#63e69a")); });
-  const clearCityPlacement = () => { cityPlacementKind = null; cityPathPoints = []; cityPreview?.removeFromParent(); cityPreview = null; cityPathPreview.visible = false; cityPathPreview.geometry.dispose(); cityPathPreview.geometry = new THREE.BufferGeometry(); document.querySelectorAll("[data-city-kind]").forEach((b) => b.classList.remove("active")); };
-  const startCityPlacement = (kind: CityAssetKind) => { clearCityPlacement(); terrainBrushEnabled = false; terrainToggle.classList.remove("active"); terrainToggle.textContent = "Ativar pincel"; cityPlacementKind = kind; if (!["wall", "road", "path"].includes(kind)) { cityPreview = createCityAsset(kind); ghostCityObject(cityPreview); cityPreview.userData.buildEditable = false; scene.add(cityPreview); } };
+  const clearCityPlacement = () => { cityPlacementKind = null;cityPlacementStyle=null;cityFortificationStyle=null; cityPathPoints = []; cityPreview?.removeFromParent(); cityPreview = null; cityPathPreview.visible = false; cityPathPreview.geometry.dispose(); cityPathPreview.geometry = new THREE.BufferGeometry(); document.querySelectorAll("[data-city-kind]").forEach((b) => b.classList.remove("active")); };
+  const startCityPlacement = (kind: CityAssetKind,style:'wood'|null=null,fortificationStyle:'village'|null=null) => { clearCityPlacement(); selectedCityIds.clear();updateCitySelection(); terrainBrushEnabled = false; terrainToggle.classList.remove("active"); terrainToggle.textContent = "Ativar pincel"; cityPlacementKind = kind;cityPlacementStyle=style;cityFortificationStyle=fortificationStyle; if (!["wall", "road", "path"].includes(kind)) { cityPreview = fortificationStyle==='village'&&kind==='gate'?createVillageFortificationAsset('gate'):style==='wood'?createCityWoodBuilding(kind):createCityAsset(kind); ghostCityObject(cityPreview); cityPreview.userData.buildEditable = false; scene.add(cityPreview); } };
   const snapCityPoint = (point: THREE.Vector3) => { const gridSize = Math.max(0, Number(cityGridInput.value)); if (gridSize) { point.x = Math.round(point.x / gridSize) * gridSize; point.z = Math.round(point.z / gridSize) * gridSize; } point.y = openWorld.getHeightAt(point.x, point.z); return point; };
-  const savedCityObject = (kind: CityAssetKind, position: THREE.Vector3, points?: THREE.Vector3[]): SavedCityObject => ({ id: crypto.randomUUID(), kind, layer: cityLayerInput.value.trim() || "Cidade", position: position.toArray(), rotation: [0, 0, 0], scale: [1, 1, 1], points: points?.map((p) => p.toArray()), width: Number(cityWidthInput.value) });
+  const savedCityObject = (kind: CityAssetKind, position: THREE.Vector3, points?: THREE.Vector3[]): SavedCityObject => {
+    let objectPosition=position.clone(),objectPoints=points?.map(point=>point.clone());
+    if(kind==='wall'&&objectPoints?.length){
+      const first=objectPoints[0],last=objectPoints.at(-1)!,baseY=Math.min(...objectPoints.map(point=>point.y));
+      objectPosition=new THREE.Vector3((first.x+last.x)/2,baseY,(first.z+last.z)/2);
+      objectPoints=objectPoints.map(point=>point.sub(objectPosition));
+    }
+    return {id:crypto.randomUUID(),kind,layer:cityLayerInput.value.trim()||'Cidade',position:objectPosition.toArray(),rotation:[0,0,0],scale:[1,1,1],...(cityPlacementStyle?{buildingStyle:cityPlacementStyle}:{}),...(cityFortificationStyle?{fortificationStyle:cityFortificationStyle}:{}),points:objectPoints?.map(point=>point.toArray()),width:Number(cityWidthInput.value)};
+  };
   const currentTerrainBrush = (shift = false): TerrainBrush => ({
     mode: shift && terrainMode === "raise" ? "lower" : shift && terrainMode === "lower" ? "raise" : terrainMode,
     radius: Number(terrainRadius.value), strength: Number(terrainStrength.value), shape: terrainShape.value as "circle" | "square", material: terrainMaterial.value as TerrainBrush["material"],
@@ -232,10 +273,15 @@ export function initializeBuildEditor(context: BuildEditorContext) {
     }
     if (terrainMode === "paint") {
       openWorld.applyTerrainBrush(point, currentTerrainBrush(shift), terrainFlattenHeight, terrainRampStart);
+      // applyTerrainBrush may create a brand-new chunk in OpenWorld. Keep the
+      // persisted Build state pointed at that live record before checkpoints,
+      // exports, or an explicit database save serialize it.
+      buildState.terrain = openWorld.getTerrainEdits();
       saveBuildState();
       return;
     }
     openWorld.applyTerrainBrush(point, currentTerrainBrush(shift), terrainFlattenHeight, terrainRampStart);
+    buildState.terrain = openWorld.getTerrainEdits();
   };
   const queueTerrainBrush=(point:THREE.Vector3,shift=false,force=false)=>{
     pendingTerrainBrush={point:point.clone(),shift};
@@ -243,6 +289,28 @@ export function initializeBuildEditor(context: BuildEditorContext) {
     const pending=pendingTerrainBrush;pendingTerrainBrush=undefined;lastTerrainBrushAt=now;applyTerrainAt(pending.point,pending.shift);
   };
   terrainToggle.addEventListener("click", () => { terrainBrushEnabled = !terrainBrushEnabled; terrainToggle.classList.toggle("active", terrainBrushEnabled); terrainToggle.textContent = terrainBrushEnabled ? "Pincel ativo" : "Ativar pincel"; if (terrainBrushEnabled) selectBuildAsset(null); else terrainPreview.visible = false; });
+  const pathCellAt=(point:THREE.Vector3)=>{
+    const gx=Math.floor(point.x/PATH_GRID_STEP),gz=Math.floor(point.z/PATH_GRID_STEP);
+    return {gx,gz,id:`path-grid:${gx}:${gz}`,x:(gx+.5)*PATH_GRID_STEP,z:(gz+.5)*PATH_GRID_STEP};
+  };
+  const placePathCell=(point:THREE.Vector3)=>{
+    const cell=pathCellAt(point);if(buildState.assets[cell.id])return;
+    worldEditorStore.checkpoint();
+    const object=createPathGridTile();object.position.set(cell.x,openWorld.getHeightAt(cell.x,cell.z)+.1,cell.z);
+    object.userData={...object.userData,buildId:cell.id,buildModel:'dirt-path-tile',buildFolder:'Piso',buildEditable:false,terrainOnly:true,buildStateApplied:true};
+    scene.add(object);buildAssetRegistry.set(cell.id,object);buildState.assets[cell.id]=snapshotBuildAsset(object);saveBuildState();
+  };
+  const removePathCell=(point:THREE.Vector3)=>{
+    const cell=pathCellAt(point);if(!buildState.assets[cell.id])return;
+    worldEditorStore.checkpoint();delete buildState.assets[cell.id];buildAssetRegistry.get(cell.id)?.removeFromParent();buildAssetRegistry.delete(cell.id);
+    scene.traverse(object=>{if(object.userData.buildId===cell.id)object.removeFromParent();});saveBuildState();
+  };
+  pathGridButton.addEventListener('click',()=>{
+    pathGridMode=!pathGridMode;pathGrid.visible=pathGridMode;pathGridButton.classList.toggle('active',pathGridMode);
+    if(!pathGridMode){pathDragButton=null;pathDragCell='';}
+    pathGridButton.textContent=pathGridMode?'Caminho ativo':'Caminho em grade';
+    if(pathGridMode){clearCityPlacement();terrainBrushEnabled=false;terrainToggle.classList.remove('active');terrainToggle.textContent='Ativar pincel';terrainPreview.visible=false;selectBuildAsset(null);}
+  });
   const syncTerrainPaintPreset=()=>document.querySelectorAll<HTMLButtonElement>("[data-terrain-paint]").forEach(button=>button.classList.toggle("active",button.dataset.terrainPaint===terrainMaterial.value));
   document.querySelectorAll<HTMLButtonElement>("[data-terrain-paint]").forEach(button=>button.addEventListener("click",()=>{
     terrainMode="paint";terrainMaterial.value=button.dataset.terrainPaint!;
@@ -278,7 +346,7 @@ export function initializeBuildEditor(context: BuildEditorContext) {
   cityCategoryInput.addEventListener("change", filterCityCatalog); citySearchInput.addEventListener("input", filterCityCatalog);
   document.querySelectorAll<HTMLButtonElement>("[data-build-tab]").forEach((button) => button.addEventListener("click", () => {
     const tab = button.dataset.buildTab!; document.querySelectorAll("[data-build-tab]").forEach((item) => item.classList.toggle("active", item === button)); document.querySelectorAll<HTMLElement>("[data-build-panel]").forEach((panel) => panel.classList.toggle("active", panel.dataset.buildPanel === tab));
-    if (tab !== "terrain") { terrainBrushEnabled = false; terrainToggle.classList.remove("active"); terrainToggle.textContent = "Ativar pincel"; terrainPreview.visible = false; }
+    if (tab !== "terrain") { terrainBrushEnabled = false; terrainToggle.classList.remove("active"); terrainToggle.textContent = "Ativar pincel"; terrainPreview.visible = false; pathGridMode=false;pathGrid.visible=false;pathGridButton.classList.remove('active');pathGridButton.textContent='Caminho em grade'; }
     if (tab !== "construction") clearCityPlacement();
   }));
   cityWidthInput.addEventListener("input", () => { cityWidthInput.parentElement!.querySelector("output")!.textContent = cityWidthInput.value; });
@@ -323,6 +391,7 @@ export function initializeBuildEditor(context: BuildEditorContext) {
     // the editor boundary so every live tree remains selectable in Build.
     forestAssets.forEach(object => { object.userData.buildEditable = true; });
     return [...scene.children, ...cityBuilder.root.children.filter(object=>object.userData.generatedWell), ...streetLanterns, ...cityProps, ...forestAssets].filter((object, index, all) => all.indexOf(object) === index).filter((object) => {
+    if(object.userData.terrainOnly||object.userData.buildModel==='dirt-path-tile'||object.userData.floorModel==='path-dirt'||object.userData.cityKind==='path')return false;
     if (object.userData.biomeAssetKind && (buildState.removedAssets.includes(object.name) || (object.userData.buildId && buildState.removedAssets.includes(String(object.userData.buildId))))) return false;
     if ((object.userData.buildEditable === false && !object.userData.animalModel) || object === transformHelper || object === grid || object === floor || object instanceof THREE.Light || object instanceof THREE.Camera) return false;
     let hasRenderable = false;
@@ -404,6 +473,9 @@ export function initializeBuildEditor(context: BuildEditorContext) {
     ...(object.userData.buildModel ? { buildModel: object.userData.buildModel, label: object.name } : {}),
   });
   const syncWorldAssetsToSave = () => {
+    // This is the final guard used by the explicit "Salvar mundo" button. It
+    // also covers a click made while the last pointer sample is still pending.
+    buildState.terrain = openWorld.getTerrainEdits();
     const forest = openWorld.getEditableForestAssets().filter(object => object.parent && object.userData.buildEditable);
     const assignedTreeIds = new Set(forest.map(object => String(object.userData.buildId ?? "")).filter(id => /^arvore-\d+$/.test(id)));
     const nextTreeId = () => { let index = 1; while (assignedTreeIds.has(`arvore-${String(index).padStart(2, "0")}`)) index++; const id = `arvore-${String(index).padStart(2, "0")}`; assignedTreeIds.add(id); return id; };
@@ -482,7 +554,40 @@ export function initializeBuildEditor(context: BuildEditorContext) {
     // Bridges were explicitly removed from the project. Clean both legacy
     // city entries and independent construction assets that may already be
     // present in the live scene before rebuilding the Build list.
-    let removedBridges = false;
+    let removedBridges = false,styledValenEstablishments=false,addedRequestedVillages=false,updatedVillagePerimeters=false;
+    const villageFootprints:Record<string,{west:number;east:number;north:number;south:number}>={};
+    for(const village of REQUESTED_VILLAGES){
+      const bounds=new THREE.Box3();
+      for(const [id,saved] of Object.entries(buildState.city)){
+        if(saved.layer!==`Vila de ${village.name}`||saved.kind==='wall'||saved.kind==='gate'||saved.kind==='road'||saved.kind==='path')continue;
+        const object=cityBuilder.objects.get(id);if(object)bounds.union(new THREE.Box3().setFromObject(object));
+      }
+      if(!bounds.isEmpty())villageFootprints[village.id]={west:bounds.min.x-8,east:bounds.max.x+8,north:bounds.min.z-8,south:bounds.max.z+8};
+    }
+    const villageGatePositions:Record<string,{north:number[];south:number[];west:number[];east:number[]}>={};
+    for(const village of REQUESTED_VILLAGES){
+      const north=buildState.city[`${village.id}-gate-north`],south=buildState.city[`${village.id}-gate-south`],west=buildState.city[`${village.id}-gate-west`],east=buildState.city[`${village.id}-gate-east`];
+      if(north&&south&&west&&east)villageGatePositions[village.id]={north:north.position.slice(),south:south.position.slice(),west:west.position.slice(),east:east.position.slice()};
+    }
+    const requestedVillages=requestedVillageObjects((x,z)=>openWorld.getHeightAt(x,z),villageFootprints,villageGatePositions);
+    const expectedRavenbrookWalls=new Set(requestedVillages.filter(saved=>saved.id.startsWith('ravenbrook-wall-')).map(saved=>saved.id));
+    for(const id of Object.keys(buildState.city))if(id.startsWith('ravenbrook-wall-')&&!expectedRavenbrookWalls.has(id)){
+      cityBuilder.objects.get(id)?.removeFromParent();cityBuilder.objects.delete(id);delete buildState.city[id];updatedVillagePerimeters=true;
+    }
+    for(const saved of requestedVillages){
+      const existing=buildState.city[saved.id];
+      if(existing&&saved.kind==='gate')continue;
+      if(existing&&(!saved.villagePerimeterRevision||existing.villagePerimeterRevision===saved.villagePerimeterRevision))continue;
+      if(existing){cityBuilder.objects.get(saved.id)?.removeFromParent();cityBuilder.objects.delete(saved.id);updatedVillagePerimeters=true;}
+      buildState.city[saved.id]=saved;cityBuilder.add(saved);addedRequestedVillages=true;
+    }
+    const valenWoodKinds=new Set<CityAssetKind>(['inn','tavern','shop','weapons','potions','guild','warehouse']);
+    for(const saved of Object.values(buildState.city)){
+      const valen=saved.id.startsWith('valen-')||/^vila\s+de\s+valen/i.test(String(saved.layer??''));
+      if(valen&&valenWoodKinds.has(saved.kind)&&saved.buildingStyle!=='wood'){
+        saved.buildingStyle='wood';styledValenEstablishments=true;
+      }
+    }
     for (const [id, saved] of Object.entries(buildState.city)) {
       if (saved.kind === "bridge" || /ponte/i.test(saved.layer ?? "")) {
         removedBridges = true;
@@ -499,8 +604,11 @@ export function initializeBuildEditor(context: BuildEditorContext) {
         scene.traverse(object => { if (object.userData.buildId === id) object.removeFromParent(); });
       }
     }
-    if (removedBridges) saveBuildState();
+    if (removedBridges||styledValenEstablishments||addedRequestedVillages||updatedVillagePerimeters) saveBuildState();
     openWorld.configureForestEditor(buildState.assets, buildState.removedAssets,buildState.forestErasures);
+    const woodHouseTemplate=createValenWoodHouse() as THREE.Group;
+    addCityFacadeWindows(woodHouseTemplate);
+    buildModelTemplates.set('casa-de-madeira',woodHouseTemplate);
     const liveBuildModelIds = new Set<string>();
     scene.traverse(object => { if (object.userData.buildModel && object.userData.buildId) liveBuildModelIds.add(String(object.userData.buildId)); });
     for (const [id, saved] of Object.entries(buildState.assets)) {
@@ -509,7 +617,8 @@ export function initializeBuildEditor(context: BuildEditorContext) {
       if (!template) continue;
       const object = cloneSkeleton(template) as THREE.Group;
       object.name = saved.label ?? `${saved.buildModel} · ${id.slice(-8)}`;
-      object.userData = { ...object.userData, buildId: id, buildModel: saved.buildModel, buildFolder: "Construções", buildEditable: true, buildStateApplied: true };
+      const terrainOnly=saved.buildModel==='dirt-path-tile';
+      object.userData = { ...object.userData, buildId: id, buildModel: saved.buildModel, buildFolder: terrainOnly?'Piso':'Construções', buildEditable: !terrainOnly, ...(terrainOnly?{terrainOnly:true}:{}), buildStateApplied: true };
       applySavedBuildAsset(object, saved);
       scene.add(object);
     }
@@ -712,13 +821,77 @@ export function initializeBuildEditor(context: BuildEditorContext) {
         });row.append(button);return row;
       }});
     }
-    const capitalEntry={hidden:Boolean(query&&!"cidade principal grupo capital".includes(query)),render:()=>{
+    /* city thumbnails use one lightweight real source model per city. */
+    const queueCityThumbnail=(key:string,ids:string[],icon:HTMLElement)=>{
+      const signature=JSON.stringify(ids.map(id=>{const object=cityBuilder.objects.get(id);return object?[id,...object.position.toArray(),...object.quaternion.toArray(),...object.scale.toArray()]:[id];}));
+      const cached=cityThumbnailCache.get(key);
+      if(cached?.signature===signature){if(cached.image)icon.style.backgroundImage=`url('${cached.image}')`;return;}
+      const render=()=>{
+        if(!icon.isConnected)return;
+        const preview=new THREE.Group();preview.name=`Miniatura de ${key}`;
+        const batches=new Map<string,{material:THREE.Material;geometries:THREE.BufferGeometry[]}>();
+        const addGeometry=(geometry:THREE.BufferGeometry,material:THREE.Material,matrix:THREE.Matrix4)=>{
+          const attributes=Object.entries(geometry.attributes).map(([name,value])=>`${name}:${value.itemSize}:${value.normalized}`).sort().join('|');
+          const batchKey=`${material.uuid}:${geometry.index?'indexed':'plain'}:${attributes}`;
+          const batch=batches.get(batchKey)??{material,geometries:[]};
+          batch.geometries.push(geometry.clone().applyMatrix4(matrix));batches.set(batchKey,batch);
+        };
+        for(const id of ids){
+          const object=cityBuilder.objects.get(id);if(!object)continue;
+          object.updateWorldMatrix(true,true);
+          // Flatten the real rendered meshes into world space. This avoids
+          // inheriting distance-culling visibility from any ancestor while
+          // retaining the exact geometry, materials and saved transforms.
+          object.traverse(node=>{
+            if(!(node instanceof THREE.Mesh)||node.userData.cityInteriorHidden)return;
+            const materials=Array.isArray(node.material)?node.material:[node.material];
+            if(materials.length!==1){const clone=node.clone(false) as THREE.Mesh;clone.visible=true;clone.frustumCulled=false;clone.matrixAutoUpdate=false;clone.matrix.copy(node.matrixWorld);preview.add(clone);return;}
+            if(node instanceof THREE.InstancedMesh){
+              const instance=new THREE.Matrix4();
+              for(let index=0;index<node.count;index++){node.getMatrixAt(index,instance);addGeometry(node.geometry,materials[0],new THREE.Matrix4().multiplyMatrices(node.matrixWorld,instance));}
+            }else addGeometry(node.geometry,materials[0],node.matrixWorld);
+          });
+        }
+        for(const batch of batches.values()){
+          const geometry=mergeGeometries(batch.geometries,false);batch.geometries.forEach(item=>item.dispose());
+          if(!geometry)continue;const mesh=new THREE.Mesh(geometry,batch.material);mesh.frustumCulled=false;mesh.userData.cityThumbnailMerged=true;preview.add(mesh);
+        }
+        const image=preview.children.length?renderBuildThumbnail(preview):'';
+        cityThumbnailCache.set(key,{signature,image});
+        icon.setAttribute('role','img');icon.setAttribute('aria-label',`Miniatura 3D de ${key} com ${preview.children.length} malhas`);
+        if(icon.isConnected&&image)icon.style.backgroundImage=`url('${image}')`;
+        preview.traverse(node=>{if(node instanceof THREE.Mesh&&node.userData.cityThumbnailMerged)node.geometry.dispose();});
+      };
+      // A city can contain hundreds of real meshes. Let the disclosure paint
+      // before producing the complete thumbnail, instead of blocking its click.
+      if('requestIdleCallback' in window)window.requestIdleCallback(render,{timeout:250});
+      else requestAnimationFrame(render);
+    };
+    void queueCityThumbnail;
+    const capitalEntry={hidden:Boolean(query&&!"astheria capital cidade principal eldoria grupo".includes(query)),render:()=>{
       const row=document.createElement("div"),button=document.createElement("button");row.className="build-asset-row";button.type="button";
-      const thumbnail=renderBuildThumbnail(cityBuilder.root);
-      button.innerHTML=`<i class="asset-real-thumb"${thumbnail?` style="background-image:url('${thumbnail}')"`:""}></i><span>Cidade Principal <small>grupo</small></span>`;
-      button.title="Selecionar e transformar a cidade inteira";button.classList.toggle("active",isCapitalCitySelection());button.addEventListener("click",selectCapitalCity);row.append(button);return row;
+      const source=cityBuilder.objects.get(capitalCityIds()[0]??"");const thumbnail=source?renderBuildThumbnail(source):"";
+      button.innerHTML=`<i class="asset-real-thumb"${thumbnail?` style="background-image:url('${thumbnail}')"`:""}></i><span>Astheria <small>capital de Eldoria</small></span>`;
+      button.title="Selecionar e transformar Astheria";button.classList.toggle("active",isCapitalCitySelection());button.addEventListener("click",selectCapitalCity);row.append(button);return row;
     }};
-    folders.set("Cidades",[capitalEntry]);
+    const valenIds=valenCityIds();
+    const valenEntry={hidden:Boolean(query&&!"valen vila eldoria".includes(query)),render:()=>{
+      const row=document.createElement("div"),button=document.createElement("button");row.className="build-asset-row";button.type="button";
+      const source=cityBuilder.objects.get(valenIds[0]??"");const thumbnail=source?renderBuildThumbnail(source):"";
+      button.innerHTML=`<i class="asset-real-thumb"${thumbnail?` style="background-image:url('${thumbnail}')`+'"':''}></i><span>Valen <small>vila de Eldoria</small></span>`;
+      button.title="Selecionar e transformar Valen";button.classList.toggle("active",valenIds.length>0&&valenIds.length===selectedCityIds.size&&valenIds.every(id=>selectedCityIds.has(id)));button.addEventListener("click",selectValenCity);row.append(button);return row;
+    }};
+    const requestedVillageEntries=REQUESTED_VILLAGES.map(village=>{
+      const ids=namedVillageIds(village.name);
+      return {hidden:Boolean(query&&!`${village.name} ${village.subtitle} vila eldoria`.toLowerCase().includes(query)),render:()=>{
+        const row=document.createElement('div'),button=document.createElement('button');row.className='build-asset-row';button.type='button';
+        const source=cityBuilder.objects.get(ids[0]??''),thumbnail=source?renderBuildThumbnail(source):'';
+        button.innerHTML=`<i class="asset-real-thumb"${thumbnail?` style="background-image:url('${thumbnail}')"`:''}></i><span>${village.name} <small>${village.subtitle.toLowerCase()}</small></span>`;
+        const selected=ids.length>0&&ids.length===selectedCityIds.size&&ids.every(id=>selectedCityIds.has(id));button.classList.toggle('active',selected);
+        button.title=`Selecionar e transformar ${village.name}`;button.addEventListener('click',()=>selectCityGroup(ids));row.append(button);return row;
+      }};
+    });
+    folders.set("Cidades",[capitalEntry,...(valenIds.length?[valenEntry]:[]),...requestedVillageEntries]);
     const constructionNames:Record<string,string>={...Object.fromEntries(PERIMETER_CATALOG.map(item=>[item.kind,item.label])),tavern:'Taverna',inn:'Pousada',shop:'Loja',weapons:'Loja de armas',potions:'Loja de poções',guild:'Guilda',warehouse:'Armazém',church:'Igreja',palace:'Palácio',house:'Casa',castle:'Castelo',wall:'Muralha',tower:'Torre',gate:'Portal da cidade'};
     const constructionCatalog = [...new Set(Object.values(buildState.city).map(saved=>saved.kind).filter(kind=>constructionNames[kind]))];
     const constructionEntries = constructionCatalog.flatMap(kind=>{
@@ -729,7 +902,7 @@ export function initializeBuildEditor(context: BuildEditorContext) {
         render:()=>{
           const row=document.createElement('div'),button=document.createElement('button');row.className='build-asset-row';button.type='button';
           const object=cityBuilder.objects.get(saved.id);
-          const source=door?object?.children.find(child=>child.userData.assetSource==='/models/city/props/church-door.glb'):object;
+          const source=door?object?.children.find(child=>child.userData.assetSource==='code:CityChurchDoor'):object;
           const thumbnail=source?renderBuildThumbnail(source):'';
           const icon=document.createElement('i');icon.className='asset-real-thumb';if(thumbnail)icon.style.backgroundImage=`url('${thumbnail}')`;
           const name=document.createElement('span');name.textContent=label;
@@ -738,6 +911,53 @@ export function initializeBuildEditor(context: BuildEditorContext) {
           row.append(button);return row;
         },
       }));
+    });
+    for(const entry of [{kind:'wall',label:'Muralha de vila'},{kind:'gate',label:'Portão de vila'}] as const){
+      const preview=createVillageFortificationAsset(entry.kind);
+      constructionEntries.push({
+        hidden:Boolean(query&&!`${entry.label} fortificação pequena`.toLowerCase().includes(query)),
+        render:()=>{
+          const row=document.createElement('div'),button=document.createElement('button');row.className='build-asset-row';button.type='button';
+          const thumbnail=renderBuildThumbnail(preview);button.innerHTML=`<i class="asset-real-thumb"${thumbnail?` style="background-image:url('${thumbnail}')"`:''}></i><span>${entry.label}</span>`;
+          button.title=entry.kind==='gate'?'Adicionar portão menor com vão livre de 20 m':'Desenhar muralha menor de vila';
+          button.addEventListener('click',()=>startCityPlacement(entry.kind,null,'village'));row.append(button);return row;
+        },
+      });
+    }
+    const woodEstablishments=[
+      {kind:'shop',label:'Loja de madeira'},
+      {kind:'weapons',label:'Loja de armas de madeira'},
+      {kind:'potions',label:'Loja de poções de madeira'},
+      {kind:'guild',label:'Guilda de madeira'},
+      {kind:'inn',label:'Pousada de madeira'},
+      {kind:'tavern',label:'Taverna de madeira'},
+      {kind:'warehouse',label:'Armazém de madeira'},
+    ] as const;
+    for(const entry of woodEstablishments){
+      const preview=createCityWoodBuilding(entry.kind);
+      constructionEntries.push({
+        hidden:Boolean(query&&!`${entry.label} valen estabelecimento`.toLowerCase().includes(query)),
+        render:()=>{
+          const row=document.createElement('div'),button=document.createElement('button');row.className='build-asset-row';button.type='button';
+          const thumbnail=renderBuildThumbnail(preview);button.innerHTML=`<i class="asset-real-thumb"${thumbnail?` style="background-image:url('${thumbnail}')"`:''}></i><span>${entry.label}</span>`;
+          button.title=`Adicionar ${entry.label.toLowerCase()} com os mesmos sistemas do estabelecimento da cidade`;
+          button.addEventListener('click',()=>startCityPlacement(entry.kind,'wood'));
+          row.append(button);return row;
+        },
+      });
+    }
+    if(woodHouseTemplate)constructionEntries.push({
+      hidden:Boolean(query&&!"casa de madeira casa valen vila eldoria".includes(query)),
+      render:()=>{
+        const row=document.createElement('div'),button=document.createElement('button');row.className='build-asset-row';button.type='button';
+        const thumbnail=woodHouseTemplate?renderBuildThumbnail(woodHouseTemplate):'';button.innerHTML=`<i class="asset-real-thumb"${thumbnail?` style="background-image:url('${thumbnail}')`+'"':''}></i><span>Casa de madeira</span>`;
+        button.title='Adicionar uma casa de madeira de Valen';button.addEventListener('click',()=>{
+          const object=woodHouseTemplate?cloneSkeleton(woodHouseTemplate) as THREE.Group:null;if(!object)return;const id=`valen-house-catalog-${crypto.randomUUID()}`;
+          object.name=`Casa de madeira · ${id.slice(-8)}`;object.userData={...object.userData,buildId:id,buildModel:'casa-de-madeira',buildFolder:'Construções',buildEditable:true};
+          const x=controls.target.x,z=controls.target.z;object.position.set(x,openWorld.getHeightAt(x,z),z);scene.add(object);object.updateMatrixWorld(true);
+          buildState.assets[id]=snapshotBuildAsset(object);saveBuildState();selectBuildAsset(object);refreshBuildAssetList();
+        });row.append(button);return row;
+      },
     });
     constructionEntries.push({
       hidden: Boolean(query && !"carroça wagon".includes(query)),
@@ -817,7 +1037,6 @@ export function initializeBuildEditor(context: BuildEditorContext) {
     });
     folders.set('Construções',constructionEntries);
     const floorEntries=[
-      {label:'Caminho de terra',kind:'path-dirt',add:async()=>new GLTFLoader().loadAsync('/models/comparisons/path-dirt-original.glb').then(g=>g.scene),preview:()=>new THREE.Mesh(new THREE.PlaneGeometry(1,2),new THREE.MeshLambertMaterial({color:'#795634',flatShading:true}))},
       {label:'Piso de madeira das casas',kind:'house-wood',add:async()=>createCityWoodFloor(),preview:()=>new THREE.Mesh(new THREE.BoxGeometry(1,.085,1),new THREE.MeshLambertMaterial({color:'#7b603f'}))},
       {label:'Piso de pedra',kind:'city-floor',add:async()=>{const g=new THREE.Group();g.add(new THREE.Mesh(new THREE.PlaneGeometry(12,12),new THREE.MeshLambertMaterial({color:'#73766f',flatShading:true})));return g;},preview:()=>new THREE.Mesh(new THREE.PlaneGeometry(1,1),cityPavingMaterial().clone())},
     ].map(item=>({hidden:Boolean(query&&!item.label.toLowerCase().includes(query)),render:()=>{const row=document.createElement('div'),button=document.createElement('button');row.className='build-asset-row';button.type='button';let preview=floorPreviewSources.get(item.kind);if(!preview){if(!floorPreviewLoads.has(item.kind)){floorPreviewLoads.add(item.kind);const original=item.kind==='path-dirt'?new GLTFLoader().loadAsync('/models/comparisons/path-dirt-original.glb').then(g=>g.scene):item.kind==='house-wood'?createCityWoodFloor():Promise.resolve(item.preview());void original.then(model=>{floorPreviewSources.set(item.kind,model);refreshBuildAssetList();});}preview=item.kind==='house-wood'?undefined:item.preview();}const thumbnail=preview?renderBuildThumbnail(preview):'';button.innerHTML=`<i class="asset-real-thumb"${thumbnail?` style="background-image:url('${thumbnail}')"`:''}></i><span>${item.label}</span>`;button.addEventListener('click',async()=>{const object=await item.add();const id=`floor-${item.kind}-${crypto.randomUUID()}`;object.name=`${item.label} · ${id.slice(-8)}`;object.userData={...object.userData,buildId:id,buildFolder:'Piso',floorModel:item.kind,buildEditable:true};object.scale.set(5,1,5);object.position.copy(floorSpawnPoint());scene.add(object);buildState.assets[id]=snapshotBuildAsset(object);saveBuildState();selectBuildAsset(object);refreshBuildAssetList();});row.append(button);return row;}}));
@@ -947,7 +1166,7 @@ export function initializeBuildEditor(context: BuildEditorContext) {
     }
     setTimeEditorOpen(open);
     if (open) { restoreCityPropBatches(cityBuilder.root); rebuildTerrainPaintMarks(); context.setInventoryOpen(false); context.pressed.clear(); requestAnimationFrame(()=>{if(buildMode)refreshBuildAssetList();}); buildAssetRefreshTimer = window.setInterval(() => { if (openWorld.getBiomeModels().length + animalAssetTemplates.size + cityBuilder.objects.size !== lastBuildCandidateCount) refreshBuildAssetList(); }, 1200); }
-    else { reapplyCityPropBatches(cityBuilder.root); window.clearInterval(buildAssetRefreshTimer); selectBuildAsset(null); selectedCityIds.clear(); updateCitySelection(); clearCityPlacement(); terrainBrushEnabled = false; terrainPreview.visible = false; context.character.group.position.y = context.playerGroundHeightAt(context.character.group.position.x, context.character.group.position.z)+playerGroundOffsetAt(context.character.group.position.x, context.character.group.position.z); context.snapCameraToPlayer(); }
+    else { reapplyCityPropBatches(cityBuilder.root); window.clearInterval(buildAssetRefreshTimer); selectBuildAsset(null); selectedCityIds.clear(); updateCitySelection(); clearCityPlacement(); terrainBrushEnabled = false; terrainPreview.visible = false; pathGridMode=false;pathGrid.visible=false;pathGridButton.classList.remove('active');pathGridButton.textContent='Caminho em grade'; context.character.group.position.y = context.playerGroundHeightAt(context.character.group.position.x, context.character.group.position.z)+playerGroundOffsetAt(context.character.group.position.x, context.character.group.position.z); context.snapCameraToPlayer(); }
   };
   let buildTransformBefore = "";
   transformControls.addEventListener("mouseDown", () => { buildTransformBefore = worldEditorStore.snapshot(); selectedBuildUniformScale=transformControls.object?.scale.x??1; cityGroupStart.copy(cityGroupProxy.position); cityGroupRotationStart.copy(cityGroupProxy.quaternion); cityGroupScaleStart.copy(cityGroupProxy.scale); cityGroupObjectStarts = new Map([...selectedCityIds].map((id) => {const object=cityBuilder.objects.get(id)!;return [id,{position:object.position.clone(),quaternion:object.quaternion.clone(),scale:object.scale.clone()}];})); startAttachedCityTransform(); });
@@ -1072,6 +1291,24 @@ export function initializeBuildEditor(context: BuildEditorContext) {
   document.querySelector<HTMLButtonElement>("[data-build-collapse]")!.addEventListener("click", () => { buildPanel.classList.add("collapsed"); buildBadge.classList.add("open"); });
   buildBadge.addEventListener("click", () => { if (!buildMode) return; buildPanel.classList.remove("collapsed"); buildBadge.classList.remove("open"); });
   document.querySelector<HTMLButtonElement>("[data-editor-camera]")!.addEventListener("click", (event) => { editorFreeCamera = !editorFreeCamera; const button = event.currentTarget as HTMLButtonElement; button.classList.toggle("active", editorFreeCamera); button.textContent = editorFreeCamera ? "◉ Câmera livre · WASD" : "◎ Câmera do jogador"; if (!editorFreeCamera) { controls.target.copy(context.character.group.position).add(new THREE.Vector3(0, 1, 0)); camera.position.copy(controls.target).add(new THREE.Vector3(4, 3, 6)); } });
+  renderer.domElement.addEventListener('pointerdown',(event)=>{
+    if(!buildMode||!pathGridMode||(event.button!==0&&event.button!==2))return;
+    const hit=terrainHit(event);if(!hit)return;
+    event.preventDefault();event.stopImmediatePropagation();
+    pathDragButton=event.button as 0|2;pathDragCell='';renderer.domElement.setPointerCapture?.(event.pointerId);
+    const cell=pathCellAt(hit.point);pathDragCell=cell.id;
+    if(event.button===0)placePathCell(hit.point);else removePathCell(hit.point);
+  },true);
+  renderer.domElement.addEventListener('pointermove',(event)=>{
+    if(!buildMode||!pathGridMode||pathDragButton===null)return;
+    const hit=terrainHit(event);if(!hit)return;
+    const cell=pathCellAt(hit.point);if(cell.id===pathDragCell)return;
+    pathDragCell=cell.id;event.preventDefault();event.stopImmediatePropagation();
+    if(pathDragButton===0)placePathCell(hit.point);else removePathCell(hit.point);
+  },true);
+  renderer.domElement.addEventListener('pointerup',(event)=>{
+    if(pathDragButton!==null){pathDragButton=null;pathDragCell='';if(renderer.domElement.hasPointerCapture?.(event.pointerId))renderer.domElement.releasePointerCapture(event.pointerId);}
+  },true);
   // Capture before TransformControls: Shift-drag on a selected floor is a
   // stamping gesture, never a transform gesture.
   renderer.domElement.addEventListener("pointerdown", (event) => {
@@ -1125,6 +1362,7 @@ export function initializeBuildEditor(context: BuildEditorContext) {
       for (const hit of ray.intersectObjects(scene.children, true)) {
         let editable: THREE.Object3D | null = hit.object;
         while (editable && editable !== scene && !editable.userData.buildEditable) editable = editable.parent;
+        if(editable&&(editable.userData.terrainOnly||editable.userData.buildModel==='dirt-path-tile'||editable.userData.floorModel==='path-dirt'||editable.userData.cityKind==='path'))continue;
         if (editable?.userData.buildEditable) {
           selectBuildAsset(editable);
           return;
@@ -1137,7 +1375,9 @@ export function initializeBuildEditor(context: BuildEditorContext) {
         let object: THREE.Object3D | null = cityHit.object;
         while (object && !object.userData.cityId) object = object.parent;
         if(object?.userData.generatedWell){selectBuildAsset(object);return;}
-        const id = object?.userData.cityId as string | undefined; if (id) { selectCityObject(selectedCityIds,id,event.shiftKey); selectBuildAsset(null); updateCitySelection(); return; }
+        const id = object?.userData.cityId as string | undefined;
+        if(object?.userData.cityKind==='path')return;
+        if (id) { selectCityObject(selectedCityIds,id,event.shiftKey); selectBuildAsset(null); updateCitySelection(); return; }
       }
     }
     const rect = renderer.domElement.getBoundingClientRect(), pointer = new THREE.Vector2((event.clientX - rect.left) / rect.width * 2 - 1, -(event.clientY - rect.top) / rect.height * 2 + 1);
@@ -1171,7 +1411,7 @@ export function initializeBuildEditor(context: BuildEditorContext) {
   renderer.domElement.addEventListener("pointerleave", () => { if (!terrainPainting) terrainPreview.visible = false; });
   let rightDeleteHandledAt = 0;
   const deleteAtPointer = (event: MouseEvent) => {
-    if (!buildMode || cityPlacementKind || terrainBrushEnabled) return false;
+    if (!buildMode || cityPlacementKind || terrainBrushEnabled || pathGridMode) return false;
     const rect = renderer.domElement.getBoundingClientRect(), pointer = new THREE.Vector2((event.clientX - rect.left) / rect.width * 2 - 1, -(event.clientY - rect.top) / rect.height * 2 + 1);
     const raycaster = new THREE.Raycaster(); raycaster.setFromCamera(pointer, camera);
     const editableCandidates=buildCandidates();
@@ -1208,6 +1448,7 @@ export function initializeBuildEditor(context: BuildEditorContext) {
   renderer.domElement.addEventListener("contextmenu", (event) => {
     if (!buildMode) return;
     event.preventDefault();
+    if(pathGridMode)return;
     if (performance.now() - rightDeleteHandledAt < 500) return;
     if (cityPlacementKind) { clearCityPlacement(); return; }
     if (terrainBrushEnabled) { terrainBrushEnabled = false; terrainToggle.classList.remove("active"); terrainToggle.textContent = "Ativar pincel"; terrainPreview.visible = false; return; }

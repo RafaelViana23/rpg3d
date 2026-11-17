@@ -13,7 +13,9 @@ import { addCourtyardWells } from "./CityCourtyards";
 import { addCityProps, addRoyalPalaceDoor, addCityWallGateDoor, addCityWallGateTorches } from "./CityProps";
 import { addCityAnimals } from "./CityAnimals";
 import { createMedievalBuilding } from "./MedievalBuildings";
+import { cityWoodFloorMaterial } from './CityWoodFloor';
 import type { CityAssetKind, SavedCityObject } from "./WorldEditorSupport";
+import { REQUESTED_VILLAGES, requestedVillageObjects } from './RequestedVillages';
 
 export type CityCategory = "buildings" | "defense" | "connections";
 export const CITY_CATALOG: { kind: CityAssetKind; label: string; category: CityCategory }[] = [
@@ -21,8 +23,8 @@ export const CITY_CATALOG: { kind: CityAssetKind; label: string; category: CityC
   { kind: "tavern", label: "Taverna", category: "buildings" }, { kind: "church", label: "Igreja", category: "buildings" },
   { kind: "castle", label: "Castelo", category: "buildings" }, { kind: "wall", label: "Muralha", category: "defense" },
   { kind: "tower", label: "Torre", category: "defense" }, { kind: "gate", label: "Portal da cidade", category: "defense" },
-  { kind: "road", label: "Estrada", category: "connections" }, { kind: "path", label: "Caminho", category: "connections" },
-  { kind: "bridge", label: "Ponte", category: "connections" }, { kind: "stairs", label: "Escadas", category: "connections" },
+  { kind: "road", label: "Estrada", category: "connections" },
+  { kind: "stairs", label: "Escadas", category: "connections" },
 ];
 
 const mats = {
@@ -71,7 +73,6 @@ export function createCityAsset(kind: CityAssetKind) {
     const top=box(14.5,.45,3.25,mats.stoneLight);top.position.y=9.15;root.add(top);addWallCrenels(root,14,9.375,1.3,10);addWallCrenels(root,14,9.375,-1.3,10);
     for(const x of [-6.15,6.15]){const shield=mesh(new THREE.CylinderGeometry(.62,.62,.12,8),mats.wood,5.7);shield.rotation.x=Math.PI/2;shield.position.x=x;shield.position.z=1.49;root.add(shield);}
   }
-  else if (kind === "bridge") { root.add(box(10, .7, 4, mats.wood)); for (const x of [-4.5, 4.5]) for (const z of [-1.7, 1.7]) { const post = box(.3, 1.7, .3, mats.wood); post.position.set(x, .7, z); root.add(post); } }
   else if (kind === "stairs") { root.add(mesh(cityStairGeometry(-.36,4.68,5,-.2,2.95,7,-.25),CITY_PLAIN_STONE_MATERIAL)); }
   else if (kind !== "road" && kind !== "path") root.add(box(5, 4, 5));
   if(kind==='wall'){
@@ -83,10 +84,72 @@ export function createCityAsset(kind: CityAssetKind) {
   }
   if(kind==='gate')root.userData.localColliders=[[-7,0,-1.6,-3.1,10,1.6],[3.1,0,-1.6,7,10,1.6],[-3.1,7.7,-1.6,3.1,10,1.6]];
   if(kind==='stairs')root.userData.walkSurfaces=Array.from({length:7},(_,i)=>[-2.5,i*.72-.36,2.5,i*.72+.36,i*.45+.25]);
-  if(kind==='bridge')root.userData.walkSurfaces=[[-5,-2,5,2,.7]];
-  if(kind==='bridge'||kind==='stairs')root.userData.localColliders=[];
+  if(kind==='stairs')root.userData.localColliders=[];
   batchStaticSiblings(root);
   root.traverse((child) => { child.userData.cityObject = true; }); return root;
+}
+
+export function createCityWoodBuilding(kind:CityAssetKind){
+  const root=createCityAsset(kind);
+  // Capture only the architectural meshes. Doors, windows, curtains and all
+  // other props are added by the same shared city systems used by every house.
+  const architecture:THREE.Mesh[]=[];
+  root.traverse(child=>{if(child instanceof THREE.Mesh)architecture.push(child);});
+  const woodSurfaces=architecture.filter(child=>{
+    // MedievalBuildings merges each source material into one mesh. Only
+    // replace the white plaster and terracotta roof materials; keep all
+    // existing wood meshes (stairs, floors, furniture and rugs) untouched.
+    const current=Array.isArray(child.material)?child.material[0]:child.material;
+    const color=current instanceof THREE.MeshLambertMaterial?current.color.getHex():0;
+    return color===0xffffff||color===0xeadbc0||color===0x975b40;
+  });
+  // The building must be wooden on its first rendered frame. The textured
+  // plank material replaces this shared brown as soon as its maps are ready.
+  woodSurfaces.forEach(child=>{child.material=CITY_WOOD_MATERIAL;});
+  void cityWoodFloorMaterial().then(material=>woodSurfaces.forEach(child=>{
+    const wallMaterial=material.clone();
+    if(wallMaterial.map){wallMaterial.map=wallMaterial.map.clone();wallMaterial.map.center.set(.5,.5);wallMaterial.map.rotation=Math.PI/2;wallMaterial.map.needsUpdate=true;}
+    wallMaterial.needsUpdate=true;child.material=wallMaterial;
+  }));
+  root.userData.buildingStyle='wood';
+  return root;
+}
+
+export function createValenWoodHouse(){
+  const root=createCityWoodBuilding('house');root.name='Cidade:house-valen-wood';return root;
+}
+
+export function createVillageFortificationAsset(kind:'wall'|'gate'){
+  if(kind==='wall')return createVillageWall([new THREE.Vector3(-6,0,0),new THREE.Vector3(6,0,0)]);
+  const root=new THREE.Group();root.name='Cidade:gate-village';root.userData.cityObject=true;
+  const shape=new THREE.Shape();shape.moveTo(-13,0);shape.lineTo(13,0);shape.lineTo(13,6.2);shape.lineTo(-13,6.2);shape.closePath();
+  const opening=new THREE.Path();opening.moveTo(-10,0);opening.lineTo(-10,4.6);opening.absellipse(0,4.6,10,1.6,Math.PI,0,true,0);opening.lineTo(10,0);opening.closePath();shape.holes.push(opening);
+  const gatehouse=mesh(new THREE.ExtrudeGeometry(shape,{depth:2,bevelEnabled:false,curveSegments:12}),mats.stone);gatehouse.geometry.translate(0,0,-1);root.add(gatehouse);
+  const top=box(26.4,.35,2.35,mats.stoneLight);top.position.y=6.35;root.add(top);addWallCrenels(root,26,6.525,.9,18);addWallCrenels(root,26,6.525,-.9,18);
+  root.userData.localColliders=[[-13,0,-1.2,-10,7.1,1.2],[10,0,-1.2,13,7.1,1.2],[-10,5.9,-1.2,10,7.1,1.2]];
+  root.userData.wallGateOpeningWidth=20;root.userData.wallGateDoorHeight=5.8;root.userData.villageFortification=true;
+  batchStaticSiblings(root);root.traverse(child=>{child.userData.cityObject=true;});return root;
+}
+
+function isValenHouse(saved:SavedCityObject){
+  return saved.kind==='house'&&(saved.id.startsWith('valen-')||(saved as SavedCityObject & {buildModel?:string}).buildModel==='casa-de-madeira'||/^vila\s+de\s+valen/i.test(String(saved.layer??'')));
+}
+const VALEN_CANONICAL_BUILDINGS=new Set(['house','inn','tavern','shop','weapons','potions','guild','warehouse','church','market','stable','smithy','repair-workshop','military-store']);
+const VALEN_WOOD_ESTABLISHMENTS=new Set(['inn','tavern','shop','weapons','potions','guild','warehouse']);
+const WOOD_VILLAGE_LAYERS=new Set(['Vila de Ravenbrook','Vila de Stonebridge','Vila de Frostheim']);
+function isValenCanonicalBuilding(saved:SavedCityObject){
+  const valen=saved.id.startsWith('valen-')||/^vila\s+de\s+valen/i.test(String(saved.layer??''));
+  return valen&&VALEN_CANONICAL_BUILDINGS.has(saved.kind);
+}
+function isValenWoodEstablishment(saved:SavedCityObject){
+  const valen=saved.id.startsWith('valen-')||/^vila\s+de\s+valen/i.test(String(saved.layer??''));
+  return valen&&VALEN_WOOD_ESTABLISHMENTS.has(saved.kind);
+}
+function isRequestedWoodVillageBuilding(saved:SavedCityObject){
+  return WOOD_VILLAGE_LAYERS.has(String(saved.layer??''))&&(saved.kind==='house'||VALEN_WOOD_ESTABLISHMENTS.has(saved.kind));
+}
+function savedCityScale(saved:SavedCityObject):[number,number,number]{
+  return isValenCanonicalBuilding(saved)?[1,1,1]:[saved.scale[0],saved.scale[1],saved.scale[2]];
 }
 
 function createWall(points: THREE.Vector3[]) {
@@ -96,6 +159,17 @@ function createWall(points: THREE.Vector3[]) {
     segment.position.copy(a).add(b).multiplyScalar(.5); segment.position.y += 2; segment.rotation.y = -Math.atan2(b.z - a.z, b.x - a.x); root.add(segment);
     const count = Math.max(1, Math.floor(length / 1.4)), crenels = new THREE.InstancedMesh(new THREE.BoxGeometry(.75, .7, 1.45), CITY_MERLON_MATERIAL, count), dummy = new THREE.Object3D();
     for (let n = 0; n < count; n++) { dummy.position.copy(a).lerp(b, (n + .5) / count); dummy.position.y += 4.35; dummy.rotation.y = segment.rotation.y; dummy.updateMatrix(); crenels.setMatrixAt(n, dummy.matrix); } crenels.instanceMatrix.needsUpdate = true; root.add(crenels);
+  }
+  return root;
+}
+
+function createVillageWall(points:THREE.Vector3[]){
+  const root=new THREE.Group();root.name='Cidade:wall-village';root.userData.cityObject=true;root.userData.villageFortification=true;
+  for(let i=1;i<points.length;i++){
+    const a=points[i-1],b=points[i],length=a.distanceTo(b),segment=box(length,3.2,1,mats.stone);
+    segment.position.copy(a).add(b).multiplyScalar(.5);segment.position.y+=1.6;segment.rotation.y=-Math.atan2(b.z-a.z,b.x-a.x);root.add(segment);
+    const count=Math.max(1,Math.floor(length/1.6)),crenels=new THREE.InstancedMesh(new THREE.BoxGeometry(.7,.55,1.15),CITY_MERLON_MATERIAL,count),dummy=new THREE.Object3D();
+    for(let n=0;n<count;n++){dummy.position.copy(a).lerp(b,(n+.5)/count);dummy.position.y+=3.475;dummy.rotation.y=segment.rotation.y;dummy.updateMatrix();crenels.setMatrixAt(n,dummy.matrix);}crenels.instanceMatrix.needsUpdate=true;root.add(crenels);
   }
   return root;
 }
@@ -362,7 +436,23 @@ export class LowPolyCityBuilder {
   }
   readonly root = new THREE.Group(); readonly objects = new Map<string, THREE.Group>();
   constructor(private scene: THREE.Scene, private getHeight: (x: number, z: number) => number) { this.root.name = "Construções da cidade"; this.root.userData.buildEditable = false; scene.add(this.root); }
-  rebuild(saved: Record<string, SavedCityObject>) { this.root.clear(); this.objects.clear(); for (const value of Object.values(saved)) this.add(value); }
+  rebuild(saved: Record<string, SavedCityObject>) {
+    this.root.clear(); this.objects.clear();
+    const gatePositions:Record<string,{north:number[];south:number[];west:number[];east:number[]} >={};
+    for(const village of REQUESTED_VILLAGES){
+      const north=saved[`${village.id}-gate-north`],south=saved[`${village.id}-gate-south`],west=saved[`${village.id}-gate-west`],east=saved[`${village.id}-gate-east`];
+      if(north&&south&&west&&east)gatePositions[village.id]={north:north.position,south:south.position,west:west.position,east:east.position};
+    }
+    const hydrated=requestedVillageObjects(()=>0,{},gatePositions);
+    for(const value of Object.values(saved)){
+      const fallback=hydrated.find(candidate=>candidate.id===value.id);
+      // World JSON v5 now persists points. This fallback keeps older saves
+      // visually correct in gameplay before the user opens Build and saves.
+      if(value.kind==='wall'&&value.fortificationStyle==='village'&&!value.points&&fallback){
+        this.add({...value,position:fallback.position,points:fallback.points,fortificationStyle:'village',villagePerimeterRevision:fallback.villagePerimeterRevision});
+      }else this.add(value);
+    }
+  }
   /** Reuse live buildings on undo/redo, preserving loaded props, lights and animations. */
   reconcile(saved: Record<string, SavedCityObject>) {
     let changed=false;
@@ -371,15 +461,17 @@ export class LowPolyCityBuilder {
     }
     for(const value of Object.values(saved)){
       const object=this.objects.get(value.id);
-      const {position,rotation,scale,...shape}=value;
-      const signature=JSON.stringify(shape);
+      const {position,rotation,scale:_scale,...shape}=value;
+      const resolvedScale=savedCityScale(value);
+      const inferredWood=isValenWoodEstablishment(value)||isRequestedWoodVillageBuilding(value);
+      const signature=JSON.stringify({...shape,buildingStyle:value.buildingStyle??(inferredWood?'wood':undefined)});
       if(!object||object.userData.cityBuildShape!==signature){
         object?.removeFromParent();this.objects.delete(value.id);this.add(value);changed=true;continue;
       }
       if(!object.position.equals(new THREE.Vector3().fromArray(position))||
          object.rotation.x!==rotation[0]||object.rotation.y!==rotation[1]||object.rotation.z!==rotation[2]||
-         !object.scale.equals(new THREE.Vector3().fromArray(scale))){
-        object.position.fromArray(position);object.rotation.set(rotation[0],rotation[1],rotation[2]);object.scale.fromArray(scale);
+         !object.scale.equals(new THREE.Vector3().fromArray(resolvedScale))){
+        object.position.fromArray(position);object.rotation.set(rotation[0],rotation[1],rotation[2]);object.scale.fromArray(resolvedScale);
         object.updateMatrixWorld(true);changed=true;
       }
     }
@@ -389,7 +481,12 @@ export class LowPolyCityBuilder {
     const {position: _position,rotation: _rotation,scale: _scale,...shape}=saved;
     const points = saved.points?.map((p) => new THREE.Vector3(p[0], p[1], p[2]));
     const existingCastle = saved.kind === "castle" ? this.scene.getObjectByName("Castelo medieval") : null;
-    const object = saved.pavedStreet?createCityPavedStreet(saved):saved.id==='city-royal-avenue-v1'?createRoyalAvenue(saved):existingCastle && !this.root.getObjectById(existingCastle.id) ? existingCastle.clone(true) as THREE.Group : saved.kind === "wall" && points ? createWall(points) : (saved.kind === "road" || saved.kind === "path") && points ? createRoute(points, saved.width ?? 4, saved.kind, this.getHeight) : createCityAsset(saved.kind);
+    const valenHouse=isValenHouse(saved);
+    const requestedWoodVillage=isRequestedWoodVillageBuilding(saved);
+    const woodBuilding=saved.buildingStyle==='wood'||isValenWoodEstablishment(saved)||requestedWoodVillage;
+    const woodHouse=saved.kind==='house'&&(valenHouse||woodBuilding);
+    const object = saved.pavedStreet?createCityPavedStreet(saved):saved.id==='city-royal-avenue-v1'?createRoyalAvenue(saved):existingCastle && !this.root.getObjectById(existingCastle.id) ? existingCastle.clone(true) as THREE.Group : woodHouse ? createValenWoodHouse() : woodBuilding ? createCityWoodBuilding(saved.kind) : saved.kind==='wall'&&points&&saved.fortificationStyle==='village'?createVillageWall(points) : saved.kind==='gate'&&saved.fortificationStyle==='village'?createVillageFortificationAsset('gate') : saved.kind === "wall" && points ? createWall(points) : (saved.kind === "road" || saved.kind === "path") && points ? createRoute(points, saved.width ?? 4, saved.kind, this.getHeight) : createCityAsset(saved.kind);
+    if(woodHouse)object.name='Cidade:house';
     if(!object.userData.perimeterFootprint&&!object.userData.palaceComplex)addCityProps(object,cityObjectSeed(saved.id));
     if(!object.userData.palaceComplex)addCityAnimals(object,cityObjectSeed(saved.id));
     // Every city model uses its real lowest vertex as the local ground plane.
@@ -403,10 +500,10 @@ export class LowPolyCityBuilder {
       const walkSurfaces=object.userData.walkSurfaces as number[][]|undefined;
       if(walkSurfaces)for(const surface of walkSurfaces)surface[4]-=baseOffset;
     }
-    object.userData.cityBuildShape=JSON.stringify(shape);
-    object.userData.cityId = saved.id; object.userData.cityLayer = saved.layer; object.position.fromArray(saved.position); object.rotation.set(saved.rotation[0], saved.rotation[1], saved.rotation[2]); object.scale.fromArray(saved.scale); this.root.add(object); this.objects.set(saved.id, object);
+    object.userData.cityBuildShape=JSON.stringify({...shape,buildingStyle:saved.buildingStyle??((isValenWoodEstablishment(saved)||requestedWoodVillage)?'wood':undefined)});object.userData.cityKind=saved.kind;
+    object.userData.cityId = saved.id; object.userData.cityLayer = saved.layer; object.position.fromArray(saved.position); object.rotation.set(saved.rotation[0], saved.rotation[1], saved.rotation[2]); object.scale.fromArray(savedCityScale(saved)); this.root.add(object); this.objects.set(saved.id, object);
     if(object.userData.palaceComplex)addRoyalPalaceDoor(object);
-    if(saved.kind==='gate'){addCityWallGateDoor(object);addCityWallGateTorches(object);}
+    if(saved.kind==='gate'){addCityWallGateDoor(object);if(saved.fortificationStyle!=='village')addCityWallGateTorches(object);}
     if(!this.courtyardUpdatePending){
       this.courtyardUpdatePending=true;
       queueMicrotask(()=>{this.courtyardUpdatePending=false;addCourtyardWells(this.objects.values(),this.root);addCityStreetLanterns(this.objects.values());});

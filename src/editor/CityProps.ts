@@ -217,7 +217,7 @@ export function addRoyalPalaceDoor(building:T.Group){
     prop.scale.x=opening.width/Math.max(.001,size.x);
     prop.position.set(0,opening.y,opening.z);prop.name='Portão oval do palácio';prop.userData.alwaysVisibleCityGate=true;
     prop.userData.cityObject=true;prop.userData.sharedCityGeometry=true;
-    prop.userData.assetSource='/models/city/props/church-door.glb';
+    prop.userData.assetSource='code:CityChurchDoor';
     prop.traverse(child=>{if(child instanceof T.Mesh)child.castShadow=child.receiveShadow=true;});
     building.add(prop);registerChurchDoor(building,prop,opening);
   }).catch(error=>console.error('Não foi possível carregar o portão do palácio',error));
@@ -230,15 +230,16 @@ export function setCityWallGateInward(prop:T.Group,inwardSign:number){
   prop.rotation.y=turn?Math.PI:0;prop.position.x=offset.x*(turn?-1:1);prop.position.z=offset.z*(turn?-1:1);
   prop.updateMatrixWorld(true);
 }
-export function createCityWallGateDoor(template:T.Group){
-  const prop=new T.Group(),model=cloneSkeleton(template) as T.Group;prop.add(model);prop.animations=template.animations;
-  const bounds=new T.Box3().setFromObject(prop,true),size=bounds.getSize(new T.Vector3());
-  prop.scale.set(6.1/Math.max(.001,size.x),7.6/Math.max(.001,size.y),7.6/Math.max(.001,size.y));
-  prop.position.set(-(bounds.min.x+bounds.max.x)/2*prop.scale.x,-bounds.min.y*prop.scale.y,-(bounds.min.z+bounds.max.z)/2*prop.scale.z);
+export function createCityWallGateDoor(_template:T.Group,openingWidth=6.1,doorHeight=7.6){
+  // Generate the approved procedural leaves at their final dimensions. The
+  // hinge bones then animate geometry with no nonuniform parent scale.
+  const prop=createCityChurchDoor(openingWidth,doorHeight);
+  const bounds=new T.Box3().setFromObject(prop,true);
+  prop.position.set(-(bounds.min.x+bounds.max.x)/2,-bounds.min.y,-(bounds.min.z+bounds.max.z)/2);
   prop.updateMatrixWorld(true);
   setCityWallGateInward(prop,1);
   prop.name='Portão da cidade';prop.userData.cityObject=true;prop.userData.sharedCityGeometry=true;
-  prop.userData.alwaysVisibleCityGate=true;prop.userData.assetSource='/models/city/props/church-door.glb';
+  prop.userData.alwaysVisibleCityGate=true;prop.userData.assetSource='code:CityChurchDoor';
   prop.traverse(child=>{if(child instanceof T.Mesh)child.castShadow=child.receiveShadow=true;});
   return prop;
 }
@@ -267,24 +268,45 @@ export function addCityWallGateTorches(building:T.Group){
 export function addCityWallGateDoor(building:T.Group){
   void loadCityPropTemplate('church-door').then(template=>{
     if(!building.parent)return;
-    const prop=createCityWallGateDoor(template);building.add(prop);
+    const openingWidth=building.userData.wallGateOpeningWidth??6.2,doorHeight=building.userData.wallGateDoorHeight??7.6;
+    const prop=createCityWallGateDoor(template,openingWidth-.1,doorHeight);building.add(prop);
     building.userData.setWallGateInward=(sign:number)=>setCityWallGateInward(prop,sign);
     building.userData.setWallGateInward(building.userData.wallGateInwardSign??1);
-    const opening={y:0,z:0,width:6.2,height:7.7,label:'portão da muralha'};
+    const opening={y:0,z:0,width:openingWidth,height:doorHeight+.1,label:'portão da muralha'};
     registerChurchDoor(building,prop,opening);
     const collider=building.userData.localColliders.at(-1) as number[];
     const originalY=prop.position.y,originalScaleY=prop.scale.y;
     const setFloor=(floorY:number)=>{
       // Keep the arch crown fixed; the door threshold rests on city paving.
-      const floor=T.MathUtils.clamp(floorY,0,7.5),ratio=(7.6-floor)/7.6;
+      const floor=T.MathUtils.clamp(floorY,0,doorHeight-.1),ratio=(doorHeight-floor)/doorHeight;
       prop.scale.y=originalScaleY*ratio;prop.position.y=originalY*ratio+floor;
-      opening.y=floor;opening.height=7.7-floor;collider[1]=floor;
+      opening.y=floor;opening.height=doorHeight+.1-floor;collider[1]=floor;
       building.userData.colliderRevision=(building.userData.colliderRevision??0)+1;
     };
     building.userData.setWallGateFloor=setFloor;
     setFloor(building.userData.wallGateFloorY??0);
   }).catch(error=>console.error('Não foi possível carregar portão da muralha',error));
 }
+export function addCityFacadeWindows(building:T.Group){
+  if(building.userData.cityFacadeWindows)return;
+  building.userData.cityFacadeWindows=true;
+  const rawKind=building.name.slice('Cidade:'.length);
+  const windowList=(building.userData.windows??[]) as Array<{x:number;y:number;z:number;rotation:number}>;
+  for(const window of windowList){
+    const {x,y,z,rotation}=window,normalX=Math.sin(rotation),normalZ=Math.cos(rotation);
+    const frame=cityWindowTemplate().clone(true),frameBounds=new T.Box3().setFromObject(frame),frameSize=frameBounds.getSize(new T.Vector3());
+    frame.scale.set(CITY_WINDOW_WIDTH/frameSize.x,CITY_WINDOW_HEIGHT/frameSize.y,CITY_WINDOW_DEPTH/frameSize.z);
+    frame.position.set(x+normalX*CITY_WINDOW_OFFSET,y-CITY_WINDOW_HEIGHT/2,z+normalZ*CITY_WINDOW_OFFSET);frame.rotation.y=rotation;
+    frame.name='Objeto medieval: village-window';frame.userData.cityObject=true;frame.userData.sharedCityGeometry=true;frame.userData.assetSource='procedural:city-window';
+    building.add(frame);
+    const curtain=createCityCurtain(),curtainBounds=new T.Box3().setFromObject(curtain),curtainSize=curtainBounds.getSize(new T.Vector3());
+    curtain.scale.set(2.15/curtainSize.x,2.2/curtainSize.y,.18/curtainSize.z);
+    curtain.position.set(x-normalX*.4,y-1.1,z-normalZ*.4);curtain.rotation.y=rotation+Math.PI;
+    curtain.name=`Cortina da ${rawKind}`;curtain.userData.cityObject=true;curtain.userData.sharedCityGeometry=true;
+    building.add(curtain);
+  }
+}
+
 export function addCityProps(building:T.Group,index:number){
   if(building.name==='Cidade:fountain'){addCityFountain(building);return;}
   if(building.name==='Cidade:market'){addMarketStalls(building,index);return;}
@@ -355,7 +377,7 @@ export function addCityProps(building:T.Group,index:number){
       building.add(prop);if(!door)registerCityInteriorProp(building,prop);scheduleCityPropBatch(building);building.userData.colliderRevision=(building.userData.colliderRevision??0)+1;
     }).catch(error=>console.error('Não foi possível carregar objeto medieval',error));
   };
-  const w=info.width,d=info.depth,kind=building.name.slice('Cidade:'.length);
+  const w=info.width,d=info.depth,rawKind=building.name.slice('Cidade:'.length),kind=rawKind==='wood-house'?'house':rawKind;
   if(kind!=='church')put('village-door','',info.doorHeight,0,d/2+.12,0);
   // Fit supplied static props in building coordinates, keeping stairs walkable.
   const fitted=(pack:string,width:number,height:number,depth:number,x:number,y:number,z:number,rotation=0,solid=false,checkStorage=false)=>{
@@ -371,17 +393,24 @@ export function addCityProps(building:T.Group,index:number){
       }
       if(pack==='bed'){prop.userData.cityBedAnchor=cityBedAnchor(prop,size);if(!building.userData.innArchitecture)building.userData.npcBed=prop.userData.cityBedAnchor;}
       if(solid){prop.updateMatrixWorld(true);const b=new T.Box3().setFromObject(prop);building.userData.localColliders.push([...b.min.toArray(),...b.max.toArray()]);}
-      building.add(prop);registerCityInteriorProp(building,prop);scheduleCityPropBatch(building);building.userData.colliderRevision=(building.userData.colliderRevision??0)+1;
+      building.add(prop);
+      if(pack!=='curtain'){
+        registerCityInteriorProp(building,prop);
+        scheduleCityPropBatch(building);
+      }
+      building.userData.colliderRevision=(building.userData.colliderRevision??0)+1;
       return prop;
     };
     // Facade geometry is ready before this building is parented to the scene.
     // Procedural windows must not wait behind downloaded furniture in the queue.
     if(pack==='village-window')return Promise.resolve(place(cityWindowTemplate()));
     const local=new T.Vector3(x,y,z);
-    const ready=pack==='bed'
+    const ready=pack==='curtain'
+      ?loadCityPropTemplate(pack)
+      :pack==='bed'
       ?loadCityPropTemplate(pack).then(async template=>{await waitForCityPropSlot(building);return template;})
       :loadCityInteriorProp(building,local,()=>loadCityPropTemplate(pack));
-    return ready.then(template=>building.parent?place(template):undefined)
+    return ready.then(template=>place(template))
       .catch(error=>console.error(`Não foi possível carregar ${pack}`,error));
   };
   if(building.userData.innArchitecture){
@@ -404,8 +433,9 @@ export function addCityProps(building:T.Group,index:number){
       }
       // Keep the chair against the right wall, facing inward, with the doorway clear.
       fitted('chair',.75,1.1,.75,x+width/2-.465,y,-2.3,-Math.PI/2,true);
-      const rug=new T.Mesh(new T.BoxGeometry(Math.min(width-1,5),.015,3),bedroomRugMaterials.field);
-      rug.position.set(x,y+.02,z+1.7);rug.receiveShadow=true;rug.userData.cityObject=true;rug.userData.sharedCityGeometry=true;building.add(rug);registerCityInteriorProp(building,rug);
+      const rugWidth=Math.min(width-1,5),rugDepth=Math.min(room.depth-1,3);
+      const rug=new T.Mesh(new T.BoxGeometry(rugWidth,.015,rugDepth),bedroomRugMaterials.field);
+      rug.position.set(x,y+.02,z);rug.receiveShadow=true;rug.userData.cityObject=true;rug.userData.sharedCityGeometry=true;building.add(rug);registerCityInteriorProp(building,rug);
     }
     const doorPlacements=[...rooms.map(room=>({x:room.x,z:0,y:room.y,width:1.8,height:3.4,label:room.owner==='Selena'?'porta do quarto da Selena':room.vip?'porta da suíte nobre':`porta do ${room.name.toLowerCase()}`})),{...building.userData.innOffice,label:'porta do escritório da Selena'}];
     for(const opening of doorPlacements)void loadCityPropTemplate('village-door').then(async template=>{
@@ -530,7 +560,7 @@ export function addCityProps(building:T.Group,index:number){
     });
     // Woven rug: a thin border, inset field, and restrained geometric motifs.
     const rug=new T.Group(),rugWidth=Math.min(6,width*.62),rugDepth=Math.min(4.6,depth*.34);
-    rug.name='Tapete do quarto';rug.position.set(x+.25,y+.025,z+.3);
+    rug.name='Tapete do quarto';rug.position.set(x,y+.025,z);
     rug.userData.cityObject=true;rug.userData.batchableCityProp=true;rug.userData.sharedCityGeometry=true;
     const rugPiece=(rw:number,rd:number,rx:number,rz:number,ry:number,material:T.Material)=>{
       const mesh=new T.Mesh(new T.BoxGeometry(rw,.012,rd),material);
@@ -563,11 +593,7 @@ export function addCityProps(building:T.Group,index:number){
     }
   }
 
-  for(const window of building.userData.windows??[]){
-    const {x,y,z,rotation}=window,normalX=Math.sin(rotation),normalZ=Math.cos(rotation);
-    fitted('village-window',CITY_WINDOW_WIDTH,CITY_WINDOW_HEIGHT,CITY_WINDOW_DEPTH,x+normalX*CITY_WINDOW_OFFSET,y-CITY_WINDOW_HEIGHT/2,z+normalZ*CITY_WINDOW_OFFSET,rotation);
-    fitted('curtain',2.15,2.2,.18,x-normalX*.4,y-1.1,z-normalZ*.4,rotation+Math.PI);
-  }
+  addCityFacadeWindows(building);
   if(['shop','weapons','potions','guild','inn'].includes(kind))addShopCratePile(building);
   addCityShopDisplays(building);
   const random=cityRandom(index),profile=facadeProfile(index);
@@ -583,7 +609,9 @@ export function addCityProps(building:T.Group,index:number){
   }
   if(kind!=='warehouse'&&['plant','full'].includes(profile))put('potted-plant','',.65+random()*.15,-side*2.4,d/2+.95);
   if(kind!=='warehouse'&&profile!=='empty'&&random()<.18)put('haystack','',.9,-w/2-1.4,-d*.35);
-  if(kind==='tavern'||(kind==='inn'&&random()<.25))put('wagon','',1.8,-w*.3,d/2+4,.08,Math.PI/2);
+  // A wagon is a standalone Build asset. It must not become a child of the
+  // tavern, otherwise selecting/moving the tavern moves the wagon with it.
+  if(kind==='inn'&&random()<.25)put('wagon','',1.8,-w*.3,d/2+4,.08,Math.PI/2);
   if(kind==='house'&&profile!=='empty'&&random()<.22)put('wall-torch','',.72,info.doorWidth/2+.85,d/2+.58,2.65);
   const rearPile=profile==='empty'?0:random();
   const furnishedInterior=['tavern','inn','shop','weapons','potions','guild'].includes(kind);
