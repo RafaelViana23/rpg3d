@@ -21,10 +21,11 @@ function createArchedDoor(width:number,top:number,name:string){
   const panel=new T.ExtrudeGeometry(shape,{depth:.09,bevelEnabled:false,steps:1});panel.translate(0,0,-.045);add(panel,CITY_WOOD_COLOR);
   const box=(x:number,y:number,z:number,w:number,h:number,d:number,color:string)=>{const g=new T.BoxGeometry(w,h,d);g.translate(x,y,z);add(g,color);};
   // Shallow seams keep the planked silhouette without a separate mesh per board.
-  for(let i=1;i<5;i++){const x=side*radius*i/5,h=spring+archRise*Math.sqrt(Math.max(0,1-(x/radius)*(x/radius)));box(x,h/2,.046,.009,h,.003,'#58452e');}
-  for(const y of [.42,1.2,1.98])box(side*radius/2,y,.063,radius-.1,.075,.035,'#30343a');
+  for(let i=1;i<5;i++){const x=side*radius*i/5,h=spring+archRise*Math.sqrt(Math.max(0,1-(x/radius)*(x/radius)));box(x,h/2,.046,.009,h,.003,'#58452e');box(x,h/2,-.046,.009,h,.003,'#58452e');}
+  for(const y of [.42,1.2,1.98]){box(side*radius/2,y,.063,radius-.1,.075,.035,'#30343a');box(side*radius/2,y,-.063,radius-.1,.075,.035,'#30343a');}
   for(const x of [.25,.58,.91])for(const y of [.76,.98,1.48,1.7]){
    const rivet=new T.PlaneGeometry(.027,.027);rivet.rotateZ(Math.PI/4);rivet.translate(side*x,y,.085);add(rivet,'#202329');
+   const backRivet=new T.PlaneGeometry(.027,.027);backRivet.rotateY(Math.PI);backRivet.rotateZ(Math.PI/4);backRivet.translate(side*x,y,-.085);add(backRivet,'#202329');
   }
   const geo=mergeGeometries(parts)!;parts.forEach(g=>g.dispose());geo.translate(side*radius,0,0);
   const indices=new Uint16Array(geo.attributes.position.count*4),weights=new Float32Array(geo.attributes.position.count*4);
