@@ -47,7 +47,7 @@ export function streetLanternSites(objects:Iterable<T.Group>){
           const atJunction=a===join+5&&i===0?join:regularAlong;
           const along=atJunction;
           sites.push([-1,1].map(side=>({owner,
-            point:owner.localToWorld(new T.Vector3(vertical?side*edge:along,.14,vertical?along:side*edge)),
+            point:owner.localToWorld(new T.Vector3(vertical?side*edge:along,.2,vertical?along:side*edge)),
             facing:new T.Vector3(vertical?-side:0,0,vertical?0:-side),
           })));
         }
@@ -63,7 +63,7 @@ export function streetLanternSites(objects:Iterable<T.Group>){
   })).flat();
   const circular=all.filter(owner=>owner.userData.fountainPlazaCircle).flatMap(owner=>{
     const inner=owner.userData.fountainPlazaCircle.radius,outer=owner.userData.royalAvenueCircle.radius;
-    return circularPlazaLanterns(inner,outer).map(site=>({owner,point:owner.localToWorld(new T.Vector3(site.x,.14,site.z)),facing:new T.Vector3(site.fx,0,site.fz)}));
+    return circularPlazaLanterns(inner,outer).map(site=>({owner,point:owner.localToWorld(new T.Vector3(site.x,.2,site.z)),facing:new T.Vector3(site.fx,0,site.fz)}));
   });
   // A mouth is reserved for the neighborhood street.  Remove fixtures that
   // would land inside that opening; the adjacent pair remains on the avenue
