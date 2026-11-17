@@ -248,6 +248,21 @@ const HAS_SAVED_BUILD_WORLD = Boolean(getInitialWorldMap());
 // Never replace an existing origin/profile save with a bundled recovery snapshot.
 const worldEditorStore = new WorldEditorStore(BUILD_STORAGE_KEY, getInitialWorldMap());
 const buildState = worldEditorStore.state;
+// Street lanterns are persisted as world assets. Keep their saved height at
+// the avenue datum so a refresh cannot resurrect an old floating transform.
+const STREET_LANTERN_HEIGHT_VERSION = 'street-lantern-world-y02-v1';
+if (localStorage.getItem(STREET_LANTERN_HEIGHT_VERSION) !== '1') {
+  let changed = false;
+  for (const asset of Object.values(buildState.assets)) {
+    if (!asset.streetLantern && asset.buildModel !== 'street-lantern') continue;
+    if (asset.position[1] === .2) continue;
+    asset.position[1] = .2;
+    changed = true;
+  }
+  localStorage.setItem(STREET_LANTERN_HEIGHT_VERSION, '1');
+  if (changed) worldEditorStore.save();
+}
+if (buildState.city['valen-eldoria-dirt-road']) delete buildState.city['valen-eldoria-dirt-road'];
 const openWorld = new OpenWorld(scene, { worldSize: 2048, chunkSize: 128 }, buildState.terrain, buildState.worldPreset);
 // Match the top of the raised avenue paving. Keep the saved street geometry
 // untouched while lifting the player's support point onto its visible surface.
@@ -1851,12 +1866,11 @@ const mapPanel = document.querySelector<HTMLElement>("#worldMap")!,
     document.querySelector<HTMLCanvasElement>("#worldMap canvas")!;
 const inventoryMapCanvas=document.querySelector<HTMLCanvasElement>("#inventoryMapCanvas")!;
 const bar = setBarPercent;
-function updateStaminaHud(active = false) {
+function updateStaminaHud(_active = false) {
   const maximum = equipmentSystem.totalStats().stamina;
   bar("#hudStaminaBar", (inventoryState.stamina / maximum) * 100);
-  document
-    .querySelector(".action-stamina")!
-    .classList.toggle("contextual-hidden", !active);
+  const text=document.querySelector("#hudMagicText");
+  if(text)text.textContent=`${Math.round(inventoryState.stamina)} / ${maximum}`;
 }
 function refreshHud() {
   const stats = equipmentSystem.totalStats(),
@@ -2564,11 +2578,16 @@ function updateIceSpell(delta: number) {
     }
   }
 }
-const iceButton = document.querySelector<HTMLButtonElement>("[data-ice-spell]")!;
-iceButton.addEventListener("pointerdown", (event) => { event.preventDefault(); startIceSpell(); });
-iceButton.addEventListener("pointerup", stopIceSpell);
-iceButton.addEventListener("pointerleave", stopIceSpell);
-iceButton.addEventListener("pointercancel", stopIceSpell);
+const activateQuickSlot=(index:number)=>{
+  const id=inventoryState.quickSlots[index];
+  if(!id)return;
+  if(id.startsWith("spell:")){
+    const spell=id.slice(6) as SpellName|"ice";
+    if(spell==="ice")startIceSpell(); else castSpell(spell);
+    return;
+  }
+  const item=ITEM_BY_ID.get(id);if(item?.category==="consumable")useConsumable(item);
+};
 document
   .querySelectorAll<HTMLButtonElement>("[data-quick-slot]")
   .forEach((button) => {
@@ -2577,9 +2596,7 @@ document
       equipmentSystem.refreshQuickSlots();
     });
     button.addEventListener("dblclick", () => {
-      const id = inventoryState.quickSlots[Number(button.dataset.quickSlot)],
-        item = id ? ITEM_BY_ID.get(id) : undefined;
-      if (item) useConsumable(item);
+      activateQuickSlot(Number(button.dataset.quickSlot));
     });
     button.addEventListener("dragover", (event) => {
       const item = equipmentSystem.draggedItem ? ITEM_BY_ID.get(equipmentSystem.draggedItem.id) : undefined;
@@ -2601,6 +2618,10 @@ document
       }
     });
   });
+document.querySelectorAll<HTMLButtonElement>("[data-spell-slot]").forEach(button=>button.addEventListener("click",()=>{
+  inventoryState.quickSlots[equipmentSystem.selectedQuickSlot]=`spell:${button.dataset.spellSlot}`;
+  saveInventory(inventoryState);equipmentSystem.refreshQuickSlots();
+}));
 document
   .querySelectorAll<HTMLButtonElement>("[data-spell]")
   .forEach((button) =>
@@ -2646,8 +2667,8 @@ document
       if(tab==="quests")renderQuestJournal(document.querySelector<HTMLElement>('[data-inventory-panel="quests"]')!,inventoryState,cityResidents.population,refreshCityInventory);
       avatarTarget = tab === "female" ? "female" : "player";
       avatarCamera.layers.set(avatarTarget === "female" ? 3 : 2);
-      document.querySelector(".inventory-content")?.classList.toggle("page-open",tab==="settings"||tab==="map"||tab==="quests");
-      document.querySelector(".inventory-window")?.classList.toggle("page-open",tab==="settings"||tab==="map"||tab==="quests");
+      document.querySelector(".inventory-content")?.classList.toggle("page-open",tab==="settings"||tab==="map"||tab==="quests"||tab==="spells");
+      document.querySelector(".inventory-window")?.classList.toggle("page-open",tab==="settings"||tab==="map"||tab==="quests"||tab==="spells");
       document
         .querySelectorAll("[data-inventory-tab]")
         .forEach((value) => value.classList.toggle("active", value === button));
@@ -3199,14 +3220,7 @@ window.addEventListener("keydown", (event) => {
   }
   if (!event.repeat && event.code.startsWith("Digit")) {
     const number = Number(event.code.slice(-1));
-    if (number <= 4) {
-      const id = inventoryState.quickSlots[number - 1],
-        item = id ? ITEM_BY_ID.get(id) : undefined;
-      if (item) useConsumable(item);
-    } else if (number === 5) castSpell("heal");
-    else if (number === 6) castSpell("firebolt");
-    else if (number === 7) castSpell("lightning");
-    else if (number === 8) startIceSpell();
+    if(number<=6)activateQuickSlot(number-1);
     return;
   }
   if(!event.repeat&&event.code==='KeyR'){
@@ -3251,7 +3265,7 @@ window.addEventListener("keydown", (event) => {
 });
 window.addEventListener("keyup", (event) => {
   pressed.delete(event.code);
-  if (event.code === "Digit8") stopIceSpell();
+  if(event.code.startsWith("Digit"))stopIceSpell();
 });
 window.addEventListener("blur", () => pressed.clear());
 
@@ -3705,7 +3719,15 @@ let lastScheduledWolfHowl="";
 let lastWorldClock="";
 const mapPhaseLabel=document.querySelector("#mapPhase")!;
 const inventoryMapPhaseLabel=document.querySelector("#inventoryMapPhase")!;
+const compassDirection=new THREE.Vector3();
 function updateWorld(delta: number) {
+  const compass=document.querySelector<HTMLElement>("#compassRose");
+  if(compass){
+    camera.getWorldDirection(compassDirection);
+    const heading=(THREE.MathUtils.radToDeg(Math.atan2(compassDirection.x,compassDirection.z))+360)%360;
+    const signed=heading>180?heading-360:heading;
+    compass.style.setProperty("--compass-shift",`${-signed*(32/22.5)}px`);
+  }
   if (!timePaused) inventoryState.worldTime += (delta / 480) * timeSpeed;
   if (inventoryState.worldTime >= 1) {
     const elapsedDays = Math.floor(inventoryState.worldTime);

@@ -5,6 +5,8 @@ import * as T from 'three';
 import { loadCityPropTemplate } from './CityProps';
 import { addStreetLanternLight } from './CityFirelight';
 
+const STREET_LANTERN_WORLD_Y = .2;
+
 /** The Stone meshes also contain high fittings. Anchor/collide only the foot. */
 export function streetLanternBaseBounds(root:T.Group,space:T.Object3D=root){
   root.updateWorldMatrix(true,true);space.updateWorldMatrix(true,false);
@@ -47,7 +49,7 @@ export function streetLanternSites(objects:Iterable<T.Group>){
           const atJunction=a===join+5&&i===0?join:regularAlong;
           const along=atJunction;
           sites.push([-1,1].map(side=>({owner,
-            point:owner.localToWorld(new T.Vector3(vertical?side*edge:along,.2,vertical?along:side*edge)),
+            point:owner.localToWorld(new T.Vector3(vertical?side*edge:along,0,vertical?along:side*edge)).setY(STREET_LANTERN_WORLD_Y),
             facing:new T.Vector3(vertical?-side:0,0,vertical?0:-side),
           })));
         }
@@ -63,7 +65,7 @@ export function streetLanternSites(objects:Iterable<T.Group>){
   })).flat();
   const circular=all.filter(owner=>owner.userData.fountainPlazaCircle).flatMap(owner=>{
     const inner=owner.userData.fountainPlazaCircle.radius,outer=owner.userData.royalAvenueCircle.radius;
-    return circularPlazaLanterns(inner,outer).map(site=>({owner,point:owner.localToWorld(new T.Vector3(site.x,.2,site.z)),facing:new T.Vector3(site.fx,0,site.fz)}));
+    return circularPlazaLanterns(inner,outer).map(site=>({owner,point:owner.localToWorld(new T.Vector3(site.x,0,site.z)).setY(STREET_LANTERN_WORLD_Y),facing:new T.Vector3(site.fx,0,site.fz)}));
   });
   // A mouth is reserved for the neighborhood street.  Remove fixtures that
   // would land inside that opening; the adjacent pair remains on the avenue
