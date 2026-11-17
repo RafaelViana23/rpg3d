@@ -250,18 +250,14 @@ const worldEditorStore = new WorldEditorStore(BUILD_STORAGE_KEY, getInitialWorld
 const buildState = worldEditorStore.state;
 // Street lanterns are persisted as world assets. Keep their saved height at
 // the avenue datum so a refresh cannot resurrect an old floating transform.
-const STREET_LANTERN_HEIGHT_VERSION = 'street-lantern-world-y02-v1';
-if (localStorage.getItem(STREET_LANTERN_HEIGHT_VERSION) !== '1') {
-  let changed = false;
-  for (const asset of Object.values(buildState.assets)) {
-    if (!asset.streetLantern && asset.buildModel !== 'street-lantern') continue;
-    if (asset.position[1] === .2) continue;
-    asset.position[1] = .2;
-    changed = true;
-  }
-  localStorage.setItem(STREET_LANTERN_HEIGHT_VERSION, '1');
-  if (changed) worldEditorStore.save();
+let changedStreetLanternHeight = false;
+for (const asset of Object.values(buildState.assets)) {
+  if (!asset.streetLantern && asset.buildModel !== 'street-lantern') continue;
+  if (asset.position[1] === .2) continue;
+  asset.position[1] = .2;
+  changedStreetLanternHeight = true;
 }
+if (changedStreetLanternHeight) worldEditorStore.save();
 if (buildState.city['valen-eldoria-dirt-road']) delete buildState.city['valen-eldoria-dirt-road'];
 const openWorld = new OpenWorld(scene, { worldSize: 2048, chunkSize: 128 }, buildState.terrain, buildState.worldPreset);
 // Match the top of the raised avenue paving. Keep the saved street geometry
